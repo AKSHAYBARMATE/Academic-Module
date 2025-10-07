@@ -6,7 +6,7 @@ services:
     image: academic:latest
     container_name: academic
     ports:
-      - "8086:8086"
+      - "8087:8087"
     networks:
       - updated_orgadmin_rmscadminnetwork
     environment:
