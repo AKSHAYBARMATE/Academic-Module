@@ -1,8 +1,8 @@
 services:
   academic:
     build:
-      context: src/main/java/com/academic
-      dockerfile: Dockerfile
+      context: .                          # 👈 root folder (where pom.xml is)
+      dockerfile: Dockerfile              # 👈 or Dockerfile.academic if that’s the filename
     image: academic:latest
     container_name: academic
     ports:
@@ -21,7 +21,7 @@ services:
       # Spring Actuator Endpoints
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,eureka,shutdown
 
-      # ✅ External MySQL DB Configuration (update host if needed)
+      # ✅ External MySQL DB Configuration
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/schoolerp?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
