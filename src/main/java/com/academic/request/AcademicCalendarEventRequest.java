@@ -1,8 +1,10 @@
 package com.academic.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
+import java.util.List;
 
 // DTO for creating and updating an academic calendar event
 public record AcademicCalendarEventRequest(
@@ -13,14 +15,13 @@ public record AcademicCalendarEventRequest(
         LocalDate date,
 
         @NotBlank(message = "Type is required")
-        String type, // e.g., Examination, Event
+        String type,
 
-        String classesInvolved, // Optional
+        @NotEmpty(message = "At least one class is required")
+        List<Long> classIds, // from dropdown
 
-        String duration, // Optional
+        String duration,
 
-        @NotNull(message = "Status is required")
+        @NotBlank(message = "Status is required")
         String status
-
-) {
-}
+) {}

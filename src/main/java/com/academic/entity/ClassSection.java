@@ -21,12 +21,10 @@ public class ClassSection {
     private Long id;
 
     @Column(nullable = false)
-    private String className;
-
-    private String classId;
+    private Integer classId;
 
     @Column(nullable = false)
-    private String section;
+    private Integer section;
 
     @Column(nullable = false)
     private String classTeacher;

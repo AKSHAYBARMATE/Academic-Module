@@ -1,9 +1,12 @@
 package com.academic.service;
 
 import com.academic.entity.ClassSection;
+import com.academic.entity.CommonMaster;
+import com.academic.exception.CustomException;
 import com.academic.exception.ResourceNotFoundException;
 import com.academic.mapper.ClassSectionMapper;
 import com.academic.repository.ClassSectionRepository;
+import com.academic.repository.CommonMasterRepository;
 import com.academic.request.ClassSectionRequest;
 import com.academic.response.ClassSectionResponse;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClassSectionServiceImpl implements ClassSectionService {
 
     private final ClassSectionRepository repository;
+    private final CommonMasterRepository commonMasterRepository; // to resolve names
 
     /**
      * Create new ClassSection
@@ -28,13 +32,16 @@ public class ClassSectionServiceImpl implements ClassSectionService {
     public ClassSectionResponse create(ClassSectionRequest request) {
         log.info("Creating new ClassSection: {}", request);
 
+        // Validate class and section
+        validateClassAndSection(request.getClassId(), request.getSection());
+
         ClassSection entity = ClassSectionMapper.toEntity(request);
         entity.setIsDeleted(false);
 
         ClassSection saved = repository.save(entity);
         log.info("ClassSection created successfully with id: {}", saved.getId());
 
-        return ClassSectionMapper.toResponse(saved);
+        return toResponseWithNames(saved);
     }
 
     /**
@@ -47,12 +54,14 @@ public class ClassSectionServiceImpl implements ClassSectionService {
         ClassSection existing = repository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ClassSection not found with id: " + id));
 
+        validateClassAndSection(request.getClassId(), request.getSection());
+
         ClassSectionMapper.updateEntity(existing, request);
 
         ClassSection updated = repository.save(existing);
         log.info("ClassSection updated successfully with id: {}", updated.getId());
 
-        return ClassSectionMapper.toResponse(updated);
+        return toResponseWithNames(updated);
     }
 
     /**
@@ -82,11 +91,11 @@ public class ClassSectionServiceImpl implements ClassSectionService {
         ClassSection entity = repository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ClassSection not found with id: " + id));
 
-        return ClassSectionMapper.toResponse(entity);
+        return toResponseWithNames(entity);
     }
 
     /**
-     * Get all (paged) - only non-deleted records
+     * Get all (paged)
      */
     @Override
     public Page<ClassSectionResponse> getAll(int page, int size) {
@@ -96,8 +105,45 @@ public class ClassSectionServiceImpl implements ClassSectionService {
 
         Page<ClassSection> result = repository.findByIsDeletedFalse(pageable);
 
-        return result.map(ClassSectionMapper::toResponse);
+        return result.map(this::toResponseWithNames);
     }
 
+    /**
+     * Convert entity to response including resolved names
+     */
+    private ClassSectionResponse toResponseWithNames(ClassSection entity) {
+        String className = commonMasterRepository.findByIdAndStatusTrue(entity.getClassId())
+                .map(cm -> cm.getData())  // ✅ lambda allows Java to infer type
+                .orElse("Unknown Class");
+
+        String sectionName = commonMasterRepository.findByIdAndStatusTrue(entity.getSection())
+                .map(cm -> cm.getData())
+                .orElse("Unknown Section");
+
+        return ClassSectionResponse.builder()
+                .id(entity.getId())
+                .classId(entity.getClassId())
+                .className(className)
+                .sectionId(entity.getSection())
+                .sectionName(sectionName)
+                .classTeacher(entity.getClassTeacher())
+                .students(entity.getStudents())
+                .roomNo(entity.getRoomNo())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * Validate that classId and section exist in common master
+     */
+    private void validateClassAndSection(Integer classId, Integer sectionId) {
+        if (classId == null || !commonMasterRepository.existsByIdAndStatusTrue(classId)) {
+            throw new CustomException("Invalid Class", "INVALID_CLASS", "Selected class does not exist or is inactive.");
+        }
+        if (sectionId == null || !commonMasterRepository.existsByIdAndStatusTrue(sectionId)) {
+            throw new CustomException("Invalid Section", "INVALID_SECTION", "Selected section does not exist or is inactive.");
+        }
+    }
 }
 

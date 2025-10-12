@@ -1,8 +1,11 @@
 package com.academic.entity;
 
 
+import com.academic.utility.LongListToJsonConverter;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.List;
 
 @Entity
 @Table(name = "teacher_assignments")
@@ -25,8 +28,9 @@ public class TeacherAssignment {
     @Column(nullable = false)
     private String subject;
 
-    @Column(nullable = false)
-    private String classes; // Store as comma-separated string. For normalization, use a join table.
+    @Column(name = "classes_involved", columnDefinition = "json")
+    @Convert(converter = LongListToJsonConverter.class)
+    private List<Long> classesInvolved;
 
     @Column(nullable = false)
     private Integer loadHours;

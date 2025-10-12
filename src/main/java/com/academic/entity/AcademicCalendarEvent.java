@@ -1,12 +1,14 @@
 package com.academic.entity;
 
+import com.academic.utility.LongListToJsonConverter;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
+import java.util.List;
 
 @Entity
 @Table(name = "academic_calendar_events")
-@Data // Lombok annotation for getters, setters, toString, etc.
+@Data
 public class AcademicCalendarEvent {
 
     @Id
@@ -17,16 +19,18 @@ public class AcademicCalendarEvent {
     private String eventName;
 
     @Column(nullable = false)
-    private LocalDate date; // Use LocalDate for the event date
+    private LocalDate date;
 
     @Column(nullable = false)
-    private String type; // e.g., Examination, Event, Meeting, Holiday
+    private String type;
 
-    private String classesInvolved; // e.g., All Classes, Class 6-12
+    @Column(name = "classes_involved", columnDefinition = "json")
+    @Convert(converter = LongListToJsonConverter.class)
+    private List<Long> classesInvolved;
 
-    private String duration; // e.g., 2 weeks, 1 day, 2 months
+    private String duration;
 
     private String status;
 
-    private boolean isDeleted = false; // Soft delete flag, matching the reference style
+    private boolean isDeleted = false;
 }

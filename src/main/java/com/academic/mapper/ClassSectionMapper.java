@@ -1,6 +1,8 @@
 package com.academic.mapper;
 
 import com.academic.entity.ClassSection;
+import com.academic.entity.CommonMaster;
+import com.academic.repository.CommonMasterRepository;
 import com.academic.request.ClassSectionRequest;
 import com.academic.response.ClassSectionResponse;
 
@@ -8,7 +10,6 @@ public class ClassSectionMapper {
 
     public static ClassSection toEntity(ClassSectionRequest request) {
         return ClassSection.builder()
-                .className(request.getClassName())
                 .classId(request.getClassId())
                 .section(request.getSection())
                 .classTeacher(request.getClassTeacher())
@@ -19,7 +20,6 @@ public class ClassSectionMapper {
     }
 
     public static void updateEntity(ClassSection entity, ClassSectionRequest request) {
-        entity.setClassName(request.getClassName());
         entity.setClassId(request.getClassId());
         entity.setSection(request.getSection());
         entity.setClassTeacher(request.getClassTeacher());
@@ -27,12 +27,23 @@ public class ClassSectionMapper {
         entity.setRoomNo(request.getRoomNo());
     }
 
-    public static ClassSectionResponse toResponse(ClassSection entity) {
+    public static ClassSectionResponse toResponse(ClassSection entity, CommonMasterRepository commonMasterRepository) {
+        // Fetch class name from CommonMaster
+        String className = commonMasterRepository.findByIdAndStatusTrue(entity.getClassId())
+                .map(CommonMaster::getData)
+                .orElse("Unknown Class");
+
+        // Fetch section name from CommonMaster
+        String sectionName = commonMasterRepository.findByIdAndStatusTrue(entity.getSection())
+                .map(CommonMaster::getData)
+                .orElse("Unknown Section");
+
         return ClassSectionResponse.builder()
                 .id(entity.getId())
-                .className(entity.getClassName())
+                .className(className)          // Name from CommonMaster
                 .classId(entity.getClassId())
-                .section(entity.getSection())
+                .sectionName(sectionName)
+                .sectionId(entity.getSection())// Section name from CommonMaster
                 .classTeacher(entity.getClassTeacher())
                 .students(entity.getStudents())
                 .roomNo(entity.getRoomNo())
@@ -40,4 +51,5 @@ public class ClassSectionMapper {
                 .updatedAt(entity.getUpdatedAt())
                 .build();
     }
+
 }

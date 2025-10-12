@@ -10,9 +10,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class ClassSectionRequest {
-    private String className;
-    private String classId;
-    private String section;
+    private Integer classId;
+    private Integer section;
     private String classTeacher;
     private Integer students;
     private String roomNo;

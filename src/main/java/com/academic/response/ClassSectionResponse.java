@@ -13,9 +13,10 @@ import java.time.LocalDateTime;
 @Builder
 public class ClassSectionResponse {
     private Long id;
-    private String className;
-    private String classId;
-    private String section;
+    private String className;     // resolved from common master
+    private Integer classId;      // original ID
+    private String sectionName;   // resolved from common master
+    private Integer sectionId;    // original ID
     private String classTeacher;
     private Integer students;
     private String roomNo;
@@ -23,3 +24,4 @@ public class ClassSectionResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
+

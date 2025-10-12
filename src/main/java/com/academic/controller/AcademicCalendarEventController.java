@@ -5,6 +5,7 @@ import com.academic.response.AcademicCalendarEventResponse;
 import com.academic.response.StandardResponse;
 import com.academic.service.AcademicCalendarEventService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,15 +34,20 @@ public class AcademicCalendarEventController {
     }
 
     @GetMapping("/getAllEvents")
-    public ResponseEntity<StandardResponse<List<AcademicCalendarEventResponse>>> findAll(
+    public ResponseEntity<StandardResponse<Page<AcademicCalendarEventResponse>>> findAll(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        List<AcademicCalendarEventResponse> response = service.findAll(search, type, status, date);
-        return ResponseEntity.ok(StandardResponse.success(response, "Academic events fetched successfully"));
+        Page<AcademicCalendarEventResponse> response = service.findAll(search, type, status, date, page, size);
+        return ResponseEntity.ok(
+                StandardResponse.success(response, "Academic events fetched successfully")
+        );
     }
+
 
     // --- R - READ BY ID: GET /api/v1/academic-calendar/events/{id} ---
     @GetMapping("/getEventById/{id}")

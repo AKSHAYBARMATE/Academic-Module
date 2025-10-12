@@ -2,14 +2,16 @@ package com.academic.response;
 
 
 import java.time.LocalDate;
+import java.util.List;
 
-// DTO for returning academic calendar event details
 public record AcademicCalendarEventResponse(
         Long id,
         String eventName,
         LocalDate date,
         String type,
-        String classesInvolved,
+        String classesInvolved, // comma-separated string for frontend
+        List<Long> classIds,
         String duration,
         String status
 ) {}
+
