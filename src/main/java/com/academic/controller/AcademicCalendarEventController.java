@@ -15,7 +15,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/academic-module")
+@RequestMapping("/sms/api/v1/academic-module")
 public class AcademicCalendarEventController {
 
     private final AcademicCalendarEventService service;
