@@ -1,6 +1,7 @@
 package com.academic.service;
 
 import com.academic.entity.CommonMaster;
+import com.academic.entity.TimeSlotSubjectMapper;
 import com.academic.entity.TimeTable;
 import com.academic.exception.CustomException;
 import com.academic.exception.ResourceNotFoundException;
@@ -111,11 +112,10 @@ public class TimeTableServiceImpl implements TimeTableService {
         TimeTable existing = timeTableRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TimeTable not found with id: " + id));
 
-        // Check for duplicate name for another timetable
+        // ✅ Check for duplicate name excluding current record
         boolean exists = timeTableRepository.existsByTimetableNameAndClassIdAndSectionIdAndIsDeletedFalseAndIdNot(
                 request.getTimetableName(), request.getClassId(), request.getSectionId(), id);
-        // Throwing a duplicate exception in your service
-        if (timeTableRepository.existsByTimetableNameAndIsDeletedFalse(request.getTimetableName())) {
+        if (exists) {
             throw new CustomException(
                     "Timetable with the same name already exists",
                     "DUPLICATE_RESOURCE",
@@ -123,20 +123,34 @@ public class TimeTableServiceImpl implements TimeTableService {
             );
         }
 
+        // ✅ Update parent fields
         existing.setTimetableName(request.getTimetableName());
         existing.setClassId(request.getClassId());
         existing.setSectionId(request.getSectionId());
         existing.setDaysCoveredId(request.getDaysCoveredId());
 
-        // Clear old slots and set new ones
+        // ✅ Proper orphan-safe update
         if (existing.getSlots() != null) {
-            existing.getSlots().clear();
+            existing.getSlots().clear(); // clears the same collection instance
         }
-        existing.setSlots(TimeTableMapper.toEntityList(request.getSlots(), existing));
+
+        if (request.getSlots() != null && !request.getSlots().isEmpty()) {
+            request.getSlots().forEach(slotReq -> {
+                TimeSlotSubjectMapper slot = new TimeSlotSubjectMapper();
+                slot.setStartTime(slotReq.getStartTime());
+                slot.setEndTime(slotReq.getEndTime());
+                slot.setSubjectId(slotReq.getSubjectId());
+                slot.setTeacherName(slotReq.getTeacherId());
+                slot.setRoom(slotReq.getRoomId());
+                slot.setDay(slotReq.getDay());
+                slot.setTimeTable(existing); // maintain relationship
+                existing.getSlots().add(slot);
+            });
+        }
 
         TimeTable saved = timeTableRepository.save(existing);
 
-        log.info("[{}][{}] Timetable updated id {}", LogContext.getRequestId(), LogContext.getLogId(), saved.getId());
+        log.info("[{}][{}] Timetable updated successfully id {}", LogContext.getRequestId(), LogContext.getLogId(), saved.getId());
 
         Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
                 .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
@@ -144,6 +158,7 @@ public class TimeTableServiceImpl implements TimeTableService {
 
         return TimeTableMapper.toResponse(saved, commonMasterMap);
     }
+
 
 
     @Override
