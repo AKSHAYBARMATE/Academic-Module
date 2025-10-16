@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -40,7 +41,7 @@ public class ExamSetupController {
     }
 
     @GetMapping("/getAllExamSetups")
-    public ResponseEntity<StandardResponse<List<ExamSetupResponse>>> getAll(
+    public ResponseEntity<StandardResponse<Map<String, Object>>> getAll(
             @RequestParam(value = "examName", required = false) String examName,
             @RequestParam(value = "classId", required = false) Long classId,
             @RequestParam(value = "academicId", required = false) Long academicId,
@@ -50,13 +51,12 @@ public class ExamSetupController {
         log.info("API - Get All ExamSetups with filters - examName: {}, classId: {}, academicId: {}, page: {}, size: {}",
                 examName, classId, academicId, page, size);
 
-        List<ExamSetupResponse> list = service.getAllFiltered(examName, classId, academicId, page, size)
-                .getContent();
+        // Call service which already returns StandardResponse<Map<String,Object>>
+        StandardResponse<Map<String, Object>> response = service.getAllFiltered(examName, classId, academicId, page, size);
 
-        return ResponseEntity.ok(
-                StandardResponse.success(list, "Exam setups fetched successfully")
-        );
+        return ResponseEntity.ok(response);
     }
+
 
     @DeleteMapping("/deleteExamSetup/{id}")
     public ResponseEntity<StandardResponse<Void>> delete(@PathVariable Long id) {

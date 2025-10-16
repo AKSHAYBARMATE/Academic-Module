@@ -6,6 +6,7 @@ import com.academic.mapper.ExamSetupMapper;
 import com.academic.repository.ExamSetupRepository;
 import com.academic.request.ExamSetupRequest;
 import com.academic.response.ExamSetupResponse;
+import com.academic.response.StandardResponse;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -102,19 +108,59 @@ public class ExamSetupServiceImpl implements ExamSetupService {
     }
 
     @Override
-    public Page<ExamSetupResponse> getAllFiltered(String examName, Long classId, Long academicId, int page, int size) {
+    public StandardResponse<Map<String, Object>> getAllFiltered(
+            String examName, Long classId, Long academicId, int page, int size) {
+
         log.info("Fetching ExamSetups with filters - examName: {}, classId: {}, academicId: {}, page: {}, size: {}",
                 examName, classId, academicId, page, size);
 
         Pageable pageable = PageRequest.of(page, size);
 
+        // Fetch paginated data
         Page<ExamSetup> examSetups = repository.findAll(
                 filter(examName, classId, academicId),
                 pageable
         );
 
-        return examSetups.map(mapper::toResponse);
+        // Map entities to response DTOs
+        List<ExamSetupResponse> responseList = examSetups.stream()
+                .map(mapper::toResponse)
+                .collect(Collectors.toList());
+
+        // --- Pageable Metadata ---
+        Map<String, Object> sortMap = Map.of(
+                "empty", examSetups.getSort().isEmpty(),
+                "sorted", examSetups.getSort().isSorted(),
+                "unsorted", examSetups.getSort().isUnsorted()
+        );
+
+        Map<String, Object> pageableMap = Map.of(
+                "pageNumber", examSetups.getNumber(),
+                "pageSize", examSetups.getSize(),
+                "sort", sortMap,
+                "offset", examSetups.getPageable().getOffset(),
+                "paged", examSetups.getPageable().isPaged(),
+                "unpaged", examSetups.getPageable().isUnpaged()
+        );
+
+        Map<String, Object> dataMap = new LinkedHashMap<>();
+        dataMap.put("content", responseList);
+        dataMap.put("pageable", pageableMap);
+        dataMap.put("last", examSetups.isLast());
+        dataMap.put("totalPages", examSetups.getTotalPages());
+        dataMap.put("totalElements", examSetups.getTotalElements());
+        dataMap.put("size", examSetups.getSize());
+        dataMap.put("number", examSetups.getNumber());
+        dataMap.put("first", examSetups.isFirst());
+        dataMap.put("numberOfElements", examSetups.getNumberOfElements());
+        dataMap.put("sort", sortMap);
+        dataMap.put("empty", examSetups.isEmpty());
+
+        // Return as StandardResponse with Map
+        return  StandardResponse.success(dataMap, "Subjects fetched successfully");
     }
+
+
 
 
     public static Specification<ExamSetup> filter(String examName, Long classId, Long academicId) {
