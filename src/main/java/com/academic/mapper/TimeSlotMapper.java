@@ -16,6 +16,7 @@ public class TimeSlotMapper {
                 .subjectId(slot.getSubjectId())
                 .teacherId(slot.getTeacherName())
                 .roomId(slot.getRoom())
+                .day(slot.getDay())
                 .build();
     }
 

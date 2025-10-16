@@ -41,7 +41,10 @@ public class TimeSlotSubjectMapper {
     private String teacherName;
 
     @Column
-    private String room; // optional
+    private String room;
+
+    @Column
+    private Integer day;
 
     private Boolean active = true;
 

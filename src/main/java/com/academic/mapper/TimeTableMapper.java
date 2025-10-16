@@ -71,6 +71,7 @@ public class TimeTableMapper {
                 .subjectId(dto.getSubjectId())
                 .teacherName(dto.getTeacherId())
                 .room(dto.getRoomId())
+                .day(dto.getDay())
                 .timeTable(parent)
                 .build();
     }

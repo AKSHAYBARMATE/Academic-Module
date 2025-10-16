@@ -16,5 +16,6 @@ public class TimeSlotResponse {
     private Long subjectId;
     private String teacherId;
     private String roomId;
+    private Integer day;
     private String notes;
 }
