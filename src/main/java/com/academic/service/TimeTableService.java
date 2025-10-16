@@ -11,6 +11,7 @@ import java.util.List;
 
 
 import java.util.List;
+import java.util.Map;
 
 public interface TimeTableService {
 
@@ -22,8 +23,9 @@ public interface TimeTableService {
 
     void delete(Long id);
 
+
     @Transactional(readOnly = true)
-    StandardResponse<List<TimeTableResponse>> listAll(
+    StandardResponse<Map<String, Object>> listAll(
             Integer page,
             Integer size,
             Long classId,

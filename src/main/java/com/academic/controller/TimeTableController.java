@@ -12,6 +12,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/sms/api/v1/academic-module")
@@ -71,7 +72,7 @@ public class TimeTableController {
      * @param search   Optional search on timetable name
      */
     @GetMapping("/listAllTimetables")
-    public ResponseEntity<StandardResponse<List<TimeTableResponse>>> listAll(
+    public ResponseEntity<StandardResponse<Map<String, Object>>> listAll(
             @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "10") Integer size,
             @RequestParam(value = "classId", required = false) Long classId,
@@ -82,7 +83,10 @@ public class TimeTableController {
                 LogContext.getRequestId(), LogContext.getLogId(),
                 page, size, classId, section, search);
 
-        StandardResponse<List<TimeTableResponse>> response = service.listAll(page, size, classId, section, search);
+        // Call service which returns StandardResponse<Map<String, Object>>
+        StandardResponse<Map<String, Object>> response = service.listAll(page, size, classId, section, search);
+
         return ResponseEntity.ok(response);
     }
+
 }

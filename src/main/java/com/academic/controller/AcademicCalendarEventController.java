@@ -12,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/sms/api/v1/academic-module")
@@ -63,11 +63,14 @@ public class AcademicCalendarEventController {
         return ResponseEntity.ok(StandardResponse.success(response, "Academic event updated successfully"));
     }
 
-    // --- D - DELETE (Soft Delete): DELETE /api/v1/academic-calendar/events/{id} ---
     @DeleteMapping("/deleteEvent/{id}")
-    public ResponseEntity<StandardResponse<Void>> delete(@PathVariable Long id) {
-        service.delete(id);
-        // Using StandardResponse<Void> for consistency, though 'data' will be null
-        return ResponseEntity.ok(StandardResponse.success(null, "Academic event deleted successfully"));
+    public ResponseEntity<StandardResponse<Map<String, Object>>> delete(@PathVariable Long id) {
+        service.delete(id); // perform the deletion
+
+        // Explicitly specify <Void> for the generic type
+        return ResponseEntity.ok(
+                StandardResponse.<Void>success(null, "Academic event deleted successfully")
+        );
     }
+
 }

@@ -21,6 +21,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 
 
@@ -161,7 +162,7 @@ public class TimeTableServiceImpl implements TimeTableService {
 
     @Transactional(readOnly = true)
     @Override
-    public StandardResponse<List<TimeTableResponse>> listAll(
+    public StandardResponse<Map<String, Object>> listAll(
             Integer page,
             Integer size,
             Long classId,
@@ -186,20 +187,44 @@ public class TimeTableServiceImpl implements TimeTableService {
                 .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
                 .collect(Collectors.toMap(CommonMaster::getId, CommonMaster::getCommonMasterKey));
 
+        // Convert entity to response DTO
         List<TimeTableResponse> responseList = timetablePage.getContent().stream()
                 .map(tt -> TimeTableMapper.toResponse(tt, commonMasterMap))
                 .collect(Collectors.toList());
 
-        StandardResponse.ResponseMetadata metadata = StandardResponse.ResponseMetadata.builder()
-                .totalRecords(timetablePage.getTotalElements())
-                .currentPage(pageable.getPageNumber() + 1)
-                .pageSize(pageable.getPageSize())
-                .totalPages(timetablePage.getTotalPages())
-                .operation("listAllTimetables")
-                .build();
+        // --- Pageable Metadata ---
+        Map<String, Object> sortMap = Map.of(
+                "empty", timetablePage.getSort().isEmpty(),
+                "sorted", timetablePage.getSort().isSorted(),
+                "unsorted", timetablePage.getSort().isUnsorted()
+        );
 
-        return StandardResponse.success(responseList, "Fetched timetables successfully", metadata);
+        Map<String, Object> pageableMap = Map.of(
+                "pageNumber", timetablePage.getNumber(),
+                "pageSize", timetablePage.getSize(),
+                "sort", sortMap,
+                "offset", timetablePage.getPageable().getOffset(),
+                "paged", timetablePage.getPageable().isPaged(),
+                "unpaged", timetablePage.getPageable().isUnpaged()
+        );
+
+        Map<String, Object> dataMap = new LinkedHashMap<>();
+        dataMap.put("content", responseList);
+        dataMap.put("pageable", pageableMap);
+        dataMap.put("last", timetablePage.isLast());
+        dataMap.put("totalPages", timetablePage.getTotalPages());
+        dataMap.put("totalElements", timetablePage.getTotalElements());
+        dataMap.put("size", timetablePage.getSize());
+        dataMap.put("number", timetablePage.getNumber());
+        dataMap.put("first", timetablePage.isFirst());
+        dataMap.put("numberOfElements", timetablePage.getNumberOfElements());
+        dataMap.put("sort", sortMap);
+        dataMap.put("empty", timetablePage.isEmpty());
+
+        // Use overloaded success() for Map
+        return StandardResponse.success(dataMap, "Fetched timetables successfully");
     }
+
 
 }
 

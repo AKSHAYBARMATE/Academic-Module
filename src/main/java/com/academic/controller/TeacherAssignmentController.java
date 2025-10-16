@@ -10,6 +10,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/sms/api/v1/academic-module")
 @RequiredArgsConstructor
@@ -31,9 +33,11 @@ public class TeacherAssignmentController {
     }
 
     @DeleteMapping("/deleteTeacherAllocation/{id}")
-    public ResponseEntity<StandardResponse<Void>> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.ok(StandardResponse.success(null, "Assignment deleted successfully"));
+    public ResponseEntity<StandardResponse<Map<String, Object>>> delete(@PathVariable Long id) {
+        service.delete(id); // perform the deletion
+        return ResponseEntity.ok(
+                StandardResponse.<Void>success(null, "Assignment deleted successfully")
+        );
     }
 
     @GetMapping("/getTeacherAllocation/{id}")

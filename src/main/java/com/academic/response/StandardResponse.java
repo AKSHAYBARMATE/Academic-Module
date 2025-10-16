@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * Standard response wrapper for all API responses
@@ -113,7 +114,24 @@ public class StandardResponse<T> {
             .timestamp(LocalDateTime.now())
             .build();
     }
-    
+
+
+    public static StandardResponse<Map<String, Object>> success(
+            Map<String, Object> data,
+            String message
+    ) {
+        return StandardResponse.<Map<String, Object>>builder()
+                .success(true)
+                .data(data)
+                .message(message)
+                .logId(LogContext.getLogId())
+                .requestId(LogContext.getRequestId())
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+
+
     /**
      * Creates a successful response with data and metadata
      * 

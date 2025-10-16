@@ -1,6 +1,5 @@
 package com.academic.controller;
 
-import com.academic.dto.ClassSectionDTO;
 import com.academic.request.ClassSectionRequest;
 import com.academic.response.ClassSectionResponse;
 import com.academic.response.StandardResponse;
@@ -10,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/sms/api/v1/academic-module")
@@ -35,11 +36,16 @@ public class ClassSectionController {
     }
 
     @DeleteMapping("/deleteClass/{id}")
-    public ResponseEntity<StandardResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<StandardResponse<Map<String, Object>>> delete(@PathVariable Long id) {
         log.info("API - Delete ClassSection with id: {}", id);
         service.delete(id);
-        return ResponseEntity.ok(StandardResponse.success(null, "Class section deleted successfully"));
+
+        // Explicitly specify <Void> for the generic type
+        return ResponseEntity.ok(
+                StandardResponse.<Void>success(null, "Class section deleted successfully")
+        );
     }
+
 
     @GetMapping("/getClassConfigDetailById/{id}")
     public ResponseEntity<StandardResponse<ClassSectionResponse>> getById(@PathVariable Long id) {
