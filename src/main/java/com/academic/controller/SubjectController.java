@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/sms/api/v1/academic-module")
+@RequestMapping("/api/v1/academic-module")
 @RequiredArgsConstructor
 @Slf4j
 public class SubjectController {
