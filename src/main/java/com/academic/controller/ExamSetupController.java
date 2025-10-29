@@ -13,7 +13,7 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/sms/api/v1/academic-module")
+@RequestMapping("/api/v1/academic-module")
 @RequiredArgsConstructor
 public class ExamSetupController {
 
