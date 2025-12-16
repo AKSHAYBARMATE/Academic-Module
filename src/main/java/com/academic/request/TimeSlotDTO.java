@@ -10,6 +10,7 @@ import lombok.*;
 public class TimeSlotDTO {
     private String startTime;
     private String endTime;
+
     private Long subjectId;
     private String subjectName;
     private String teacherId;
