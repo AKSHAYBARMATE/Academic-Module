@@ -1,9 +1,12 @@
 package com.academic.mapper;
 
+import com.academic.entity.CommonMaster;
 import com.academic.entity.TimeSlotSubjectMapper;
 import com.academic.entity.TimeTable;
+import com.academic.repository.CommonMasterRepository;
 import com.academic.request.TimeSlotDTO;
 import com.academic.response.TimeTableResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,6 +15,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class TimeTableMapper {
+
+    @Autowired
+    private static CommonMasterRepository commonMasterRepository;
 
     // Convert TimeTable entity → TimeTableResponse DTO
     public static TimeTableResponse toResponse(TimeTable entity, Map<Integer, String> commonMasterMap) {
@@ -47,6 +53,7 @@ public class TimeTableMapper {
                 .startTime(slot.getStartTime())
                 .endTime(slot.getEndTime())
                 .subjectId(slot.getSubjectId())
+                .subjectName(commonMasterRepository.findById(Math.toIntExact(slot.getSubjectId())).get().getData())
                 .teacherId(slot.getTeacherName())
                 .roomId(slot.getRoom())
                 .build();
