@@ -1,26 +1,29 @@
 package com.academic.mapper;
 
-import com.academic.entity.CommonMaster;
 import com.academic.entity.TimeSlotSubjectMapper;
 import com.academic.entity.TimeTable;
 import com.academic.repository.CommonMasterRepository;
 import com.academic.request.TimeSlotDTO;
 import com.academic.response.TimeTableResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Component
 public class TimeTableMapper {
 
     @Autowired
-    private static CommonMasterRepository commonMasterRepository;
+    private CommonMasterRepository commonMasterRepository;
+
+    @Autowired
+    private TimeSlotMapper timeSlotMapper;
 
     // Convert TimeTable entity → TimeTableResponse DTO
-    public static TimeTableResponse toResponse(TimeTable entity, Map<Integer, String> commonMasterMap) {
+    public TimeTableResponse toResponse(TimeTable entity, Map<Integer, String> commonMasterMap) {
         if (entity == null) {
             return null;
         }
@@ -39,28 +42,36 @@ public class TimeTableMapper {
                 .daysCoveredId(daysCoveredId)
                 .slots(entity.getSlots() != null
                         ? entity.getSlots().stream()
-                        .map(TimeSlotMapper::toResponse)
+                        .map(timeSlotMapper::toResponse)              // FIXED: non-static usage
                         .collect(Collectors.toList())
-                        : new ArrayList<>())
+                        : Collections.emptyList())
                 .build();
     }
 
     // Convert TimeSlotSubjectMapper entity → TimeSlotDTO
-    public static TimeSlotDTO toTimeSlotDTO(TimeSlotSubjectMapper slot) {
+    public TimeSlotDTO toTimeSlotDTO(TimeSlotSubjectMapper slot) {
         if (slot == null) return null;
+
+        String subjectName = null;
+        if (slot.getSubjectId() != null) {
+            subjectName = commonMasterRepository.findById(Math.toIntExact(slot.getSubjectId()))
+                    .map(cm -> cm.getData())
+                    .orElse(null);
+        }
 
         return TimeSlotDTO.builder()
                 .startTime(slot.getStartTime())
                 .endTime(slot.getEndTime())
                 .subjectId(slot.getSubjectId())
-                .subjectName(commonMasterRepository.findById(Math.toIntExact(slot.getSubjectId())).get().getData())
+                .subjectName(subjectName)
                 .teacherId(slot.getTeacherName())
                 .roomId(slot.getRoom())
+                .day(slot.getDay())
                 .build();
     }
 
-    // Convert List<TimeSlotDTO> → List<TimeSlotSubjectMapper> with parent TimeTable
-    public static List<TimeSlotSubjectMapper> toEntityList(List<TimeSlotDTO> slots, TimeTable parent) {
+    // Convert List<TimeSlotDTO> → List<TimeSlotSubjectMapper>
+    public List<TimeSlotSubjectMapper> toEntityList(List<TimeSlotDTO> slots, TimeTable parent) {
         if (slots == null) return Collections.emptyList();
 
         return slots.stream()
@@ -69,7 +80,7 @@ public class TimeTableMapper {
     }
 
     // Convert single TimeSlotDTO → TimeSlotSubjectMapper entity
-    public static TimeSlotSubjectMapper toEntity(TimeSlotDTO dto, TimeTable parent) {
+    public TimeSlotSubjectMapper toEntity(TimeSlotDTO dto, TimeTable parent) {
         if (dto == null) return null;
 
         return TimeSlotSubjectMapper.builder()

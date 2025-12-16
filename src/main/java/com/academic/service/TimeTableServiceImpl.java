@@ -15,20 +15,13 @@ import com.academic.response.StandardResponse;
 import com.academic.response.TimeTableResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-
-
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
-
 
 @Service
 @RequiredArgsConstructor
@@ -39,82 +32,20 @@ public class TimeTableServiceImpl implements TimeTableService {
     private final TimeSlotSubjectMapperRepository mapperRepository;
     private final CommonMasterRepository commonMasterRepository;
 
+    @Autowired
+    private TimeTableMapper timeTableMapper;
+
+    // ---------------------------------------------------------------------------------------------------
     @Override
     @Transactional
     public TimeTableResponse create(TimeTableRequest request) {
-        log.info("[{}][{}] Creating timetable: {}", LogContext.getRequestId(), LogContext.getLogId(), request.getTimetableName());
+        log.info("[{}][{}] Creating timetable: {}",
+                LogContext.getRequestId(), LogContext.getLogId(), request.getTimetableName());
 
-        // Check for duplicate name for the same class and section
+        // Check for duplicate name (unique for name + class + section)
         boolean exists = timeTableRepository.existsByTimetableNameAndClassIdAndSectionIdAndIsDeletedFalse(
                 request.getTimetableName(), request.getClassId(), request.getSectionId());
-        // Throwing a duplicate exception in your service
-        if (timeTableRepository.existsByTimetableNameAndIsDeletedFalse(request.getTimetableName())) {
-            throw new CustomException(
-                    "Timetable with the same name already exists",
-                    "DUPLICATE_RESOURCE",
-                    "Timetable name: " + request.getTimetableName()
-            );
-        }
 
-        // Map request DTO to entity
-        TimeTable entity = TimeTable.builder()
-                .timetableName(request.getTimetableName())
-                .classId(request.getClassId())
-                .sectionId(request.getSectionId())
-                .daysCoveredId(request.getDaysCoveredId())
-                .isDeleted(false)
-                .build();
-
-        // Map timeslot DTOs to entity slots
-        entity.setSlots(TimeTableMapper.toEntityList(request.getSlots(), entity));
-
-        // Save entity
-        TimeTable saved = timeTableRepository.save(entity);
-
-        log.info("[{}][{}] Timetable created with id {}", LogContext.getRequestId(), LogContext.getLogId(), saved.getId());
-
-        // Fetch common master mapping
-        Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
-                .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
-                .collect(Collectors.toMap(CommonMaster::getId, CommonMaster::getCommonMasterKey));
-
-        return TimeTableMapper.toResponse(saved, commonMasterMap);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public TimeTableResponse get(Long id) {
-        log.info("[{}][{}] Fetching timetable id {}",
-                LogContext.getRequestId(),
-                LogContext.getLogId(),
-                id);
-
-        TimeTable entity = timeTableRepository.findByIdAndIsDeletedFalse(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "TimeTable not found with id: " + id
-                ));
-
-        Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
-                .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
-                .collect(Collectors.toMap(CommonMaster::getId, CommonMaster::getCommonMasterKey));
-
-        return TimeTableMapper.toResponse(entity, commonMasterMap);
-    }
-
-
-
-
-    @Override
-    @Transactional
-    public TimeTableResponse update(Long id, TimeTableRequest request) {
-        log.info("[{}][{}] Updating timetable id {}", LogContext.getRequestId(), LogContext.getLogId(), id);
-
-        TimeTable existing = timeTableRepository.findByIdAndIsDeletedFalse(id)
-                .orElseThrow(() -> new ResourceNotFoundException("TimeTable not found with id: " + id));
-
-        // ✅ Check for duplicate name excluding current record
-        boolean exists = timeTableRepository.existsByTimetableNameAndClassIdAndSectionIdAndIsDeletedFalseAndIdNot(
-                request.getTimetableName(), request.getClassId(), request.getSectionId(), id);
         if (exists) {
             throw new CustomException(
                     "Timetable with the same name already exists",
@@ -123,48 +54,100 @@ public class TimeTableServiceImpl implements TimeTableService {
             );
         }
 
-        // ✅ Update parent fields
-        existing.setTimetableName(request.getTimetableName());
-        existing.setClassId(request.getClassId());
-        existing.setSectionId(request.getSectionId());
-        existing.setDaysCoveredId(request.getDaysCoveredId());
+        // Convert request → entity
+        TimeTable entity = TimeTable.builder()
+                .timetableName(request.getTimetableName())
+                .classId(request.getClassId())
+                .sectionId(request.getSectionId())
+                .daysCoveredId(request.getDaysCoveredId())
+                .isDeleted(false)
+                .build();
 
-        // ✅ Proper orphan-safe update
-        if (existing.getSlots() != null) {
-            existing.getSlots().clear(); // clears the same collection instance
-        }
+        // Convert slot DTOs → slot entities
+        entity.setSlots(timeTableMapper.toEntityList(request.getSlots(), entity));
 
-        if (request.getSlots() != null && !request.getSlots().isEmpty()) {
-            request.getSlots().forEach(slotReq -> {
-                TimeSlotSubjectMapper slot = new TimeSlotSubjectMapper();
-                slot.setStartTime(slotReq.getStartTime());
-                slot.setEndTime(slotReq.getEndTime());
-                slot.setSubjectId(slotReq.getSubjectId());
-                slot.setTeacherName(slotReq.getTeacherId());
-                slot.setRoom(slotReq.getRoomId());
-                slot.setDay(slotReq.getDay());
-                slot.setTimeTable(existing); // maintain relationship
-                existing.getSlots().add(slot);
-            });
-        }
+        // Save parent + slots
+        TimeTable saved = timeTableRepository.save(entity);
 
-        TimeTable saved = timeTableRepository.save(existing);
+        // Fetch common master map
+        Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
+                .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
+                .collect(Collectors.toMap(CommonMaster::getId, CommonMaster::getCommonMasterKey));
 
-        log.info("[{}][{}] Timetable updated successfully id {}", LogContext.getRequestId(), LogContext.getLogId(), saved.getId());
+        return timeTableMapper.toResponse(saved, commonMasterMap);
+    }
+
+    // ---------------------------------------------------------------------------------------------------
+    @Override
+    @Transactional(readOnly = true)
+    public TimeTableResponse get(Long id) {
+        log.info("[{}][{}] Fetching timetable id {}",
+                LogContext.getRequestId(), LogContext.getLogId(), id);
+
+        TimeTable entity = timeTableRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("TimeTable not found with id: " + id));
 
         Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
                 .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
                 .collect(Collectors.toMap(CommonMaster::getId, CommonMaster::getCommonMasterKey));
 
-        return TimeTableMapper.toResponse(saved, commonMasterMap);
+        return timeTableMapper.toResponse(entity, commonMasterMap);
     }
 
+    // ---------------------------------------------------------------------------------------------------
+    @Override
+    @Transactional
+    public TimeTableResponse update(Long id, TimeTableRequest request) {
+        log.info("[{}][{}] Updating timetable id {}",
+                LogContext.getRequestId(), LogContext.getLogId(), id);
 
+        TimeTable existing = timeTableRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("TimeTable not found with id: " + id));
 
+        // Check duplicate name excluding current timetable
+        boolean exists = timeTableRepository.existsByTimetableNameAndClassIdAndSectionIdAndIsDeletedFalseAndIdNot(
+                request.getTimetableName(), request.getClassId(), request.getSectionId(), id);
+
+        if (exists) {
+            throw new CustomException(
+                    "Timetable with the same name already exists",
+                    "DUPLICATE_RESOURCE",
+                    "Timetable name: " + request.getTimetableName()
+            );
+        }
+
+        // Update parent fields
+        existing.setTimetableName(request.getTimetableName());
+        existing.setClassId(request.getClassId());
+        existing.setSectionId(request.getSectionId());
+        existing.setDaysCoveredId(request.getDaysCoveredId());
+
+        // Remove old slots (orphan safe)
+        if (existing.getSlots() != null) {
+            existing.getSlots().clear();
+        }
+
+        // Add new slots
+        if (request.getSlots() != null && !request.getSlots().isEmpty()) {
+            existing.getSlots().addAll(timeTableMapper.toEntityList(request.getSlots(), existing));
+        }
+
+        TimeTable saved = timeTableRepository.save(existing);
+
+        // Common master map
+        Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
+                .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
+                .collect(Collectors.toMap(CommonMaster::getId, CommonMaster::getCommonMasterKey));
+
+        return timeTableMapper.toResponse(saved, commonMasterMap);
+    }
+
+    // ---------------------------------------------------------------------------------------------------
     @Override
     @Transactional
     public void delete(Long id) {
-        log.info("[{}][{}] Soft deleting timetable id {}", LogContext.getRequestId(), LogContext.getLogId(), id);
+        log.info("[{}][{}] Soft deleting timetable id {}",
+                LogContext.getRequestId(), LogContext.getLogId(), id);
 
         TimeTable existing = timeTableRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TimeTable not found with id: " + id));
@@ -172,17 +155,15 @@ public class TimeTableServiceImpl implements TimeTableService {
         existing.setIsDeleted(true);
         timeTableRepository.save(existing);
 
-        log.info("[{}][{}] Timetable soft deleted id {}", LogContext.getRequestId(), LogContext.getLogId(), id);
+        log.info("[{}][{}] Timetable soft deleted id {}",
+                LogContext.getRequestId(), LogContext.getLogId(), id);
     }
 
-    @Transactional(readOnly = true)
+    // ---------------------------------------------------------------------------------------------------
     @Override
+    @Transactional(readOnly = true)
     public StandardResponse<Map<String, Object>> listAll(
-            Integer page,
-            Integer size,
-            Long classId,
-            Long section,
-            String search) {
+            Integer page, Integer size, Long classId, Long section, String search) {
 
         log.info("[{}][{}] Fetching timetables page={}, size={}, classId={}, section={}, search={}",
                 LogContext.getRequestId(), LogContext.getLogId(),
@@ -196,51 +177,25 @@ public class TimeTableServiceImpl implements TimeTableService {
 
         Page<TimeTable> timetablePage = timeTableRepository.findAllByFilters(classId, section, search, pageable);
 
-        // Fetch all CommonMaster once for mapping class/section names
-        List<CommonMaster> commonMasters = commonMasterRepository.findAll();
-        Map<Integer, String> commonMasterMap = commonMasters.stream()
+        // Prepare common master map
+        Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
                 .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
                 .collect(Collectors.toMap(CommonMaster::getId, CommonMaster::getCommonMasterKey));
 
-        // Convert entity to response DTO
+        // Map result to response DTOs
         List<TimeTableResponse> responseList = timetablePage.getContent().stream()
-                .map(tt -> TimeTableMapper.toResponse(tt, commonMasterMap))
+                .map(entity -> timeTableMapper.toResponse(entity, commonMasterMap))
                 .collect(Collectors.toList());
 
-        // --- Pageable Metadata ---
-        Map<String, Object> sortMap = Map.of(
-                "empty", timetablePage.getSort().isEmpty(),
-                "sorted", timetablePage.getSort().isSorted(),
-                "unsorted", timetablePage.getSort().isUnsorted()
-        );
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("content", responseList);
+        metadata.put("totalPages", timetablePage.getTotalPages());
+        metadata.put("totalElements", timetablePage.getTotalElements());
+        metadata.put("pageNumber", timetablePage.getNumber());
+        metadata.put("pageSize", timetablePage.getSize());
+        metadata.put("isLast", timetablePage.isLast());
+        metadata.put("isFirst", timetablePage.isFirst());
 
-        Map<String, Object> pageableMap = Map.of(
-                "pageNumber", timetablePage.getNumber(),
-                "pageSize", timetablePage.getSize(),
-                "sort", sortMap,
-                "offset", timetablePage.getPageable().getOffset(),
-                "paged", timetablePage.getPageable().isPaged(),
-                "unpaged", timetablePage.getPageable().isUnpaged()
-        );
-
-        Map<String, Object> dataMap = new LinkedHashMap<>();
-        dataMap.put("content", responseList);
-        dataMap.put("pageable", pageableMap);
-        dataMap.put("last", timetablePage.isLast());
-        dataMap.put("totalPages", timetablePage.getTotalPages());
-        dataMap.put("totalElements", timetablePage.getTotalElements());
-        dataMap.put("size", timetablePage.getSize());
-        dataMap.put("number", timetablePage.getNumber());
-        dataMap.put("first", timetablePage.isFirst());
-        dataMap.put("numberOfElements", timetablePage.getNumberOfElements());
-        dataMap.put("sort", sortMap);
-        dataMap.put("empty", timetablePage.isEmpty());
-
-        // Use overloaded success() for Map
-        return StandardResponse.success(dataMap, "Fetched timetables successfully");
+        return StandardResponse.success(metadata, "Fetched timetables successfully");
     }
-
-
 }
-
-
