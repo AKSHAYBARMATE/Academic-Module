@@ -14,6 +14,7 @@ public class TimeSlotMapper {
                 .startTime(slot.getStartTime())
                 .endTime(slot.getEndTime())
                 .subjectId(slot.getSubjectId())
+                .subjectName(commonMasterRepository.findById(Math.toIntExact(slot.getSubjectId())).get().getData())
                 .teacherId(slot.getTeacherName())
                 .roomId(slot.getRoom())
                 .day(slot.getDay())
