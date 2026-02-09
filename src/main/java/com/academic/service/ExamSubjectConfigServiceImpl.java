@@ -156,6 +156,7 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService{
     /* ================= MAPPER ================= */
 
     private ExamSubjectConfigResponse map(ExamSubjectConfig c) {
+
         return ExamSubjectConfigResponse.builder()
                 .id(c.getId())
                 .session(c.getSession().getSession())
