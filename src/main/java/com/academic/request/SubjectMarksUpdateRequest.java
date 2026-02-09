@@ -8,6 +8,7 @@ public class SubjectMarksUpdateRequest {
     private Long id;   // exam_subject_config.id
     private Long subjectId;   // exam_subject_config.id
     private Long sessionId;   // exam_subject_config.id
+    private Integer examTypeId;   // exam_subject_config.id
 
     private Integer theoryMarks;
     private Integer practicalMarks;

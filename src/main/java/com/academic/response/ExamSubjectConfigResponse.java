@@ -10,6 +10,7 @@ public class ExamSubjectConfigResponse {
     private Long id;
     private String session;
     private String examType;
+    private Integer examTypeId;
 
     private Long subjectId;
     private String subjectCode;

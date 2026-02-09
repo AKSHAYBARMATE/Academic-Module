@@ -117,6 +117,7 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService{
                 config = new ExamSubjectConfig();
                 config.setSubject(subjectRepository.findById(s.getSubjectId()).get());
                 config.setSession(sessionRepository.findById(s.getSessionId()).get());
+                config.setExamType(examTypeRepository.findById(s.getExamTypeId()).get());
             }
 
             config.setTheoryMarks(s.getTheoryMarks());
@@ -159,6 +160,7 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService{
                 .id(c.getId())
                 .session(c.getSession().getSession())
                 .examType(c.getExamType().getData())
+                .examTypeId(c.getExamType().getId())
                 .subjectId(c.getSubject().getId())
                 .subjectCode(c.getSubject().getSubjectCode())
                 .subjectName(c.getSubject().getSubjectName())
