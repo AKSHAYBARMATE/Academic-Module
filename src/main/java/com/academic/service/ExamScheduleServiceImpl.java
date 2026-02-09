@@ -92,6 +92,7 @@ public class ExamScheduleServiceImpl implements ExamScheduleService{
                 .examTitle(s.getExamTitle())
                 .session(s.getSession().getSession())
                 .examType(s.getExamType().getData())
+                .examTypeId(s.getExamType().getId())
                 .startDate(s.getStartDate())
                 .endDate(s.getEndDate())
                 .status(s.getStatus())

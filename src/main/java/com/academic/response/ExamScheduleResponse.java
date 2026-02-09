@@ -13,6 +13,7 @@ public class ExamScheduleResponse {
 
     private String session;
     private String examType;
+    private Integer examTypeId;
 
     private LocalDate startDate;
     private LocalDate endDate;
