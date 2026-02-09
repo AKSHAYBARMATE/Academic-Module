@@ -13,17 +13,17 @@ public class GradingRuleController {
 
     private final GradingRuleService service;
 
-    @PostMapping
+    @PostMapping("/saveGrading")
     public StandardResponse<?> create(@RequestBody GradingRuleRequest request) {
         return service.create(request);
     }
 
-    @GetMapping
+    @GetMapping("/getAllGrading")
     public StandardResponse<?> getAll() {
         return service.getAll();
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("updateGrading/{id}")
     public StandardResponse<?> update(
             @PathVariable Long id,
             @RequestBody GradingRuleRequest request
@@ -31,7 +31,7 @@ public class GradingRuleController {
         return service.update(id, request);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("deleteGrading/{id}")
     public StandardResponse<?> delete(@PathVariable Long id) {
         return service.delete(id);
     }
