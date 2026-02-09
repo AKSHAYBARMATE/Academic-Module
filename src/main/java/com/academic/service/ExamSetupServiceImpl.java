@@ -30,26 +30,36 @@ public class ExamSetupServiceImpl implements ExamSetupService {
     private final ExamSetupMapper mapper;
 
     @Override
-    public ExamSetupResponse create(ExamSetupRequest request) {
+    public StandardResponse create(ExamSetupRequest request) {
+
         log.info("Creating ExamSetup: {}", request);
 
-        // Check for duplicate examName within same class and academic
-        boolean exists = repository.existsByExamNameAndClassIdAndAcademicYearIdAndIsDeletedFalse(
-                request.getExamName(),
-                request.getClassId(),
-                request.getAcademicYearId()
-        );
+        boolean exists =
+                repository.existsByExamNameAndClassIdAndAcademicYearIdAndIsDeletedFalse(
+                        request.getExamName(),
+                        request.getClassId(),
+                        request.getAcademicYearId()
+                );
+
         if (exists) {
-            throw new CustomException(
-                    "Exam setup with this name already exists for the class and academic year",
+            return StandardResponse.error(
+                    "Exam setup already exists",
                     "EX409",
-                    "Duplicate examName: " + request.getExamName()
+                    "examName",
+                    "Duplicate examName for classId="
+                            + request.getClassId()
+                            + " and academicYearId="
+                            + request.getAcademicYearId()
             );
         }
 
         ExamSetup entity = mapper.toEntity(request);
         ExamSetup saved = repository.save(entity);
-        return mapper.toResponse(saved);
+
+        return StandardResponse.success(
+                mapper.toResponse(saved),
+                "Exam setup created successfully"
+        );
     }
 
     @Override

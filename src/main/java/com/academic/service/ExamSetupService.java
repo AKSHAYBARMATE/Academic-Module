@@ -3,14 +3,12 @@ package com.academic.service;
 import com.academic.request.ExamSetupRequest;
 import com.academic.response.ExamSetupResponse;
 import com.academic.response.StandardResponse;
-import org.springframework.data.domain.Page;
 
-import java.util.List;
 import java.util.Map;
 
 public interface ExamSetupService {
 
-    ExamSetupResponse create(ExamSetupRequest request);
+    StandardResponse<Void> create(ExamSetupRequest request);
 
     ExamSetupResponse update(Long id, ExamSetupRequest request);
 

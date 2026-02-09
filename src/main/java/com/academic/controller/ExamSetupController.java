@@ -22,8 +22,7 @@ public class ExamSetupController {
     @PostMapping("/createExamSetup")
     public ResponseEntity<StandardResponse<ExamSetupResponse>> create(@RequestBody ExamSetupRequest request) {
         log.info("API - Create ExamSetup: {}", request);
-        ExamSetupResponse created = service.create(request);
-        return ResponseEntity.ok(StandardResponse.success(created, "Exam setup created successfully"));
+        return ResponseEntity.ok(service.create(request));
     }
 
     @PutMapping("/updateExamSetup/{id}")
