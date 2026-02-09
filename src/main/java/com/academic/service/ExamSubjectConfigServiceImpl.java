@@ -107,11 +107,17 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService{
         List<ExamSubjectConfigResponse> responses = new ArrayList<>();
 
         for (SubjectMarksUpdateRequest s : request.getSubjects()) {
-
-            ExamSubjectConfig config = repository.findById(s.getId())
-                    .orElseThrow(() ->
-                            new RuntimeException("Config not found for id: " + s.getId())
-                    );
+            ExamSubjectConfig config;
+            if(s.getId()!=null){
+                config =  repository.findById(s.getId())
+                        .orElseThrow(() ->
+                                new RuntimeException("Config not found for id: " + s.getId())
+                        );
+            } else {
+                config = new ExamSubjectConfig();
+                config.setSubject(subjectRepository.findById(s.getSubjectId()).get());
+                config.setSession(sessionRepository.findById(s.getSessionId()).get());
+            }
 
             config.setTheoryMarks(s.getTheoryMarks());
             config.setPracticalMarks(s.getPracticalMarks());
