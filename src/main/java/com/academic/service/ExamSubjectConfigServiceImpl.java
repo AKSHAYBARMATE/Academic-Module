@@ -17,54 +17,108 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService{
+public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
 
     private final ExamSubjectConfigRepository repository;
     private final SessionRepository sessionRepository;
-    private final CommonMasterRepository examTypeRepository;
+    private final CommonMasterRepository commonMasterRepository;
     private final SubjectRepository subjectRepository;
 
     /* ================= BULK CREATE ================= */
+    public StandardResponse createBulk(
+            ExamSubjectConfigBulkRequest request) {
 
-    public StandardResponse<List<ExamSubjectConfigResponse>> createBulk(
-            ExamSubjectConfigBulkRequest request
-    ) {
+        /* ================= Validate Session ================= */
+        Optional<Session> sessionOpt =
+                sessionRepository.findById(request.getSessionId().longValue());
 
-        Session session = sessionRepository.findById(request.getSessionId().longValue())
-                .orElseThrow(() -> new RuntimeException("Invalid Session"));
+        if (sessionOpt.isEmpty()) {
+            return StandardResponse.error(
+                    "Invalid Session",
+                    "INVALID_SESSION",
+                    "sessionId",
+                    "No session found with id " + request.getSessionId()
+            );
+        }
 
-        CommonMaster examType = examTypeRepository.findById(request.getExamTypeId())
-                .orElseThrow(() -> new RuntimeException("Invalid Exam Type"));
+        /* ================= Validate Exam Type ================= */
+        Optional<CommonMaster> examTypeOpt =
+                commonMasterRepository.findById(request.getExamTypeId());
+
+        if (examTypeOpt.isEmpty()) {
+            return StandardResponse.error(
+                    "Invalid Exam Type",
+                    "INVALID_EXAM_TYPE",
+                    "examTypeId",
+                    "No exam type found with id " + request.getExamTypeId()
+            );
+        }
+
+        /* ================= Validate Class ================= */
+        Optional<CommonMaster> classOpt =
+                commonMasterRepository.findById(request.getClassId());
+
+        if (classOpt.isEmpty()) {
+            return StandardResponse.error(
+                    "Invalid Class",
+                    "INVALID_CLASS",
+                    "classId",
+                    "No class found with id " + request.getClassId()
+            );
+        }
+
+        Session session = sessionOpt.get();
+        CommonMaster examType = examTypeOpt.get();
+        CommonMaster classMaster = classOpt.get();
 
         List<ExamSubjectConfigResponse> responses = new ArrayList<>();
 
+        /* ================= Loop Subjects ================= */
         for (SubjectMarksRequest s : request.getSubjects()) {
 
-            Subject subject = subjectRepository.findById(s.getSubjectId())
-                    .orElseThrow(() -> new RuntimeException("Invalid Subject"));
+            Optional<Subject> subjectOpt =
+                    subjectRepository.findById(s.getSubjectId());
 
-            repository.findBySession_IdAndExamType_IdAndSubject_Id(
-                    session.getId(),
-                    examType.getId(),
-                    subject.getId()
-            ).ifPresent(e -> {
-                throw new RuntimeException(
-                        "Configuration already exists for subject: "
-                                + subject.getSubjectName()
+            if (subjectOpt.isEmpty()) {
+                return StandardResponse.error(
+                        "Invalid Subject",
+                        "INVALID_SUBJECT",
+                        "subjectId",
+                        "No subject found with id " + s.getSubjectId()
                 );
-            });
+            }
 
-            int total =
-                    s.getTheoryMarks()
-                            + s.getPracticalMarks()
-                            + s.getInternalMarks();
+            Subject subject = subjectOpt.get();
+
+            boolean exists =
+                    repository.findBySession_IdAndExamType_IdAndSubject_IdAndClassIdId(
+                            session.getId(),
+                            examType.getId(),
+                            subject.getId(),
+                            classMaster.getId()
+                    ).isPresent();
+
+            if (exists) {
+                return StandardResponse.error(
+                        "Configuration already exists",
+                        "DUPLICATE_CONFIG",
+                        "subjectId",
+                        "Already configured for subject: " + subject.getSubjectName()
+                );
+            }
+
+            int total = s.getTheoryMarks()
+                    + s.getPracticalMarks()
+                    + s.getInternalMarks();
 
             ExamSubjectConfig config = ExamSubjectConfig.builder()
                     .session(session)
                     .examType(examType)
+                    .classId(classMaster)
                     .subject(subject)
                     .theoryMarks(s.getTheoryMarks())
                     .practicalMarks(s.getPracticalMarks())
@@ -86,14 +140,11 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService{
 
     public StandardResponse<List<ExamSubjectConfigResponse>> getAll(
             Integer sessionId,
-            Integer examTypeId
-    ) {
+            Integer examTypeId) {
         return StandardResponse.success(
                 repository.findBySession_IdAndExamType_IdAndIsDeleteFalse(
-                        sessionId, examTypeId
-                ).stream().map(this::map).toList(),
-                "Configurations fetched"
-        );
+                        sessionId, examTypeId).stream().map(this::map).toList(),
+                "Configurations fetched");
     }
 
     /* ================= UPDATE ================= */
@@ -101,23 +152,22 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService{
     @Transactional
     @Override
     public StandardResponse<?> updateBulk(
-            ExamSubjectMarksBulkUpdateRequest request
-    ) {
+            ExamSubjectMarksBulkUpdateRequest request) {
 
         List<ExamSubjectConfigResponse> responses = new ArrayList<>();
 
         for (SubjectMarksUpdateRequest s : request.getSubjects()) {
             ExamSubjectConfig config;
-            if(s.getId()!=null){
-                config =  repository.findById(s.getId())
-                        .orElseThrow(() ->
-                                new RuntimeException("Config not found for id: " + s.getId())
-                        );
+            if (s.getId() != null) {
+                config = repository.findById(s.getId())
+                        .orElseThrow(() -> new RuntimeException(
+                                "Config not found for id: " + s.getId()));
             } else {
                 config = new ExamSubjectConfig();
                 config.setSubject(subjectRepository.findById(s.getSubjectId()).get());
                 config.setSession(sessionRepository.findById(s.getSessionId()).get());
-                config.setExamType(examTypeRepository.findById(s.getExamTypeId()).get());
+                config.setExamType(commonMasterRepository.findById(s.getExamTypeId()).get());
+                config.setClassId(commonMasterRepository.findById(s.getClassId()).get());
             }
 
             config.setTheoryMarks(s.getTheoryMarks());
@@ -127,8 +177,7 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService{
             config.setTotalMarks(
                     s.getTheoryMarks()
                             + s.getPracticalMarks()
-                            + s.getInternalMarks()
-            );
+                            + s.getInternalMarks());
 
             repository.save(config);
             responses.add(map(config));
@@ -136,10 +185,8 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService{
 
         return StandardResponse.success(
                 responses,
-                "Exam subject marks updated successfully"
-        );
+                "Exam subject marks updated successfully");
     }
-
 
     /* ================= DELETE ================= */
 
@@ -162,6 +209,8 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService{
                 .session(c.getSession().getSession())
                 .examType(c.getExamType().getData())
                 .examTypeId(c.getExamType().getId())
+                .classId(c.getClassId().getId())
+                .className(c.getClassId().getData())
                 .subjectId(c.getSubject().getId())
                 .subjectCode(c.getSubject().getSubjectCode())
                 .subjectName(c.getSubject().getSubjectName())

@@ -8,7 +8,7 @@ import java.util.Map;
 
 public interface ExamSetupService {
 
-    StandardResponse<Void> create(ExamSetupRequest request);
+    StandardResponse create(ExamSetupRequest request);
 
     ExamSetupResponse update(Long id, ExamSetupRequest request);
 

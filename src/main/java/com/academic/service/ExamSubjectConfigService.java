@@ -17,7 +17,7 @@ public interface ExamSubjectConfigService {
 
     /* ================= BULK CREATE ================= */
 
-    public StandardResponse<List<ExamSubjectConfigResponse>> createBulk(
+    public StandardResponse createBulk(
             ExamSubjectConfigBulkRequest request
     );
 

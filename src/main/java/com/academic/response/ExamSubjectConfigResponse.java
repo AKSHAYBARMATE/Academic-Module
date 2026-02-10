@@ -12,6 +12,9 @@ public class ExamSubjectConfigResponse {
     private String examType;
     private Integer examTypeId;
 
+    private String className;
+    private Integer classId;
+
     private Long subjectId;
     private String subjectCode;
     private String subjectName;
