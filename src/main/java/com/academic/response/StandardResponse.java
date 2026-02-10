@@ -201,8 +201,8 @@ public class StandardResponse<T> {
      * @param errorDetails Additional error details
      * @return StandardResponse with success = false and field error
      */
-    public static StandardResponse<Void> error(String message, String errorCode, String field, String errorDetails) {
-        return StandardResponse.<Void>builder()
+    public static<T> StandardResponse<T> error(String message, String errorCode, String field, String errorDetails) {
+        return StandardResponse.<T>builder()
             .success(false)
             .message(message)
             .logId(LogContext.getLogId())
