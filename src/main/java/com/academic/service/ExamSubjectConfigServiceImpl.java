@@ -140,11 +140,19 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
 
     public StandardResponse<List<ExamSubjectConfigResponse>> getAll(
             Integer sessionId,
-            Integer examTypeId) {
+            Integer examTypeId
+    ) {
+
+        List<ExamSubjectConfigResponse> data =
+                repository.findAllWithFilters(sessionId, examTypeId)
+                        .stream()
+                        .map(this::map)
+                        .toList();
+
         return StandardResponse.success(
-                repository.findBySession_IdAndExamType_IdAndIsDeleteFalse(
-                        sessionId, examTypeId).stream().map(this::map).toList(),
-                "Configurations fetched");
+                data,
+                "Configurations fetched"
+        );
     }
 
     /* ================= UPDATE ================= */
