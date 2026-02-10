@@ -204,20 +204,26 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
 
     private ExamSubjectConfigResponse map(ExamSubjectConfig c) {
 
-        return ExamSubjectConfigResponse.builder()
+        return c == null ? null : ExamSubjectConfigResponse.builder()
                 .id(c.getId())
-                .session(c.getSession().getSession())
-                .examType(c.getExamType().getData())
-                .examTypeId(c.getExamType().getId())
-                .classId(c.getClassId().getId())
-                .className(c.getClassId().getData())
-                .subjectId(c.getSubject().getId())
-                .subjectCode(c.getSubject().getSubjectCode())
-                .subjectName(c.getSubject().getSubjectName())
+
+                .session(c.getSession() == null ? null : c.getSession().getSession())
+
+                .examType(c.getExamType() == null ? null : c.getExamType().getData())
+                .examTypeId(c.getExamType() == null ? null : c.getExamType().getId())
+
+                .classId(c.getClassId() == null ? null : c.getClassId().getId())
+                .className(c.getClassId() == null ? null : c.getClassId().getData())
+
+                .subjectId(c.getSubject() == null ? null : c.getSubject().getId())
+                .subjectCode(c.getSubject() == null ? null : c.getSubject().getSubjectCode())
+                .subjectName(c.getSubject() == null ? null : c.getSubject().getSubjectName())
+
                 .theoryMarks(c.getTheoryMarks())
                 .practicalMarks(c.getPracticalMarks())
                 .internalMarks(c.getInternalMarks())
                 .totalMarks(c.getTotalMarks())
                 .build();
     }
+
 }
