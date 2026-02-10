@@ -95,7 +95,7 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
             Subject subject = subjectOpt.get();
 
             boolean exists =
-                    repository.findBySession_IdAndExamType_IdAndSubject_IdAndClassIdId(
+                    repository.findBySession_IdAndExamType_IdAndSubject_IdAndClassIdIdAndIsDeleteFalse(
                             session.getId(),
                             examType.getId(),
                             subject.getId(),
