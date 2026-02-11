@@ -14,32 +14,26 @@ import java.util.List;
 @Service
 public interface ExamSubjectConfigService {
 
+        /* ================= BULK CREATE ================= */
 
-    /* ================= BULK CREATE ================= */
+        public StandardResponse createBulk(
+                        ExamSubjectConfigBulkRequest request);
 
-    public StandardResponse createBulk(
-            ExamSubjectConfigBulkRequest request
-    );
+        /* ================= READ ================= */
 
-    /* ================= READ ================= */
+        public StandardResponse<List<ExamSubjectConfigResponse>> getAll(
+                        Integer sessionId,
+                        Integer examTypeId,
+                        Integer classId);
 
-    public StandardResponse<List<ExamSubjectConfigResponse>> getAll(
-            Integer sessionId,
-            Integer examTypeId,
-            Integer classId
-    ) ;
+        /* ================= UPDATE ================= */
 
-    /* ================= UPDATE ================= */
+        @Transactional
+        StandardResponse<?> updateBulk(
+                        ExamSubjectMarksBulkUpdateRequest request);
 
-    @Transactional
-    StandardResponse<?> updateBulk(
-            ExamSubjectMarksBulkUpdateRequest request
-    );
+        /* ================= DELETE ================= */
 
-
-    /* ================= DELETE ================= */
-
-    public StandardResponse<Void> delete(Long id);
-
+        public StandardResponse<Void> delete(Long id);
 
 }

@@ -7,6 +7,7 @@ public class SubjectMarksResponse {
 
     private Long id;
     private Long subjectId;
+    private String subjectName;
 
     private Integer theoryMarks;
     private Integer theoryMax;

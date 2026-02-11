@@ -17,8 +17,7 @@ public class ExamSubjectConfigController {
     /* BULK CREATE */
     @PostMapping("/saveExamSubjectMarks")
     public StandardResponse<?> createBulk(
-            @RequestBody ExamSubjectConfigBulkRequest request
-    ) {
+            @RequestBody ExamSubjectConfigBulkRequest request) {
         return service.createBulk(request);
     }
 
@@ -27,19 +26,16 @@ public class ExamSubjectConfigController {
     public StandardResponse<?> getAll(
             @RequestParam Integer sessionId,
             @RequestParam(required = false) Integer examTypeId,
-            @RequestParam(required = false) Integer classId
-    ) {
+            @RequestParam(required = false) Integer classId) {
         return service.getAll(sessionId, examTypeId, classId);
     }
 
     /* UPDATE */
     @PutMapping("/updateExamSubjectMarksBulk")
     public StandardResponse<?> updateBulk(
-            @RequestBody ExamSubjectMarksBulkUpdateRequest request
-    ) {
+            @RequestBody ExamSubjectMarksBulkUpdateRequest request) {
         return service.updateBulk(request);
     }
-
 
     /* DELETE */
     @DeleteMapping("deleteExamSubjectMarks/{id}")

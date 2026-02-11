@@ -10,10 +10,15 @@ public class MarksheetDetailResponse {
 
     private Long id;
     private Long studentId;
+    private String studentName;
     private Integer classId;
+    private String className;
     private Integer sectionId;
+    private String sectionName;
     private Integer sessionId;
+    private String sessionName;
     private Integer examTypeId;
+    private String examTypeName;
     private LocalDate examDate;
 
     /* SUBJECTS */

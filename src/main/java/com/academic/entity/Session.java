@@ -21,14 +21,13 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
 public class Session {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
-    
+
     @Column(unique = true)
     private String session;
-
 
     @Builder.Default
     private boolean isActive = true;

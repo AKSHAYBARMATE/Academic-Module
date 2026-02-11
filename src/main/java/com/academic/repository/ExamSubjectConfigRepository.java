@@ -9,34 +9,29 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ExamSubjectConfigRepository
-        extends JpaRepository<ExamSubjectConfig, Long> {
+                extends JpaRepository<ExamSubjectConfig, Long> {
 
-    Optional<ExamSubjectConfig>
-    findBySession_IdAndExamType_IdAndSubject_Id(
-            Integer sessionId,
-            Integer examTypeId,
-            Long subjectId
-    );
+        Optional<ExamSubjectConfig> findBySession_IdAndExamType_IdAndSubject_Id(
+                        Integer sessionId,
+                        Integer examTypeId,
+                        Long subjectId);
 
-    List<ExamSubjectConfig>
-    findBySession_IdAndExamType_IdAndIsDeleteFalse(
-            Integer sessionId,
-            Integer examTypeId
-    );
+        List<ExamSubjectConfig> findBySession_IdAndExamType_IdAndIsDeleteFalse(
+                        Integer sessionId,
+                        Integer examTypeId);
 
-    @Query("""
-    SELECT e FROM ExamSubjectConfig e
-    WHERE e.isDelete = false
-      AND (:sessionId IS NULL OR e.session.id = :sessionId)
-      AND (:examTypeId IS NULL OR e.examType.id = :examTypeId)
-      AND (:classId IS NULL OR e.classId.id = :classId)
-""")
-    List<ExamSubjectConfig> findAllWithFilters(
-            @Param("sessionId") Integer sessionId,
-            @Param("examTypeId") Integer examTypeId,
-            @Param("classId") Integer classId
-    );
+        @Query("""
+                            SELECT e FROM ExamSubjectConfig e
+                            WHERE e.isDelete = false
+                              AND (:sessionId IS NULL OR e.session.id = :sessionId)
+                              AND (:examTypeId IS NULL OR e.examType.id = :examTypeId)
+                              AND (:classId IS NULL OR e.classId.id = :classId)
+                        """)
+        List<ExamSubjectConfig> findAllWithFilters(
+                        @Param("sessionId") Integer sessionId,
+                        @Param("examTypeId") Integer examTypeId,
+                        @Param("classId") Integer classId);
 
-
-    Optional<ExamSubjectConfig> findBySession_IdAndExamType_IdAndSubject_IdAndClassIdIdAndIsDeleteFalse(Integer id, Integer id1, Long id2, Integer id3);
+        Optional<ExamSubjectConfig> findBySession_IdAndExamType_IdAndSubject_IdAndClassIdIdAndIsDeleteFalse(Integer id,
+                        Integer id1, Long id2, Integer id3);
 }

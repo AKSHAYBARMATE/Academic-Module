@@ -7,7 +7,7 @@ import java.time.LocalDate;
 public class ExamScheduleRequest {
 
     private String examTitle;
-    private Long sessionId;
+    private Integer sessionId;
     private Integer examTypeId;
 
     private LocalDate startDate;

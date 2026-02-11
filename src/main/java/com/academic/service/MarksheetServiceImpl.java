@@ -6,8 +6,12 @@ import com.academic.entity.MarksheetSubjectMarks;
 import com.academic.repository.MarksheetRepository;
 import com.academic.repository.MarksheetSubjectMarksRepository;
 import com.academic.response.MarksheetDetailResponse;
+import com.academic.response.MarksheetResponse;
 import com.academic.response.StandardResponse;
 import com.academic.response.SubjectMarksResponse;
+import com.academic.repository.CommonMasterRepository;
+import com.academic.repository.SessionRepository;
+import com.academic.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,10 +24,13 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class MarksheetServiceImpl implements MarksheetService{
+public class MarksheetServiceImpl implements MarksheetService {
 
     private final MarksheetRepository marksheetRepo;
     private final MarksheetSubjectMarksRepository subjectRepo;
+    private final CommonMasterRepository commonRepo;
+    private final SessionRepository sessionRepo;
+    private final SubjectRepository subjectMasterRepo;
 
     /* CREATE */
     @Transactional
@@ -44,8 +51,7 @@ public class MarksheetServiceImpl implements MarksheetService{
                     "Subjects are required",
                     "NO_SUBJECTS",
                     "subjects",
-                    "At least one subject is mandatory"
-            );
+                    "At least one subject is mandatory");
         }
 
         Marksheet sheet;
@@ -83,13 +89,11 @@ public class MarksheetServiceImpl implements MarksheetService{
 
         request.getSubjects().forEach(s -> {
 
-            int total =
-                    safe(s.getTheoryMarks()) +
+            int total = safe(s.getTheoryMarks()) +
                     safe(s.getPracticalMarks()) +
                     safe(s.getInternalMarks());
 
-            int totalMax =
-                    safe(s.getTheoryMax()) +
+            int totalMax = safe(s.getTheoryMax()) +
                     safe(s.getPracticalMax()) +
                     safe(s.getInternalMax());
 
@@ -106,14 +110,12 @@ public class MarksheetServiceImpl implements MarksheetService{
                             .totalMarks(total)
                             .totalMax(totalMax)
                             .subjectRemarks(s.getSubjectRemarks())
-                            .build()
-            );
+                            .build());
         });
 
         return StandardResponse.success(
                 sheet.getId(),
-                id == null ? "Marksheet created" : "Marksheet updated"
-        );
+                id == null ? "Marksheet created" : "Marksheet updated");
     }
 
     private int safe(Integer v) {
@@ -125,26 +127,28 @@ public class MarksheetServiceImpl implements MarksheetService{
             Integer classId,
             Integer examTypeId,
             int page,
-            int size
-    ) {
+            int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        Page<Marksheet> result =
-                (classId != null && examTypeId != null)
-                        ? marksheetRepo.findByClassIdAndExamTypeIdAndIsDeletedFalse(
-                                classId, examTypeId, pageable)
-                        : marksheetRepo.findByIsDeletedFalse(pageable);
+        Page<Marksheet> result = (classId != null && examTypeId != null)
+                ? marksheetRepo.findByClassIdAndExamTypeIdAndIsDeletedFalse(
+                        classId, examTypeId, pageable)
+                : marksheetRepo.findByIsDeletedFalse(pageable);
+
+        List<MarksheetResponse> dtoList = result.getContent()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
 
         return StandardResponse.success(
-                result.getContent(),
+                dtoList,
                 "Marksheets fetched",
                 StandardResponse.ResponseMetadata.builder()
                         .totalRecords(result.getTotalElements())
                         .totalPages(result.getTotalPages())
                         .currentPage(page)
                         .pageSize(size)
-                        .build()
-        );
+                        .build());
     }
 
     public StandardResponse<?> getById(Long id) {
@@ -156,40 +160,70 @@ public class MarksheetServiceImpl implements MarksheetService{
                     "Marksheet not found",
                     "NOT_FOUND",
                     "id",
-                    "Invalid marksheet id"
-            );
+                    "Invalid marksheet id");
         }
 
-        List<SubjectMarksResponse> subjects =
-                subjectRepo.findByMarksheetId(id)
-                        .stream()
-                        .map(s -> {
-                            SubjectMarksResponse r = new SubjectMarksResponse();
-                            r.setId(s.getId());
-                            r.setSubjectId(s.getSubjectId());
-                            r.setTheoryMarks(s.getTheoryMarks());
-                            r.setTheoryMax(s.getTheoryMax());
-                            r.setPracticalMarks(s.getPracticalMarks());
-                            r.setPracticalMax(s.getPracticalMax());
-                            r.setInternalMarks(s.getInternalMarks());
-                            r.setInternalMax(s.getInternalMax());
-                            r.setTotalMarks(s.getTotalMarks());
-                            r.setTotalMax(s.getTotalMax());
-                            r.setSubjectRemarks(s.getSubjectRemarks());
-                            return r;
-                        })
-                        .toList();
+        return StandardResponse.success(mapToDetailResponse(sheet), "Marksheet fetched");
+    }
+
+    private MarksheetResponse mapToResponse(Marksheet sheet) {
+        return MarksheetResponse.builder()
+                .id(sheet.getId())
+                .studentId(sheet.getStudentId())
+                .studentName("Student #" + sheet.getStudentId()) // placeholder if no student repo
+                .className(getName(sheet.getClassId()))
+                .sectionName(getName(sheet.getSectionId()))
+                .sessionName(getSessionName(sheet.getSessionId()))
+                .examTypeName(getName(sheet.getExamTypeId()))
+                .examDate(sheet.getExamDate())
+                .totalMarksObtained(sheet.getTotalMarksObtained())
+                .totalMaxMarks(sheet.getTotalMaxMarks())
+                .percentage(sheet.getPercentage())
+                .grade(sheet.getGrade())
+                .published(sheet.getPublished())
+                .build();
+    }
+
+    private MarksheetDetailResponse mapToDetailResponse(Marksheet sheet) {
+        List<SubjectMarksResponse> subjects = subjectRepo.findByMarksheetId(sheet.getId())
+                .stream()
+                .map(s -> {
+                    SubjectMarksResponse r = new SubjectMarksResponse();
+                    r.setId(s.getId());
+                    r.setSubjectId(s.getSubjectId());
+                    r.setSubjectName(getSubjectName(s.getSubjectId()));
+                    r.setTheoryMarks(s.getTheoryMarks());
+                    r.setTheoryMax(s.getTheoryMax());
+                    r.setPracticalMarks(s.getPracticalMarks());
+                    r.setPracticalMax(s.getPracticalMax());
+                    r.setInternalMarks(s.getInternalMarks());
+                    r.setInternalMax(s.getInternalMax());
+                    r.setTotalMarks(s.getTotalMarks());
+                    r.setTotalMax(s.getTotalMax());
+                    r.setSubjectRemarks(s.getSubjectRemarks());
+                    return r;
+                })
+                .toList();
 
         MarksheetDetailResponse response = new MarksheetDetailResponse();
 
         response.setId(sheet.getId());
         response.setStudentId(sheet.getStudentId());
-        response.setClassId(sheet.getClassId());
-        response.setSectionId(sheet.getSectionId());
-        response.setSessionId(sheet.getSessionId());
-        response.setExamTypeId(sheet.getExamTypeId());
-        response.setExamDate(sheet.getExamDate());
+        response.setStudentName("Student #" + sheet.getStudentId());
 
+        response.setClassId(sheet.getClassId());
+        response.setClassName(getName(sheet.getClassId()));
+
+        response.setSectionId(sheet.getSectionId());
+        response.setSectionName(getName(sheet.getSectionId()));
+
+        response.setSessionId(sheet.getSessionId());
+        response.setSessionName(getSessionName(sheet.getSessionId()));
+
+        response.setExamTypeId(sheet.getExamTypeId());
+        response.setExamTypeName(getName(sheet.getExamTypeId()));
+
+        response.setExamDate(sheet.getExamDate());
         response.setSubjects(subjects);
 
         response.setTotalMarksObtained(sheet.getTotalMarksObtained());
@@ -207,7 +241,31 @@ public class MarksheetServiceImpl implements MarksheetService{
         response.setPrincipalRemarks(sheet.getPrincipalRemarks());
         response.setPublished(sheet.getPublished());
 
-        return StandardResponse.success(response, "Marksheet fetched");
+        return response;
+    }
+
+    private String getName(Integer id) {
+        if (id == null)
+            return null;
+        return commonRepo.findByIdAndStatusTrue(id)
+                .map(cm -> cm.getData())
+                .orElse("Unknown (" + id + ")");
+    }
+
+    private String getSessionName(Integer id) {
+        if (id == null)
+            return null;
+        return sessionRepo.findById(id)
+                .map(s -> s.getSession())
+                .orElse("Unknown (" + id + ")");
+    }
+
+    private String getSubjectName(Long id) {
+        if (id == null)
+            return null;
+        return subjectMasterRepo.findByIdAndIsDeletedFalse(id)
+                .map(s -> s.getSubjectName())
+                .orElse("Unknown (" + id + ")");
     }
 
     public StandardResponse<?> delete(Long id) {
@@ -219,7 +277,6 @@ public class MarksheetServiceImpl implements MarksheetService{
                 "Marksheet not found",
                 "NOT_FOUND",
                 "id",
-                "Invalid marksheet id"
-        ));
+                "Invalid marksheet id"));
     }
 }
