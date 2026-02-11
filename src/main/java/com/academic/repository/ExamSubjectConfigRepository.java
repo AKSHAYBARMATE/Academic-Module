@@ -29,10 +29,12 @@ public interface ExamSubjectConfigRepository
     WHERE e.isDelete = false
       AND (:sessionId IS NULL OR e.session.id = :sessionId)
       AND (:examTypeId IS NULL OR e.examType.id = :examTypeId)
+      AND (:classId IS NULL OR e.classId.id = :classId)
 """)
     List<ExamSubjectConfig> findAllWithFilters(
             @Param("sessionId") Integer sessionId,
-            @Param("examTypeId") Integer examTypeId
+            @Param("examTypeId") Integer examTypeId,
+            @Param("classId") Integer classId
     );
 
 

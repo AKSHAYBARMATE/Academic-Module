@@ -25,7 +25,8 @@ public interface ExamSubjectConfigService {
 
     public StandardResponse<List<ExamSubjectConfigResponse>> getAll(
             Integer sessionId,
-            Integer examTypeId
+            Integer examTypeId,
+            Integer classId
     ) ;
 
     /* ================= UPDATE ================= */

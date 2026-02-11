@@ -140,11 +140,12 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
 
     public StandardResponse<List<ExamSubjectConfigResponse>> getAll(
             Integer sessionId,
-            Integer examTypeId
+            Integer examTypeId,
+            Integer classId
     ) {
 
         List<ExamSubjectConfigResponse> data =
-                repository.findAllWithFilters(sessionId, examTypeId)
+                repository.findAllWithFilters(sessionId, examTypeId, classId)
                         .stream()
                         .map(this::map)
                         .toList();

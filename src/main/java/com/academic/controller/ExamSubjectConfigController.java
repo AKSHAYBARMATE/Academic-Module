@@ -26,9 +26,10 @@ public class ExamSubjectConfigController {
     @GetMapping("/getAllExamSubjectMarks")
     public StandardResponse<?> getAll(
             @RequestParam Integer sessionId,
-            @RequestParam(required = false) Integer examTypeId
+            @RequestParam(required = false) Integer examTypeId,
+            @RequestParam(required = false) Integer classId
     ) {
-        return service.getAll(sessionId, examTypeId);
+        return service.getAll(sessionId, examTypeId, classId);
     }
 
     /* UPDATE */
