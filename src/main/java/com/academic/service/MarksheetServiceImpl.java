@@ -3,15 +3,12 @@ package com.academic.service;
 import com.academic.dto.MarksheetRequest;
 import com.academic.entity.Marksheet;
 import com.academic.entity.MarksheetSubjectMarks;
-import com.academic.repository.MarksheetRepository;
-import com.academic.repository.MarksheetSubjectMarksRepository;
+import com.academic.entity.Student;
+import com.academic.repository.*;
 import com.academic.response.MarksheetDetailResponse;
 import com.academic.response.MarksheetResponse;
 import com.academic.response.StandardResponse;
 import com.academic.response.SubjectMarksResponse;
-import com.academic.repository.CommonMasterRepository;
-import com.academic.repository.SessionRepository;
-import com.academic.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,6 +27,7 @@ public class MarksheetServiceImpl implements MarksheetService {
     private final MarksheetSubjectMarksRepository subjectRepo;
     private final CommonMasterRepository commonRepo;
     private final SessionRepository sessionRepo;
+    private final StudentRepository studentRepository;
     private final SubjectRepository subjectMasterRepo;
 
     /* CREATE */
@@ -167,10 +165,11 @@ public class MarksheetServiceImpl implements MarksheetService {
     }
 
     private MarksheetResponse mapToResponse(Marksheet sheet) {
+      Student student=  studentRepository.findById(sheet.getStudentId()).get();
         return MarksheetResponse.builder()
                 .id(sheet.getId())
                 .studentId(sheet.getStudentId())
-                .studentName("Student #" + sheet.getStudentId()) // placeholder if no student repo
+                .studentName(student.getFirstName()+ " "+student.getLastName() ) // placeholder if no student repo
                 .className(getName(sheet.getClassId()))
                 .sectionName(getName(sheet.getSectionId()))
                 .sessionName(getSessionName(sheet.getSessionId()))
@@ -185,6 +184,7 @@ public class MarksheetServiceImpl implements MarksheetService {
     }
 
     private MarksheetDetailResponse mapToDetailResponse(Marksheet sheet) {
+        Student student=  studentRepository.findById(sheet.getStudentId()).get();
         List<SubjectMarksResponse> subjects = subjectRepo.findByMarksheetId(sheet.getId())
                 .stream()
                 .map(s -> {
@@ -209,7 +209,7 @@ public class MarksheetServiceImpl implements MarksheetService {
 
         response.setId(sheet.getId());
         response.setStudentId(sheet.getStudentId());
-        response.setStudentName("Student #" + sheet.getStudentId());
+        response.setStudentName(student.getFirstName() + " " + student.getLastName());
 
         response.setClassId(sheet.getClassId());
         response.setClassName(getName(sheet.getClassId()));
