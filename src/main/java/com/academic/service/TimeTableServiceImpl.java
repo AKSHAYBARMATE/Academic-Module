@@ -72,7 +72,7 @@ public class TimeTableServiceImpl implements TimeTableService {
         // Fetch common master map
         Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
                 .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
-                .collect(Collectors.toMap(CommonMaster::getId, CommonMaster::getCommonMasterKey));
+                .collect(Collectors.toMap(CommonMaster::getId, CommonMaster::getData));
 
         return timeTableMapper.toResponse(saved, commonMasterMap);
     }
