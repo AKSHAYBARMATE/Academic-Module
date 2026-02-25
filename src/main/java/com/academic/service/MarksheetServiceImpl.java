@@ -165,11 +165,12 @@ public class MarksheetServiceImpl implements MarksheetService {
     }
 
     private MarksheetResponse mapToResponse(Marksheet sheet) {
-      Student student=  studentRepository.findById(sheet.getStudentId()).get();
+        Student student = studentRepository
+                .findById(sheet.getStudentId() != null ? sheet.getStudentId().intValue() : -1).get();
         return MarksheetResponse.builder()
                 .id(sheet.getId())
                 .studentId(sheet.getStudentId())
-                .studentName(student.getFirstName()+ " "+student.getLastName() ) // placeholder if no student repo
+                .studentName(student.getFirstName() + " " + student.getLastName()) // placeholder if no student repo
                 .className(getName(sheet.getClassId()))
                 .sectionName(getName(sheet.getSectionId()))
                 .sessionName(getSessionName(sheet.getSessionId()))
@@ -184,14 +185,15 @@ public class MarksheetServiceImpl implements MarksheetService {
     }
 
     private MarksheetDetailResponse mapToDetailResponse(Marksheet sheet) {
-        Student student=  studentRepository.findById(sheet.getStudentId()).get();
+        Student student = studentRepository
+                .findById(sheet.getStudentId() != null ? sheet.getStudentId().intValue() : -1).get();
         List<SubjectMarksResponse> subjects = subjectRepo.findByMarksheetId(sheet.getId())
                 .stream()
                 .map(s -> {
                     SubjectMarksResponse r = new SubjectMarksResponse();
                     r.setId(s.getId());
                     r.setSubjectId(s.getSubjectId());
-                    r.setSubjectName(getSubjectName(s.getSubjectId()));
+                    r.setSubjectName(getSubjectName(s.getId()));
                     r.setTheoryMarks(s.getTheoryMarks());
                     r.setTheoryMax(s.getTheoryMax());
                     r.setPracticalMarks(s.getPracticalMarks());

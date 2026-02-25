@@ -9,6 +9,9 @@ import java.util.Optional;
 
 // Spring Data JPA Repository for AcademicCalendarEvent
 public interface SessionRepository
-            extends JpaRepository<Session, Integer>, JpaSpecificationExecutor<Session> {
+        extends JpaRepository<Session, Integer>, JpaSpecificationExecutor<Session> {
 
+    Session findBySession(String currentSession);
+
+    Optional<Session> findByIsActiveTrue();
 }

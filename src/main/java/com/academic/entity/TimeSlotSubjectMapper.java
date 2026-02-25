@@ -32,13 +32,16 @@ public class TimeSlotSubjectMapper {
     private String startTime; // "09:00"
 
     @Column(nullable = false)
-    private String endTime;   // "10:00"
+    private String endTime; // "10:00"
 
     @Column(nullable = false)
     private Long subjectId; // from common_master (commonMasterKey="SUBJECT")
 
     @Column(nullable = false)
     private String teacherName;
+
+    @Column
+    private Long teacherId;
 
     @Column
     private String room;
@@ -54,4 +57,3 @@ public class TimeSlotSubjectMapper {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 }
-

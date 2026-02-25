@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface TimeSlotSubjectMapperRepository extends JpaRepository<TimeSlotSubjectMapper, Long> {
     List<TimeSlotSubjectMapper> findByTimeTableId(Long timeTableId);
+
+    List<TimeSlotSubjectMapper> findByTeacherId(Long teacherId);
 }

@@ -17,24 +17,28 @@ import java.util.Optional;
 @Repository
 public interface TimeTableRepository extends JpaRepository<TimeTable, Long> {
 
-    @Query("SELECT t FROM TimeTable t " +
-            "WHERE t.isDeleted = false " +
-            "AND (:classId IS NULL OR t.classId = :classId) " +
-            "AND (:sectionId IS NULL OR t.sectionId = :sectionId) " +
-            "AND (:search IS NULL OR LOWER(t.timetableName) LIKE LOWER(CONCAT('%', :search, '%')))")
-    Page<TimeTable> findAllByFilters(
-            @Param("classId") Long classId,
-            @Param("sectionId") Long sectionId,
-            @Param("search") String search,
-            Pageable pageable);
+        TimeTable findByClassIdAndSectionIdAndIsDeletedFalse(Long classId, Long sectionId);
 
-    List<TimeTable> findByIsDeletedFalse();
+        @Query("SELECT t FROM TimeTable t " +
+                        "WHERE t.isDeleted = false " +
+                        "AND (:classId IS NULL OR t.classId = :classId) " +
+                        "AND (:sectionId IS NULL OR t.sectionId = :sectionId) " +
+                        "AND (:search IS NULL OR LOWER(t.timetableName) LIKE LOWER(CONCAT('%', :search, '%')))")
+        Page<TimeTable> findAllByFilters(
+                        @Param("classId") Long classId,
+                        @Param("sectionId") Long sectionId,
+                        @Param("search") String search,
+                        Pageable pageable);
 
-    Optional<TimeTable> findByIdAndIsDeletedFalse(Long id);
+        List<TimeTable> findByIsDeletedFalse();
 
-    boolean existsByTimetableNameAndClassIdAndSectionIdAndIsDeletedFalseAndIdNot(@NotBlank String timetableName, @NotNull Long classId, Long sectionId, Long id);
+        Optional<TimeTable> findByIdAndIsDeletedFalse(Long id);
 
-    boolean existsByTimetableNameAndIsDeletedFalse(@NotBlank String timetableName);
+        boolean existsByTimetableNameAndClassIdAndSectionIdAndIsDeletedFalseAndIdNot(@NotBlank String timetableName,
+                        @NotNull Long classId, Long sectionId, Long id);
 
-    boolean existsByTimetableNameAndClassIdAndSectionIdAndIsDeletedFalse(@NotBlank String timetableName, @NotNull Long classId, Long sectionId);
+        boolean existsByTimetableNameAndIsDeletedFalse(@NotBlank String timetableName);
+
+        boolean existsByTimetableNameAndClassIdAndSectionIdAndIsDeletedFalse(@NotBlank String timetableName,
+                        @NotNull Long classId, Long sectionId);
 }

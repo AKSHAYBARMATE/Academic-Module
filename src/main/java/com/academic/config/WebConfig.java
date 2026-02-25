@@ -1,6 +1,6 @@
-// package com.academic.config;
+package com.academic.config;// package com.schoolerp.staff.config;
 
-// import com.academic.interceptor.LoggingInterceptor;
+// import com.schoolerp.staff.interceptor.LoggingInterceptor;
 // import lombok.RequiredArgsConstructor;
 // import org.springframework.context.annotation.Bean;
 // import org.springframework.context.annotation.Configuration;

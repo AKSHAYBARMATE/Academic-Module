@@ -1,6 +1,5 @@
 package com.academic.repository;
 
-
 import com.academic.entity.CommonMaster;
 import org.springframework.data.domain.Range;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,4 +12,6 @@ public interface CommonMasterRepository extends JpaRepository<CommonMaster, Inte
     Optional<CommonMaster> findByIdAndStatusTrue(Integer id);
 
     boolean existsByIdAndStatusTrue(Integer classId);
+
+    Optional<CommonMaster> findByCommonMasterKeyAndStatusTrue(String key);
 }

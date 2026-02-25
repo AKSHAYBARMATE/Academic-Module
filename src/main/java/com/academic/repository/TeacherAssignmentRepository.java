@@ -10,6 +10,10 @@ import java.util.Optional;
 
 public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssignment, Long> {
     Optional<TeacherAssignment> findByIdAndIsDeletedFalse(Long id);
+
     Page<TeacherAssignment> findByIsDeletedFalse(Pageable pageable);
+
     Page<TeacherAssignment> findAll(Specification<TeacherAssignment> spec, Pageable pageable);
+
+    Optional<TeacherAssignment> findByEmployeeIdAndIsDeletedFalse(String employeeId);
 }
