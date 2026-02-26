@@ -4,6 +4,7 @@ import com.academic.dto.mobile.*;
 import com.academic.entity.*;
 import com.academic.repository.*;
 import com.academic.response.StandardResponse;
+import com.academic.utility.IstClock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -60,7 +61,7 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                 Integer currentSectionId = (promotion != null) ? promotion.getToSection() : student.getSection();
 
                 // Attendance Summary
-                LocalDate today = LocalDate.now();
+                LocalDate today = IstClock.today();
                 LocalDate startOfMonth = today.withDayOfMonth(1);
 
                 long totalDaysThisMonth = attendanceRepository
@@ -143,7 +144,7 @@ public class StudentMobileServiceImpl implements StudentMobileService {
         }
 
         public static String getCurrentSession() {
-                LocalDate today = LocalDate.now();
+                LocalDate today = IstClock.today();
                 int year = today.getYear();
                 int month = today.getMonthValue(); // 1 = Jan, 12 = Dec
 
@@ -167,9 +168,9 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                 if (classId == null || sectionId == null)
                         return null;
 
-                LocalDate today = LocalDate.now();
+                LocalDate today = IstClock.today();
                 int dayOfWeek = today.getDayOfWeek().getValue(); // 1 = Mon, ..., 7 = Sun
-                LocalTime now = LocalTime.now();
+                LocalTime now = IstClock.nowTime();
 
                 TimeTable tt = timeTableRepository
                                 .findByClassIdAndSectionIdAndIsDeletedFalse(classId.longValue(), sectionId.longValue());
@@ -309,8 +310,8 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                                 .collect(Collectors.toList());
 
                 // Determine if the requested day is today (for live/completed logic)
-                boolean isToday = LocalDate.now().getDayOfWeek().getValue() == dayOfWeek;
-                LocalTime nowTime = LocalTime.now();
+                boolean isToday = IstClock.today().getDayOfWeek().getValue() == dayOfWeek;
+                LocalTime nowTime = IstClock.nowTime();
 
                 List<StudentTimetableDetailResponse.ScheduleSlotDto> schedule = slots.stream()
                                 .map(s -> {
@@ -359,7 +360,7 @@ public class StudentMobileServiceImpl implements StudentMobileService {
 
                 StudentTimetableDetailResponse response = StudentTimetableDetailResponse.builder()
                                 .dayName(java.time.DayOfWeek.of(dayOfWeek).name())
-                                .date(LocalDate.now().toString())
+                                .date(IstClock.today().toString())
                                 .schedule(schedule)
                                 .build();
 
@@ -708,7 +709,7 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                         events = academicCalendarEventRepository.findAllByIsDeletedFalse();
                 }
 
-                LocalDate today = LocalDate.now();
+                LocalDate today = IstClock.today();
 
                 List<AcademicCalendarResponse.CalendarEventDto> dtos = events.stream()
                                 .map(e -> {

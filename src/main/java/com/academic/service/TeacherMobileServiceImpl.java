@@ -4,6 +4,7 @@ import com.academic.dto.mobile.*;
 import com.academic.entity.*;
 import com.academic.repository.*;
 import com.academic.response.StandardResponse;
+import com.academic.utility.IstClock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +39,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 TeacherAssignment teacher = teacherAssignmentRepository.findByEmployeeIdAndIsDeletedFalse(employeeId)
                                 .orElseThrow(() -> new RuntimeException("Teacher assignment not found"));
 
-                LocalDate today = LocalDate.now();
+                LocalDate today = IstClock.today();
 
                 Optional<StaffPunchLog> punchLogOpt = staffPunchLogRepository.findByStaffIdAndWorkDate(
                                 Integer.valueOf(teacher.getEmployeeId()),
@@ -102,9 +103,9 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         }
 
         private List<TeacherDashboardResponse.TeacherScheduleSlotDto> getTeacherSchedule(Long teacherId) {
-                LocalDate today = LocalDate.now();
+                LocalDate today = IstClock.today();
                 int dayOfWeek = today.getDayOfWeek().getValue();
-                LocalTime now = LocalTime.now();
+                LocalTime now = IstClock.nowTime();
 
                 List<TimeSlotSubjectMapper> mapperSlots = slotMapperRepository.findByTeacherId(teacherId);
                 List<TeacherDashboardResponse.TeacherScheduleSlotDto> slots = new ArrayList<>();

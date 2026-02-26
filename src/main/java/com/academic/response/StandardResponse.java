@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import com.academic.utility.IstClock;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -22,48 +23,48 @@ import java.util.Map;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class StandardResponse<T> {
-    
+
     /**
      * Indicates if the operation was successful
      */
     private boolean success;
-    
+
     /**
      * Human-readable message describing the operation result
      */
     private String message;
-    
+
     /**
      * The actual data payload
      */
     private T data;
-    
+
     /**
      * Log ID for tracking this specific operation
      */
     private String logId;
-    
+
     /**
      * Request ID for tracking the entire request
      */
     private String requestId;
-    
+
     /**
      * Timestamp when the response was generated
      */
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     private LocalDateTime timestamp;
-    
+
     /**
      * Error details (only present when success = false)
      */
     private ErrorDetails error;
-    
+
     /**
      * Additional metadata about the operation
      */
     private ResponseMetadata metadata;
-    
+
     /**
      * Error details nested class
      */
@@ -78,7 +79,7 @@ public class StandardResponse<T> {
         private String details;
         private String field;
     }
-    
+
     /**
      * Response metadata nested class
      */
@@ -95,64 +96,60 @@ public class StandardResponse<T> {
         private Long executionTimeMs;
         private String operation;
     }
-    
+
     /**
      * Creates a successful response with data
      * 
-     * @param data The response data
+     * @param data    The response data
      * @param message Success message
-     * @param <T> Type of data
+     * @param <T>     Type of data
      * @return StandardResponse with success = true
      */
     public static <T> StandardResponse<T> success(T data, String message) {
         return StandardResponse.<T>builder()
-            .success(true)
-            .data(data)
-            .message(message)
-            .logId(LogContext.getLogId())
-            .requestId(LogContext.getRequestId())
-            .timestamp(LocalDateTime.now())
-            .build();
+                .success(true)
+                .data(data)
+                .message(message)
+                .logId(LogContext.getLogId())
+                .requestId(LogContext.getRequestId())
+                .timestamp(IstClock.nowDateTime())
+                .build();
     }
-
 
     public static StandardResponse<Map<String, Object>> success(
             Map<String, Object> data,
-            String message
-    ) {
+            String message) {
         return StandardResponse.<Map<String, Object>>builder()
                 .success(true)
                 .data(data)
                 .message(message)
                 .logId(LogContext.getLogId())
                 .requestId(LogContext.getRequestId())
-                .timestamp(LocalDateTime.now())
+                .timestamp(IstClock.nowDateTime())
                 .build();
     }
-
-
 
     /**
      * Creates a successful response with data and metadata
      * 
-     * @param data The response data
-     * @param message Success message
+     * @param data     The response data
+     * @param message  Success message
      * @param metadata Response metadata
-     * @param <T> Type of data
+     * @param <T>      Type of data
      * @return StandardResponse with success = true and metadata
      */
     public static <T> StandardResponse<T> success(T data, String message, ResponseMetadata metadata) {
         return StandardResponse.<T>builder()
-            .success(true)
-            .data(data)
-            .message(message)
-            .logId(LogContext.getLogId())
-            .requestId(LogContext.getRequestId())
-            .timestamp(LocalDateTime.now())
-            .metadata(metadata)
-            .build();
+                .success(true)
+                .data(data)
+                .message(message)
+                .logId(LogContext.getLogId())
+                .requestId(LogContext.getRequestId())
+                .timestamp(IstClock.nowDateTime())
+                .metadata(metadata)
+                .build();
     }
-    
+
     /**
      * Creates a successful response with just a message
      * 
@@ -161,59 +158,59 @@ public class StandardResponse<T> {
      */
     public static StandardResponse<Void> success(String message) {
         return StandardResponse.<Void>builder()
-            .success(true)
-            .message(message)
-            .logId(LogContext.getLogId())
-            .requestId(LogContext.getRequestId())
-            .timestamp(LocalDateTime.now())
-            .build();
+                .success(true)
+                .message(message)
+                .logId(LogContext.getLogId())
+                .requestId(LogContext.getRequestId())
+                .timestamp(IstClock.nowDateTime())
+                .build();
     }
-    
+
     /**
      * Creates an error response
      * 
-     * @param message Error message
-     * @param errorCode Error code
+     * @param message      Error message
+     * @param errorCode    Error code
      * @param errorDetails Additional error details
      * @return StandardResponse with success = false
      */
     public static StandardResponse<Void> error(String message, String errorCode, String errorDetails) {
         return StandardResponse.<Void>builder()
-            .success(false)
-            .message(message)
-            .logId(LogContext.getLogId())
-            .requestId(LogContext.getRequestId())
-            .timestamp(LocalDateTime.now())
-            .error(ErrorDetails.builder()
-                .code(errorCode)
+                .success(false)
                 .message(message)
-                .details(errorDetails)
-                .build())
-            .build();
+                .logId(LogContext.getLogId())
+                .requestId(LogContext.getRequestId())
+                .timestamp(IstClock.nowDateTime())
+                .error(ErrorDetails.builder()
+                        .code(errorCode)
+                        .message(message)
+                        .details(errorDetails)
+                        .build())
+                .build();
     }
-    
+
     /**
      * Creates an error response with field-specific error
      * 
-     * @param message Error message
-     * @param errorCode Error code
-     * @param field Field that caused the error
+     * @param message      Error message
+     * @param errorCode    Error code
+     * @param field        Field that caused the error
      * @param errorDetails Additional error details
      * @return StandardResponse with success = false and field error
      */
-    public static<T> StandardResponse<T> error(String message, String errorCode, String field, String errorDetails) {
+    public static <T> StandardResponse<T> error(String message, String errorCode, String field, String errorDetails) {
         return StandardResponse.<T>builder()
-            .success(false)
-            .message(message)
-            .logId(LogContext.getLogId())
-            .requestId(LogContext.getRequestId())
-            .timestamp(LocalDateTime.now())
-            .error(ErrorDetails.builder()
-                .code(errorCode)
+                .success(false)
                 .message(message)
-                .field(field)
-                .details(errorDetails)
-                .build())
-            .build();
+                .logId(LogContext.getLogId())
+                .requestId(LogContext.getRequestId())
+                .timestamp(IstClock.nowDateTime())
+                .error(ErrorDetails.builder()
+                        .code(errorCode)
+                        .message(message)
+                        .field(field)
+                        .details(errorDetails)
+                        .build())
+                .build();
     }
 }
