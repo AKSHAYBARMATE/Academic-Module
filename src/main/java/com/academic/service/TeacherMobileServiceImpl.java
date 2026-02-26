@@ -156,12 +156,24 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                                                                 .existsByStudentIdInAndAttendanceDate(sIds,
                                                                                 today);
 
+                                String timeRange = s.getStartTime() + " - " + s.getEndTime();
+                                try {
+                                        java.time.format.DateTimeFormatter outputFormat = java.time.format.DateTimeFormatter
+                                                        .ofPattern("hh:mm a");
+                                        if (s.getStartTime() != null && s.getEndTime() != null) {
+                                                timeRange = LocalTime.parse(s.getStartTime()).format(outputFormat)
+                                                                + " - " +
+                                                                LocalTime.parse(s.getEndTime()).format(outputFormat);
+                                        }
+                                } catch (Exception ignored) {
+                                }
+
                                 slots.add(TeacherDashboardResponse.TeacherScheduleSlotDto.builder()
                                                 .id(s.getId()).subjectName(subName)
                                                 .classSection(clsName + (tt.getSectionId() != null
                                                                 ? "-" + tt.getSectionId()
                                                                 : ""))
-                                                .timeRange(s.getStartTime() + " - " + s.getEndTime())
+                                                .timeRange(timeRange)
                                                 .room(s.getRoom()).status(status)
                                                 .attendanceMarked(marked).build());
                         }

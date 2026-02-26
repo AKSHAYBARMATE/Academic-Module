@@ -346,12 +346,32 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                                                 }
                                         }
 
+                                        String startTimeFormatted = s.getStartTime();
+                                        String endTimeFormatted = s.getEndTime();
+
+                                        try {
+                                                java.time.format.DateTimeFormatter inputFormat = java.time.format.DateTimeFormatter
+                                                                .ofPattern("HH:mm");
+                                                java.time.format.DateTimeFormatter outputFormat = java.time.format.DateTimeFormatter
+                                                                .ofPattern("hh:mm a");
+
+                                                if (s.getStartTime() != null) {
+                                                        startTimeFormatted = LocalTime.parse(s.getStartTime())
+                                                                        .format(outputFormat);
+                                                }
+                                                if (s.getEndTime() != null) {
+                                                        endTimeFormatted = LocalTime.parse(s.getEndTime())
+                                                                        .format(outputFormat);
+                                                }
+                                        } catch (Exception ignored) {
+                                        }
+
                                         return StudentTimetableDetailResponse.ScheduleSlotDto.builder()
                                                         .subjectName(subjectName)
                                                         .teacherName(s.getTeacherName())
                                                         .room(s.getRoom())
-                                                        .startTime(s.getStartTime())
-                                                        .endTime(s.getEndTime())
+                                                        .startTime(startTimeFormatted)
+                                                        .endTime(endTimeFormatted)
                                                         .isLive(live)
                                                         .status(status)
                                                         .build();
