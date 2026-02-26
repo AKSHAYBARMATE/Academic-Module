@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -33,6 +32,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         private final StaffPunchLogRepository staffPunchLogRepository;
         private final SessionRepository sessionRepository;
         private final StudentPromotionMapperRepository studentPromotionMapperRepository;
+        private final TimeTableRepository timeTableRepository;
 
         @Override
         public StandardResponse<?> getDashboardData(String employeeId) {
@@ -189,7 +189,46 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         }
 
         @Override
-        public StandardResponse<?> getAttendanceList(Long classId, Long sectionId, LocalDate date) {
+        public StandardResponse<?> getAttendanceList(Long staffId, LocalDate date) {
+                if (staffId == null) {
+                        return StandardResponse.error("Staff ID not found", "ID_MISSING", null);
+                }
+
+                // 1. Find the currently active slot for this teacher
+                LocalTime now = IstClock.nowTime();
+                int dayOfWeek = date.getDayOfWeek().getValue(); // 1 = Mon ... 7 = Sun
+
+                List<TimeSlotSubjectMapper> teacherSlots = slotMapperRepository.findByTeacherId(staffId);
+
+                TimeSlotSubjectMapper activeSlot = teacherSlots.stream()
+                                .filter(s -> s.getDay() != null && s.getDay() == dayOfWeek)
+                                .filter(s -> {
+                                        try {
+                                                LocalTime start = LocalTime.parse(s.getStartTime());
+                                                LocalTime end = LocalTime.parse(s.getEndTime());
+                                                // Check if 'now' is within start and end
+                                                return !now.isBefore(start) && !now.isAfter(end);
+                                        } catch (Exception e) {
+                                                return false;
+                                        }
+                                })
+                                .findFirst()
+                                .orElse(null);
+
+                if (activeSlot == null) {
+                        return StandardResponse.error("No ongoing class found at this time for attendance",
+                                        "NO_ACTIVE_CLASS", null);
+                }
+
+                TimeTable tt = activeSlot.getTimeTable();
+                if (tt == null) {
+                        return StandardResponse.error("Timetable missing for the active slot", "TIMETABLE_MISSING",
+                                        null);
+                }
+
+                // 2. Resolve real CommonMaster IDs from ClassSection
+
+
                 String sessionText = StudentMobileServiceImpl.getCurrentSession();
                 Session session = sessionRepository.findBySession(sessionText);
                 if (session == null) {
@@ -199,7 +238,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 }
 
                 List<StudentPromotionMapper> activePromotions = studentPromotionMapperRepository
-                                .findActivePromotionsByClassAndSection(classId.intValue(), sectionId.intValue(),
+                                .findActivePromotionsByClassAndSection(tt.getClassId().intValue(), tt.getSectionId().intValue(),
                                                 session.getId());
 
                 List<Integer> studentIds = activePromotions.stream().map(StudentPromotionMapper::getStudentId)
@@ -226,8 +265,8 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 long p = dtoList.stream().filter(d -> "PRESENT".equals(d.getStatus())).count();
                 long a = dtoList.stream().filter(d -> "ABSENT".equals(d.getStatus())).count();
 
-                String className = getName(classId.intValue());
-                String secName = getName(sectionId.intValue());
+                String className = getName(tt.getClassId().intValue());
+                String secName = getName(tt.getSectionId().intValue());
                 String classSectionName = (className != null ? className : "Unknown") + "-"
                                 + (secName != null ? secName : "Unknown");
 

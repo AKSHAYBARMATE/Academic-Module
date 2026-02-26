@@ -30,10 +30,9 @@ public class TeacherMobileController {
 
     @GetMapping("/getAttendanceList")
     public ResponseEntity<StandardResponse<?>> getAttendanceList(
-            @RequestParam Long classId,
-            @RequestParam Long sectionId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(teacherMobileService.getAttendanceList(classId, sectionId, date));
+        Long staffId = UserContext.getStaffId();
+        return ResponseEntity.ok(teacherMobileService.getAttendanceList(staffId, date));
     }
 
     @PostMapping("/submit-attendance")

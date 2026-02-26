@@ -350,8 +350,6 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                                         String endTimeFormatted = s.getEndTime();
 
                                         try {
-                                                java.time.format.DateTimeFormatter inputFormat = java.time.format.DateTimeFormatter
-                                                                .ofPattern("HH:mm");
                                                 java.time.format.DateTimeFormatter outputFormat = java.time.format.DateTimeFormatter
                                                                 .ofPattern("hh:mm a");
 

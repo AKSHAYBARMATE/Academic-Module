@@ -11,7 +11,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -51,7 +50,7 @@ public class GlobalExceptionHandler {
                 .data(validationErrors)
                 .logId(logId)
                 .requestId(LogContext.getRequestId())
-                .timestamp(LocalDateTime.now())
+                .timestamp(IstClock.nowDateTime())
                 .error(StandardResponse.ErrorDetails.builder()
                         .code("VALIDATION_FAILED")
                         .message("Input validation failed")
@@ -85,7 +84,7 @@ public class GlobalExceptionHandler {
                 .message(ex.getMessage())
                 .logId(logId)
                 .requestId(LogContext.getRequestId())
-                .timestamp(LocalDateTime.now())
+                .timestamp(IstClock.nowDateTime())
                 .error(StandardResponse.ErrorDetails.builder()
                         .code(ex.getErrorCode() != null ? ex.getErrorCode() : "CUSTOM_ERROR")
                         .message(ex.getMessage())

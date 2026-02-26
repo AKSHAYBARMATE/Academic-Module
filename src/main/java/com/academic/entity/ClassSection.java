@@ -1,5 +1,6 @@
 package com.academic.entity;
 
+import com.academic.utility.IstClock;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -42,12 +43,12 @@ public class ClassSection {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        createdAt = IstClock.nowDateTime();
+        updatedAt = IstClock.nowDateTime();
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = IstClock.nowDateTime();
     }
 }
