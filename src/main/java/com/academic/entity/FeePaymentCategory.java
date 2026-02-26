@@ -1,4 +1,4 @@
-package com.schoolerp.feemodule.entity;
+package com.academic.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

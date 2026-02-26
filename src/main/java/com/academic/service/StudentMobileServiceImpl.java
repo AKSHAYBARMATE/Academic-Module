@@ -29,7 +29,8 @@ public class StudentMobileServiceImpl implements StudentMobileService {
         private final MarksheetRepository marksheetRepository;
         private final MarksheetSubjectMarksRepository subjectMarksRepository;
         private final SessionRepository sessionRepository;
-        private final FeeMobileRepository feeMobileRepository;
+        private final FeeStructureRepository feeStructureRepository;
+        private final FeePaymentRepository feePaymentRepository;
         private final CommonMasterRepository commonMasterRepository;
         private final TransportRepository transportRepository;
 
@@ -283,17 +284,15 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                                         null);
                 }
 
-                Optional<TimeTable> tt = timeTableRepository
-                                .findAllByFilters(classId.longValue(), sectionId.longValue(), null,
-                                                org.springframework.data.domain.Pageable.unpaged())
-                                .getContent().stream().findFirst();
+                TimeTable tt = timeTableRepository
+                                .findByClassIdAndSectionIdAndIsDeletedFalse(classId.longValue(), sectionId.longValue());
 
-                if (tt.isEmpty()) {
+                if (tt == null) {
                         return StandardResponse.error("No timetable found for this student's class",
                                         "TIMETABLE_NOT_FOUND", null);
                 }
 
-                List<TimeSlotSubjectMapper> slots = slotMapperRepository.findByTimeTableId(tt.get().getId())
+                List<TimeSlotSubjectMapper> slots = slotMapperRepository.findByTimeTableId(tt.getId())
                                 .stream()
                                 .filter(s -> s.getDay() != null && s.getDay().equals(dayOfWeek))
                                 .sorted((s1, s2) -> {
@@ -427,6 +426,7 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                 Student student = studentRepository.findById(studentId.intValue())
                                 .orElseThrow(() -> new RuntimeException("Student not found"));
 
+                // ── 1. Resolve current session ──────────────────────────────────────────
                 String sessionText = getCurrentSession();
                 Session session = sessionRepository.findBySession(sessionText);
                 if (session == null) {
@@ -434,66 +434,90 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                                         .orElseThrow(() -> new RuntimeException("Session " + sessionText
                                                         + " not found and no active session fallback"));
                 }
+                final String academicYearLabel = session.getSession(); // e.g. "2025-26"
 
-                // Fetch Fee Structure
-                Map<String, Object> feeStructure = feeMobileRepository.findFeeStructureByClassAndAcademicYear(
-                                student.getClassApplyingFor(), session.getId());
+                // ── 2. Resolve student's current class ──────────────────────────────────
+                StudentPromotionMapper promotion = studentPromotionMapperRepository
+                                .findActivePromotion(student.getId(), session.getId())
+                                .orElse(null);
+                Integer classId = (promotion != null) ? promotion.getToClass() : student.getClassApplyingFor();
 
+                // ── 3. Resolve Fee Structure via FeeStructure entity ─────────────────────
+                // FeeStructure.academicYear is a CommonMaster row whose 'data' = session string
                 List<StudentFeesResponse.FeeItemDto> feeItems = new ArrayList<>();
-                Double totalFees = 0.0;
+                double totalFees = 0.0;
 
-                if (feeStructure != null) {
-                        String[] feeTypes = { "tuition_fee", "admission_fee", "transport_fee", "library_fee",
-                                        "exam_fee", "sports_fee", "lab_fee", "development_fee" };
-                        String[] displayNames = { "Tuition Fee", "Admission Fee", "Conveyance Fee", "Library Fee",
-                                        "Exam Fee", "Sports Fee", "Lab Fee", "Development Fee" };
+                if (classId != null) {
+                        // Try to find academic year CommonMaster by session text
+                        Optional<CommonMaster> academicYearCm = commonMasterRepository
+                                        .findByDataAndStatusTrue(academicYearLabel);
 
-                        for (int i = 0; i < feeTypes.length; i++) {
-                                Object val = feeStructure.get(feeTypes[i]);
-                                if (val != null) {
-                                        Double amount = Double.valueOf(val.toString());
-                                        if (amount > 0) {
-                                                feeItems.add(StudentFeesResponse.FeeItemDto.builder()
-                                                                .feeType(displayNames[i])
-                                                                .amount(amount)
-                                                                .build());
-                                        }
-                                }
+                        Optional<FeeStructure> feeStructureOpt = academicYearCm.isPresent()
+                                        ? feeStructureRepository.findByClassIdAndAcademicYearId(
+                                                        classId.longValue(),
+                                                        academicYearCm.get().getId().longValue())
+                                        : Optional.empty();
+
+                        // Fallback: latest active fee structure for this class
+                        if (feeStructureOpt.isEmpty()) {
+                                List<FeeStructure> fallbacks = feeStructureRepository
+                                                .findByClassIdOrderByEffectiveFromDesc(classId.longValue());
+                                feeStructureOpt = fallbacks.isEmpty() ? Optional.empty()
+                                                : Optional.of(fallbacks.get(0));
                         }
-                        totalFees = feeStructure.get("total_fee") != null
-                                        ? Double.valueOf(feeStructure.get("total_fee").toString())
-                                        : 0.0;
+
+                        if (feeStructureOpt.isPresent()) {
+                                FeeStructure fs = feeStructureOpt.get();
+
+                                addFeeItem(feeItems, "Tuition Fee", fs.getTuitionFee());
+                                addFeeItem(feeItems, "Admission Fee", fs.getAdmissionFee());
+                                addFeeItem(feeItems, "Transport Fee", fs.getTransportFee());
+                                addFeeItem(feeItems, "Library Fee", fs.getLibraryFee());
+                                addFeeItem(feeItems, "Exam Fee", fs.getExamFee());
+                                addFeeItem(feeItems, "Sports Fee", fs.getSportsFee());
+                                addFeeItem(feeItems, "Lab Fee", fs.getLabFee());
+                                addFeeItem(feeItems, "Development Fee", fs.getDevelopmentFee());
+
+                                totalFees = fs.getTotalFee() != null
+                                                ? fs.getTotalFee().doubleValue()
+                                                : feeItems.stream()
+                                                                .mapToDouble(StudentFeesResponse.FeeItemDto::getAmount)
+                                                                .sum();
+                        }
                 }
 
-                List<Map<String, Object>> payments = feeMobileRepository.findPaymentsByStudentId(studentId.intValue());
+                // ── 4. Fetch payment history from FeePayment entity ──────────────────────
+                List<FeePayment> payments = feePaymentRepository.findByStudentId(studentId.intValue());
                 List<StudentFeesResponse.PaymentHistoryDto> history = new ArrayList<>();
-                Double paidAmount = 0.0;
+                double paidAmount = 0.0;
 
-                if (payments != null) {
-                        for (Map<String, Object> p : payments) {
-                                Double netAmount = p.get("net_amount") != null
-                                                ? Double.valueOf(p.get("net_amount").toString())
-                                                : 0.0;
-                                paidAmount += netAmount;
+                for (FeePayment p : payments) {
+                        double net = p.getNetAmount() != null ? p.getNetAmount().doubleValue() : 0.0;
+                        paidAmount += net;
 
-                                history.add(StudentFeesResponse.PaymentHistoryDto.builder()
-                                                .id(Long.valueOf(p.get("id").toString()))
-                                                .title("Fee Payment")
-                                                .date(p.get("paid_at") != null
-                                                                ? p.get("paid_at").toString().split("T")[0]
-                                                                : "")
-                                                .paymentMethod(p.get("payment_method") != null
-                                                                ? p.get("payment_method").toString()
-                                                                : "UNKNOWN")
-                                                .amount(netAmount)
-                                                .status("SUCCESS")
-                                                .receiptUrl(null)
-                                                .build());
+                        // Build a descriptive title from fee categories (if present)
+                        String title = "Fee Payment";
+                        if (p.getFeeStructure() != null && p.getFeeStructure().getFeeStructureName() != null) {
+                                title = p.getFeeStructure().getFeeStructureName();
                         }
+
+                        history.add(StudentFeesResponse.PaymentHistoryDto.builder()
+                                        .id(p.getId())
+                                        .title(title)
+                                        .date(p.getPaidAt() != null
+                                                        ? p.getPaidAt().toLocalDate().toString()
+                                                        : (p.getDueDate() != null ? p.getDueDate().toString() : ""))
+                                        .paymentMethod(p.getPaymentMethod() != null
+                                                        ? p.getPaymentMethod()
+                                                        : "UNKNOWN")
+                                        .amount(net)
+                                        .status("SUCCESS")
+                                        .receiptUrl(p.getReceiptNo())
+                                        .build());
                 }
 
                 StudentFeesResponse response = StudentFeesResponse.builder()
-                                .academicYear(session.getSession())
+                                .academicYear(academicYearLabel)
                                 .totalFees(totalFees)
                                 .paidAmount(paidAmount)
                                 .remainingAmount(Math.max(0, totalFees - paidAmount))
@@ -502,6 +526,16 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                                 .build();
 
                 return StandardResponse.success(response, "Fees details fetched successfully");
+        }
+
+        /** Helper: add a fee item only if the amount is non-null and > 0. */
+        private void addFeeItem(List<StudentFeesResponse.FeeItemDto> items, String label, java.math.BigDecimal value) {
+                if (value != null && value.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        items.add(StudentFeesResponse.FeeItemDto.builder()
+                                        .feeType(label)
+                                        .amount(value.doubleValue())
+                                        .build());
+                }
         }
 
         private String calculateGrade(int obtained, int max) {

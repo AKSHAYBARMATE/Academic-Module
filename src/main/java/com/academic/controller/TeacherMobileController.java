@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 
 @RestController
-@RequestMapping("/api/v1/teacher-mobile")
+@RequestMapping("/api/v1/academic-module/teacher-mobile")
 @RequiredArgsConstructor
 public class TeacherMobileController {
 
