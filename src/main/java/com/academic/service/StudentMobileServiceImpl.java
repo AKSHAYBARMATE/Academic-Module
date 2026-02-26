@@ -305,6 +305,10 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                                 })
                                 .collect(Collectors.toList());
 
+                // Determine if the requested day is today (for live/completed logic)
+                boolean isToday = LocalDate.now().getDayOfWeek().getValue() == dayOfWeek;
+                LocalTime nowTime = LocalTime.now();
+
                 List<StudentTimetableDetailResponse.ScheduleSlotDto> schedule = slots.stream()
                                 .map(s -> {
                                         String subjectName = "Unknown";
@@ -312,14 +316,40 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                                                 subjectName = subjectRepository.findById(s.getSubjectId().longValue())
                                                                 .map(Subject::getSubjectName).orElse("Unknown");
                                         }
+
+                                        // Compute dynamic status only when viewing today's timetable
+                                        boolean live = false;
+                                        String status = "UPCOMING";
+
+                                        if (isToday && s.getStartTime() != null && s.getEndTime() != null) {
+                                                try {
+                                                        LocalTime slotStart = LocalTime.parse(s.getStartTime());
+                                                        LocalTime slotEnd = LocalTime.parse(s.getEndTime());
+
+                                                        if (nowTime.isAfter(slotEnd)) {
+                                                                // Class has ended
+                                                                status = "COMPLETED";
+                                                        } else if (!nowTime.isBefore(slotStart)
+                                                                        && !nowTime.isAfter(slotEnd)) {
+                                                                // now >= slotStart AND now <= slotEnd → class is
+                                                                // running
+                                                                status = "LIVE";
+                                                                live = true;
+                                                        }
+                                                        // else nowTime < slotStart → UPCOMING (default)
+                                                } catch (Exception ignored) {
+                                                        // Malformed time string — leave as UPCOMING
+                                                }
+                                        }
+
                                         return StudentTimetableDetailResponse.ScheduleSlotDto.builder()
                                                         .subjectName(subjectName)
                                                         .teacherName(s.getTeacherName())
                                                         .room(s.getRoom())
                                                         .startTime(s.getStartTime())
                                                         .endTime(s.getEndTime())
-                                                        .isLive(false)
-                                                        .status("UPCOMING")
+                                                        .isLive(live)
+                                                        .status(status)
                                                         .build();
                                 })
                                 .collect(Collectors.toList());
