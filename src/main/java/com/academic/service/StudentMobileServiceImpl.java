@@ -33,6 +33,9 @@ public class StudentMobileServiceImpl implements StudentMobileService {
         private final FeePaymentRepository feePaymentRepository;
         private final CommonMasterRepository commonMasterRepository;
         private final TransportRepository transportRepository;
+        private final ExamScheduleRepository examScheduleRepository;
+        private final ExamSubjectConfigRepository examSubjectConfigRepository;
+        private final AcademicCalendarEventRepository academicCalendarEventRepository;
 
         @Override
         public StandardResponse<?> getDashboardData(Long studentId) {
@@ -594,5 +597,144 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                 private String room;
                 private String startTime;
                 private String endTime;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // EXAM SCHEDULE
+        // ══════════════════════════════════════════════════════════════════
+        @Override
+        public StandardResponse<?> getExamSchedule(Long studentId) {
+                Student student = studentRepository.findById(studentId.intValue())
+                                .orElseThrow(() -> new RuntimeException("Student not found"));
+
+                // Resolve current session
+                String sessionText = getCurrentSession();
+                Session session = sessionRepository.findBySession(sessionText);
+                if (session == null) {
+                        session = sessionRepository.findByIsActiveTrue()
+                                        .orElseThrow(() -> new RuntimeException("No active session found"));
+                }
+
+                // Resolve student's class
+                StudentPromotionMapper promotion = studentPromotionMapperRepository
+                                .findActivePromotion(student.getId(), session.getId())
+                                .orElse(null);
+                Integer classId = (promotion != null) ? promotion.getToClass() : student.getClassApplyingFor();
+
+                if (classId == null) {
+                        return StandardResponse.error("Class not assigned to student", "CLASS_MISSING", null);
+                }
+
+                // Fetch all active exam schedules for current session
+                List<ExamSchedule> schedules = examScheduleRepository
+                                .findBySession_IdAndIsActiveTrue(session.getId());
+
+                if (schedules.isEmpty()) {
+                        return StandardResponse.error("No exam schedules found for current session",
+                                        "SCHEDULE_NOT_FOUND", null);
+                }
+
+                // Use the latest/first published schedule (prefer PUBLISHED over DRAFT)
+                ExamSchedule schedule = schedules.stream()
+                                .filter(s -> "PUBLISHED".equalsIgnoreCase(s.getStatus()))
+                                .findFirst()
+                                .orElse(schedules.get(0));
+
+                // Fetch subject configs for this session + exam type + class
+                List<ExamSubjectConfig> subjectConfigs = examSubjectConfigRepository
+                                .findAllWithFilters(session.getId(),
+                                                schedule.getExamType().getId(),
+                                                classId);
+
+                List<StudentExamScheduleResponse.SubjectExamDto> subjects = subjectConfigs.stream()
+                                .map(cfg -> StudentExamScheduleResponse.SubjectExamDto.builder()
+                                                .subjectName(cfg.getSubject() != null
+                                                                ? cfg.getSubject().getSubjectName()
+                                                                : "Unknown")
+                                                .theoryMarks(cfg.getTheoryMarks())
+                                                .practicalMarks(cfg.getPracticalMarks())
+                                                .internalMarks(cfg.getInternalMarks())
+                                                .totalMarks(cfg.getTotalMarks())
+                                                .build())
+                                .collect(Collectors.toList());
+
+                StudentExamScheduleResponse response = StudentExamScheduleResponse.builder()
+                                .examTitle(schedule.getExamTitle())
+                                .examType(schedule.getExamType() != null
+                                                ? schedule.getExamType().getData()
+                                                : "")
+                                .academicYear(session.getSession())
+                                .startDate(schedule.getStartDate() != null
+                                                ? schedule.getStartDate().toString()
+                                                : null)
+                                .endDate(schedule.getEndDate() != null
+                                                ? schedule.getEndDate().toString()
+                                                : null)
+                                .status(schedule.getStatus())
+                                .subjects(subjects)
+                                .build();
+
+                return StandardResponse.success(response, "Exam schedule fetched successfully");
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // ACADEMIC CALENDAR
+        // ══════════════════════════════════════════════════════════════════
+        @Override
+        public StandardResponse<?> getAcademicCalendar(Long studentId) {
+                Student student = studentRepository.findById(studentId.intValue())
+                                .orElseThrow(() -> new RuntimeException("Student not found"));
+
+                // Resolve student's class for filtering
+                String sessionText = getCurrentSession();
+                Session session = sessionRepository.findBySession(sessionText);
+                if (session == null) {
+                        session = sessionRepository.findByIsActiveTrue().orElse(null);
+                }
+
+                StudentPromotionMapper promotion = (session != null)
+                                ? studentPromotionMapperRepository
+                                                .findActivePromotion(student.getId(), session.getId())
+                                                .orElse(null)
+                                : null;
+                Integer classId = (promotion != null) ? promotion.getToClass() : student.getClassApplyingFor();
+
+                // Fetch events — filter by class if we know the class, else return all
+                List<AcademicCalendarEvent> events;
+                if (classId != null) {
+                        // JSON_CONTAINS query — classId passed as JSON number string e.g. "5"
+                        events = academicCalendarEventRepository.findEventsForClass(String.valueOf(classId));
+                } else {
+                        events = academicCalendarEventRepository.findAllByIsDeletedFalse();
+                }
+
+                LocalDate today = LocalDate.now();
+
+                List<AcademicCalendarResponse.CalendarEventDto> dtos = events.stream()
+                                .map(e -> {
+                                        // Compute status: COMPLETED if date < today, UPCOMING otherwise
+                                        String status = (e.getStatus() != null && !e.getStatus().isBlank())
+                                                        ? e.getStatus()
+                                                        : (e.getDate() != null && e.getDate().isBefore(today)
+                                                                        ? "COMPLETED"
+                                                                        : "UPCOMING");
+
+                                        return AcademicCalendarResponse.CalendarEventDto.builder()
+                                                        .id(e.getId())
+                                                        .eventName(e.getEventName())
+                                                        .date(e.getDate() != null ? e.getDate().toString() : null)
+                                                        .type(e.getType())
+                                                        .duration(e.getDuration())
+                                                        .status(status)
+                                                        .build();
+                                })
+                                .collect(Collectors.toList());
+
+                AcademicCalendarResponse response = AcademicCalendarResponse.builder()
+                                .events(dtos)
+                                .totalEvents(dtos.size())
+                                .build();
+
+                return StandardResponse.success(response, "Academic calendar fetched successfully");
         }
 }
