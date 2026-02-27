@@ -194,40 +194,23 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                         return StandardResponse.error("Staff ID not found", "ID_MISSING", null);
                 }
 
-                // 1. Find the currently active slot for this teacher
-                LocalTime now = IstClock.nowTime();
-                int dayOfWeek = date.getDayOfWeek().getValue(); // 1 = Mon ... 7 = Sun
+                // 1. Fetch the record from the teacherAssignment table first to get the class &
+                // section of teacher
+                TeacherAssignment assignment = teacherAssignmentRepository
+                                .findByEmployeeIdAndIsDeletedFalse(staffId.toString())
+                                .orElseThrow(() -> new RuntimeException(
+                                                "Teacher assignment not found for staff ID: " + staffId));
 
-                List<TimeSlotSubjectMapper> teacherSlots = slotMapperRepository.findByTeacherId(staffId);
-
-                TimeSlotSubjectMapper activeSlot = teacherSlots.stream()
-                                .filter(s -> s.getDay() != null && s.getDay() == dayOfWeek)
-                                .filter(s -> {
-                                        try {
-                                                LocalTime start = LocalTime.parse(s.getStartTime());
-                                                LocalTime end = LocalTime.parse(s.getEndTime());
-                                                // Check if 'now' is within start and end
-                                                return !now.isBefore(start) && !now.isAfter(end);
-                                        } catch (Exception e) {
-                                                return false;
-                                        }
-                                })
-                                .findFirst()
-                                .orElse(null);
-
-                if (activeSlot == null) {
-                        return StandardResponse.error("No ongoing class found at this time for attendance",
-                                        "NO_ACTIVE_CLASS", null);
+                if (assignment.getClassId() == null || assignment.getSectionId() == null) {
+                        return StandardResponse.error(
+                                        "Teacher is not assigned to any specific class and section for attendance",
+                                        "ASSIGNMENT_INCOMPLETE", null);
                 }
 
-                TimeTable tt = activeSlot.getTimeTable();
-                if (tt == null) {
-                        return StandardResponse.error("Timetable missing for the active slot", "TIMETABLE_MISSING",
-                                        null);
-                }
+                Long classId = assignment.getClassId();
+                Long sectionId = assignment.getSectionId();
 
-                // 2. Resolve real CommonMaster IDs from ClassSection
-
+                // 2. Fetch students for that section for that day
 
                 String sessionText = StudentMobileServiceImpl.getCurrentSession();
                 Session session = sessionRepository.findBySession(sessionText);
@@ -238,7 +221,8 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 }
 
                 List<StudentPromotionMapper> activePromotions = studentPromotionMapperRepository
-                                .findActivePromotionsByClassAndSection(tt.getClassId().intValue(), tt.getSectionId().intValue(),
+                                .findActivePromotionsByClassAndSection(classId.intValue(),
+                                                sectionId.intValue(),
                                                 session.getId());
 
                 List<Integer> studentIds = activePromotions.stream().map(StudentPromotionMapper::getStudentId)
@@ -265,8 +249,8 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 long p = dtoList.stream().filter(d -> "PRESENT".equals(d.getStatus())).count();
                 long a = dtoList.stream().filter(d -> "ABSENT".equals(d.getStatus())).count();
 
-                String className = getName(tt.getClassId().intValue());
-                String secName = getName(tt.getSectionId().intValue());
+                String className = getName(classId.intValue());
+                String secName = getName(sectionId.intValue());
                 String classSectionName = (className != null ? className : "Unknown") + "-"
                                 + (secName != null ? secName : "Unknown");
 

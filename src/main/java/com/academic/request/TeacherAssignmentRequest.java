@@ -13,6 +13,8 @@ public class TeacherAssignmentRequest {
     private String employeeId;
     private String subject;
     private List<Long> classIds; // List of class IDs from CommonMaster
+    private Long classId;
+    private Long sectionId;
     private Integer loadHours;
     private String status;
 }

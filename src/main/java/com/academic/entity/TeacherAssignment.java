@@ -1,6 +1,5 @@
 package com.academic.entity;
 
-
 import com.academic.utility.LongListToJsonConverter;
 import jakarta.persistence.*;
 import lombok.*;
@@ -34,6 +33,10 @@ public class TeacherAssignment {
 
     @Column(nullable = false)
     private Integer loadHours;
+
+    private Long classId;
+
+    private Long sectionId;
 
     private String status; // e.g., Active, Scheduled
 

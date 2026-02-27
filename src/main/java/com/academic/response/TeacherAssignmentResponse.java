@@ -13,8 +13,10 @@ public class TeacherAssignmentResponse {
     private String teacherName;
     private String employeeId;
     private String subject;
-    private List<Long> classIds;        // IDs
-    private String classNames;             // Human-readable names (comma-separated)
+    private List<Long> classIds; // IDs
+    private List<String> classNames; // Human-readable names (comma-separated)
+    private Long classId;
+    private Long sectionId;
     private Integer loadHours;
     private String status;
 }

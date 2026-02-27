@@ -6,9 +6,6 @@ import com.academic.repository.CommonMasterRepository;
 import com.academic.request.TeacherAssignmentRequest;
 import com.academic.response.TeacherAssignmentResponse;
 
-import java.util.Optional;
-import java.util.stream.Collectors;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,6 +17,8 @@ public class TeacherAssignmentMapper {
                 .teacherName(request.getTeacherName())
                 .employeeId(request.getEmployeeId())
                 .subject(request.getSubject())
+                .classId(request.getClassId())
+                .sectionId(request.getSectionId())
                 .loadHours(request.getLoadHours())
                 .status(request.getStatus())
                 .isDeleted(false)
@@ -38,6 +37,8 @@ public class TeacherAssignmentMapper {
         entity.setTeacherName(request.getTeacherName());
         entity.setEmployeeId(request.getEmployeeId());
         entity.setSubject(request.getSubject());
+        entity.setClassId(request.getClassId());
+        entity.setSectionId(request.getSectionId());
         entity.setLoadHours(request.getLoadHours());
         entity.setStatus(request.getStatus());
 
@@ -48,15 +49,15 @@ public class TeacherAssignmentMapper {
 
     // Convert Entity → Response DTO
     public static TeacherAssignmentResponse toResponse(TeacherAssignment entity,
-                                                       CommonMasterRepository commonMasterRepository) {
+            CommonMasterRepository commonMasterRepository) {
         List<Long> classIds = entity.getClassesInvolved(); // Already stored as List<Long>
 
         // Fetch human-readable names from CommonMaster
-        String classNames = classIds.stream()
+        List<String> classNames = classIds.stream()
                 .map(id -> commonMasterRepository.findById(Math.toIntExact(id))
                         .map(CommonMaster::getData)
                         .orElse("Unknown"))
-                .collect(Collectors.joining(", "));
+                .collect(Collectors.toList());
 
         return TeacherAssignmentResponse.builder()
                 .id(entity.getId())
@@ -65,9 +66,10 @@ public class TeacherAssignmentMapper {
                 .subject(entity.getSubject())
                 .classIds(classIds)
                 .classNames(classNames)
+                .classId(entity.getClassId())
+                .sectionId(entity.getSectionId())
                 .loadHours(entity.getLoadHours())
                 .status(entity.getStatus())
                 .build();
     }
 }
-
