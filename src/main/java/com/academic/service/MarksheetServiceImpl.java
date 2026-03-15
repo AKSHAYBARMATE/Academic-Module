@@ -14,6 +14,7 @@ import com.academic.response.SubjectMarksResponse;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,13 +33,20 @@ import java.util.List;
 @Slf4j
 public class MarksheetServiceImpl implements MarksheetService {
 
+    @Autowired
     private final MarksheetRepository marksheetRepo;
 //    private final MarksheetSubjectMarksRepository subjectRepo;
+    @Autowired
     private final CommonMasterRepository commonRepo;
+    @Autowired
     private final SessionRepository sessionRepo;
+    @Autowired
     private final StudentRepository studentRepository;
+    @Autowired
     private final SubjectRepository subjectMasterRepo;
+    @Autowired
     private final TemplateEngine templateEngine;
+    @Autowired
     private ExamComponentMasterRepostory componentRepo;
 
     /* CREATE */
