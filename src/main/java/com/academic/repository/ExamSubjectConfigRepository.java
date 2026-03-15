@@ -34,4 +34,6 @@ public interface ExamSubjectConfigRepository
 
         Optional<ExamSubjectConfig> findBySession_IdAndExamType_IdAndSubject_IdAndClassIdIdAndIsDeleteFalse(Integer id,
                         Integer id1, Long id2, Integer id3);
+
+    Optional<Object> findBySession_IdAndExamType_IdAndSubject_IdAndClassId_IdAndIsDeleteFalse(Integer id, Integer id1, Integer id2, Integer id3);
 }

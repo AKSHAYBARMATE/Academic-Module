@@ -47,7 +47,7 @@ public class SubjectServiceImpl implements SubjectService {
     public SubjectResponse update(Long id, SubjectRequest request) {
         log.info("Updating Subject with id: {}", id);
 
-        Subject existing = repository.findByIdAndIsDeletedFalse(id)
+        Subject existing = repository.findByIdAndIsDeletedFalse(Math.toIntExact(id))
                 .orElseThrow(() -> new ResourceNotFoundException("Subject not found with id: " + id));
 
         // Check duplicate subjectCode (only if updating subjectCode)
@@ -72,7 +72,7 @@ public class SubjectServiceImpl implements SubjectService {
     @Transactional
     public void delete(Long id) {
         log.warn("Soft deleting Subject with id: {}", id);
-        Subject existing = repository.findByIdAndIsDeletedFalse(id)
+        Subject existing = repository.findByIdAndIsDeletedFalse(Math.toIntExact(id))
                 .orElseThrow(() -> new ResourceNotFoundException("Subject not found with id: " + id));
 
         existing.setIsDeleted(true);
@@ -83,7 +83,7 @@ public class SubjectServiceImpl implements SubjectService {
     @Override
     public SubjectResponse getById(Long id) {
         log.info("Fetching Subject with id: {}", id);
-        Subject entity = repository.findByIdAndIsDeletedFalse(id)
+        Subject entity = repository.findByIdAndIsDeletedFalse(Math.toIntExact(id))
                 .orElseThrow(() -> new ResourceNotFoundException("Subject not found with id: " + id));
         return SubjectMapper.toResponse(entity);
     }

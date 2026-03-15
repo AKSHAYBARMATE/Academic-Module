@@ -1,7 +1,5 @@
-package com.academic.dto;
+package com.academic.request;
 
-
-import com.academic.request.SubjectMarksRequest;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -10,26 +8,21 @@ import java.util.List;
 @Data
 public class MarksheetRequest {
 
-    private Integer studentId;
+    private Long studentId;
     private Integer classId;
     private Integer sectionId;
     private Integer sessionId;
     private Integer examTypeId;
+    private Integer termNumber;
+
     private LocalDate examDate;
 
     private List<SubjectMarksRequest> subjects;
 
     private Integer totalMarksObtained;
     private Integer totalMaxMarks;
-    private Double percentage;
-    private String grade;
-    private Double gpa;
 
-    private Integer attendanceDays;
-    private Integer totalWorkingDays;
-    private String conductGrade;
-    private String sportsGrade;
-    private String extraCurricularGrade;
-    private String teacherRemarks;
-    private String principalRemarks;
+    private Double percentage;
+
+    private String grade;
 }

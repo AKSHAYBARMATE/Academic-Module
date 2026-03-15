@@ -2,11 +2,14 @@ package com.academic.request;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class SubjectMarksRequest {
 
-    private Long subjectId;
-    private Integer theoryMarks;
-    private Integer practicalMarks;
-    private Integer internalMarks;
+    private Integer subjectId;
+
+    private List<ComponentMarksRequest> components;
+
+    private String subjectRemarks;
 }

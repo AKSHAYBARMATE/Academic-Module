@@ -28,7 +28,7 @@ public class StudentMobileServiceImpl implements StudentMobileService {
         private final TimeSlotSubjectMapperRepository slotMapperRepository;
         private final SubjectRepository subjectRepository;
         private final MarksheetRepository marksheetRepository;
-        private final MarksheetSubjectMarksRepository subjectMarksRepository;
+//        private final MarksheetSubjectMarksRepository subjectMarksRepository;
         private final SessionRepository sessionRepository;
         private final FeeStructureRepository feeStructureRepository;
         private final FeePaymentRepository feePaymentRepository;
@@ -385,81 +385,81 @@ public class StudentMobileServiceImpl implements StudentMobileService {
                 return StandardResponse.success(response, "Timetable fetched successfully");
         }
 
-        @Override
-        public StandardResponse<?> getExamResults(Long studentId) {
-                List<Marksheet> sheets = marksheetRepository.findByStudentIdAndIsDeletedFalse(studentId);
-
-                if (sheets.isEmpty()) {
-                        return StandardResponse.error("No results found for this student", "RESULTS_NOT_FOUND", null);
-                }
-
-                String sessionText = getCurrentSession();
-                Session tempSession = sessionRepository.findBySession(sessionText);
-                if (tempSession == null) {
-                        tempSession = sessionRepository.findByIsActiveTrue()
-                                        .orElseThrow(() -> new RuntimeException("Session " + sessionText
-                                                        + " not found and no active session fallback"));
-                }
-                final Session currentSession = tempSession;
-
-                // Filter sheets for current session if available, else latest
-                Marksheet latest = sheets.stream()
-                                .filter(s -> s.getSessionId() != null
-                                                && s.getSessionId().equals(currentSession.getId()))
-                                .findFirst()
-                                .orElse(sheets.get(0));
-
-                List<MarksheetSubjectMarks> subjectMarks = subjectMarksRepository.findByMarksheetId(latest.getId());
-
-                List<StudentExamResultsResponse.SubjectResultDto> results = subjectMarks.stream()
-                                .map(sm -> {
-                                        String subjectName = "Unknown";
-                                        if (sm.getSubjectId() != null) {
-                                                subjectName = subjectRepository.findById(sm.getSubjectId().longValue())
-                                                                .map(Subject::getSubjectName).orElse("Unknown");
-                                        }
-                                        return StudentExamResultsResponse.SubjectResultDto.builder()
-                                                        .subjectName(subjectName)
-                                                        .marksObtained(sm.getTotalMarks())
-                                                        .maxMarks(sm.getTotalMax())
-                                                        .grade(calculateGrade(sm.getTotalMarks(), sm.getTotalMax()))
-                                                        .build();
-                                })
-                                .collect(Collectors.toList());
-
-                // Rank Calculation
-                String rankText = "N/A";
-                if (latest.getClassId() != null && latest.getSessionId() != null) {
-                        List<Marksheet> classSheets = marksheetRepository
-                                        .findByClassIdAndSessionIdAndIsDeletedFalseOrderByPercentageDesc(
-                                                        latest.getClassId(), latest.getSessionId());
-                        int rank = 1;
-                        for (Marksheet s : classSheets) {
-                                if (s.getStudentId().equals(studentId))
-                                        break;
-                                rank++;
-                        }
-                        rankText = String.format("%d%s of %d students", rank, getOrdinal(rank), classSheets.size());
-                }
-
-                String termName = Optional.ofNullable(latest.getExamTypeId())
-                                .flatMap(commonMasterRepository::findById)
-                                .map(CommonMaster::getData)
-                                .orElse("Main Results");
-
-                StudentExamResultsResponse response = StudentExamResultsResponse.builder()
-                                .academicYear(currentSession.getSession())
-                                .results(results)
-                                .summary(StudentExamResultsResponse.OverallPerformanceDto.builder()
-                                                .termName(termName)
-                                                .totalPercentage(String.format("%.1f%%", latest.getPercentage()))
-                                                .resultStatus(latest.getPercentage() >= 33 ? "Passed" : "Failed")
-                                                .classRank(rankText)
-                                                .build())
-                                .build();
-
-                return StandardResponse.success(response, "Exam results fetched successfully");
-        }
+//        @Override
+//        public StandardResponse<?> getExamResults(Long studentId) {
+//                List<Marksheet> sheets = marksheetRepository.findByStudentIdAndIsDeletedFalse(studentId);
+//
+//                if (sheets.isEmpty()) {
+//                        return StandardResponse.error("No results found for this student", "RESULTS_NOT_FOUND", null);
+//                }
+//
+//                String sessionText = getCurrentSession();
+//                Session tempSession = sessionRepository.findBySession(sessionText);
+//                if (tempSession == null) {
+//                        tempSession = sessionRepository.findByIsActiveTrue()
+//                                        .orElseThrow(() -> new RuntimeException("Session " + sessionText
+//                                                        + " not found and no active session fallback"));
+//                }
+//                final Session currentSession = tempSession;
+//
+//                // Filter sheets for current session if available, else latest
+//                Marksheet latest = sheets.stream()
+//                                .filter(s -> s.getSessionId() != null
+//                                                && s.getSessionId().equals(currentSession.getId()))
+//                                .findFirst()
+//                                .orElse(sheets.get(0));
+//
+//                List<MarksheetSubjectMarks> subjectMarks = subjectMarksRepository.findByMarksheetId(latest.getId());
+//
+//                List<StudentExamResultsResponse.SubjectResultDto> results = subjectMarks.stream()
+//                                .map(sm -> {
+//                                        String subjectName = "Unknown";
+//                                        if (sm.getSubjectId() != null) {
+//                                                subjectName = subjectRepository.findById(sm.getSubjectId().longValue())
+//                                                                .map(Subject::getSubjectName).orElse("Unknown");
+//                                        }
+//                                        return StudentExamResultsResponse.SubjectResultDto.builder()
+//                                                        .subjectName(subjectName)
+//                                                        .marksObtained(sm.getTotalMarks())
+//                                                        .maxMarks(sm.getTotalMax())
+//                                                        .grade(calculateGrade(sm.getTotalMarks(), sm.getTotalMax()))
+//                                                        .build();
+//                                })
+//                                .collect(Collectors.toList());
+//
+//                // Rank Calculation
+//                String rankText = "N/A";
+//                if (latest.getClassId() != null && latest.getSessionId() != null) {
+//                        List<Marksheet> classSheets = marksheetRepository
+//                                        .findByClassIdAndSessionIdAndIsDeletedFalseOrderByPercentageDesc(
+//                                                        latest.getClassId(), latest.getSessionId());
+//                        int rank = 1;
+//                        for (Marksheet s : classSheets) {
+//                                if (s.getStudentId().equals(studentId))
+//                                        break;
+//                                rank++;
+//                        }
+//                        rankText = String.format("%d%s of %d students", rank, getOrdinal(rank), classSheets.size());
+//                }
+//
+//                String termName = Optional.ofNullable(latest.getExamTypeId())
+//                                .flatMap(commonMasterRepository::findById)
+//                                .map(CommonMaster::getData)
+//                                .orElse("Main Results");
+//
+//                StudentExamResultsResponse response = StudentExamResultsResponse.builder()
+//                                .academicYear(currentSession.getSession())
+//                                .results(results)
+//                                .summary(StudentExamResultsResponse.OverallPerformanceDto.builder()
+//                                                .termName(termName)
+//                                                .totalPercentage(String.format("%.1f%%", latest.getPercentage()))
+//                                                .resultStatus(latest.getPercentage() >= 33 ? "Passed" : "Failed")
+//                                                .classRank(rankText)
+//                                                .build())
+//                                .build();
+//
+//                return StandardResponse.success(response, "Exam results fetched successfully");
+//        }
 
         private String getOrdinal(int i) {
                 String[] suffixes = new String[] { "th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th" };
@@ -621,80 +621,80 @@ public class StudentMobileServiceImpl implements StudentMobileService {
         // ══════════════════════════════════════════════════════════════════
         // EXAM SCHEDULE
         // ══════════════════════════════════════════════════════════════════
-        @Override
-        public StandardResponse<?> getExamSchedule(Long studentId) {
-                Student student = studentRepository.findById(studentId.intValue())
-                                .orElseThrow(() -> new RuntimeException("Student not found"));
-
-                // Resolve current session
-                String sessionText = getCurrentSession();
-                Session session = sessionRepository.findBySession(sessionText);
-                if (session == null) {
-                        session = sessionRepository.findByIsActiveTrue()
-                                        .orElseThrow(() -> new RuntimeException("No active session found"));
-                }
-
-                // Resolve student's class
-                StudentPromotionMapper promotion = studentPromotionMapperRepository
-                                .findActivePromotion(student.getId(), session.getId())
-                                .orElse(null);
-                Integer classId = (promotion != null) ? promotion.getToClass() : student.getClassApplyingFor();
-
-                if (classId == null) {
-                        return StandardResponse.error("Class not assigned to student", "CLASS_MISSING", null);
-                }
-
-                // Fetch all active exam schedules for current session
-                List<ExamSchedule> schedules = examScheduleRepository
-                                .findBySession_IdAndIsActiveTrue(session.getId());
-
-                if (schedules.isEmpty()) {
-                        return StandardResponse.error("No exam schedules found for current session",
-                                        "SCHEDULE_NOT_FOUND", null);
-                }
-
-                // Use the latest/first published schedule (prefer PUBLISHED over DRAFT)
-                ExamSchedule schedule = schedules.stream()
-                                .filter(s -> "PUBLISHED".equalsIgnoreCase(s.getStatus()))
-                                .findFirst()
-                                .orElse(schedules.get(0));
-
-                // Fetch subject configs for this session + exam type + class
-                List<ExamSubjectConfig> subjectConfigs = examSubjectConfigRepository
-                                .findAllWithFilters(session.getId(),
-                                                schedule.getExamType().getId(),
-                                                classId);
-
-                List<StudentExamScheduleResponse.SubjectExamDto> subjects = subjectConfigs.stream()
-                                .map(cfg -> StudentExamScheduleResponse.SubjectExamDto.builder()
-                                                .subjectName(cfg.getSubject() != null
-                                                                ? cfg.getSubject().getSubjectName()
-                                                                : "Unknown")
-                                                .theoryMarks(cfg.getTheoryMarks())
-                                                .practicalMarks(cfg.getPracticalMarks())
-                                                .internalMarks(cfg.getInternalMarks())
-                                                .totalMarks(cfg.getTotalMarks())
-                                                .build())
-                                .collect(Collectors.toList());
-
-                StudentExamScheduleResponse response = StudentExamScheduleResponse.builder()
-                                .examTitle(schedule.getExamTitle())
-                                .examType(schedule.getExamType() != null
-                                                ? schedule.getExamType().getData()
-                                                : "")
-                                .academicYear(session.getSession())
-                                .startDate(schedule.getStartDate() != null
-                                                ? schedule.getStartDate().toString()
-                                                : null)
-                                .endDate(schedule.getEndDate() != null
-                                                ? schedule.getEndDate().toString()
-                                                : null)
-                                .status(schedule.getStatus())
-                                .subjects(subjects)
-                                .build();
-
-                return StandardResponse.success(response, "Exam schedule fetched successfully");
-        }
+//        @Override
+//        public StandardResponse<?> getExamSchedule(Long studentId) {
+//                Student student = studentRepository.findById(studentId.intValue())
+//                                .orElseThrow(() -> new RuntimeException("Student not found"));
+//
+//                // Resolve current session
+//                String sessionText = getCurrentSession();
+//                Session session = sessionRepository.findBySession(sessionText);
+//                if (session == null) {
+//                        session = sessionRepository.findByIsActiveTrue()
+//                                        .orElseThrow(() -> new RuntimeException("No active session found"));
+//                }
+//
+//                // Resolve student's class
+//                StudentPromotionMapper promotion = studentPromotionMapperRepository
+//                                .findActivePromotion(student.getId(), session.getId())
+//                                .orElse(null);
+//                Integer classId = (promotion != null) ? promotion.getToClass() : student.getClassApplyingFor();
+//
+//                if (classId == null) {
+//                        return StandardResponse.error("Class not assigned to student", "CLASS_MISSING", null);
+//                }
+//
+//                // Fetch all active exam schedules for current session
+//                List<ExamSchedule> schedules = examScheduleRepository
+//                                .findBySession_IdAndIsActiveTrue(session.getId());
+//
+//                if (schedules.isEmpty()) {
+//                        return StandardResponse.error("No exam schedules found for current session",
+//                                        "SCHEDULE_NOT_FOUND", null);
+//                }
+//
+//                // Use the latest/first published schedule (prefer PUBLISHED over DRAFT)
+//                ExamSchedule schedule = schedules.stream()
+//                                .filter(s -> "PUBLISHED".equalsIgnoreCase(s.getStatus()))
+//                                .findFirst()
+//                                .orElse(schedules.get(0));
+//
+//                // Fetch subject configs for this session + exam type + class
+//                List<ExamSubjectConfig> subjectConfigs = examSubjectConfigRepository
+//                                .findAllWithFilters(session.getId(),
+//                                                schedule.getExamType().getId(),
+//                                                classId);
+//
+//                List<StudentExamScheduleResponse.SubjectExamDto> subjects = subjectConfigs.stream()
+//                                .map(cfg -> StudentExamScheduleResponse.SubjectExamDto.builder()
+//                                                .subjectName(cfg.getSubject() != null
+//                                                                ? cfg.getSubject().getSubjectName()
+//                                                                : "Unknown")
+//                                                .theoryMarks(cfg.getTheoryMarks())
+//                                                .practicalMarks(cfg.getPracticalMarks())
+//                                                .internalMarks(cfg.getInternalMarks())
+//                                                .totalMarks(cfg.getTotalMarks())
+//                                                .build())
+//                                .collect(Collectors.toList());
+//
+//                StudentExamScheduleResponse response = StudentExamScheduleResponse.builder()
+//                                .examTitle(schedule.getExamTitle())
+//                                .examType(schedule.getExamType() != null
+//                                                ? schedule.getExamType().getData()
+//                                                : "")
+//                                .academicYear(session.getSession())
+//                                .startDate(schedule.getStartDate() != null
+//                                                ? schedule.getStartDate().toString()
+//                                                : null)
+//                                .endDate(schedule.getEndDate() != null
+//                                                ? schedule.getEndDate().toString()
+//                                                : null)
+//                                .status(schedule.getStatus())
+//                                .subjects(subjects)
+//                                .build();
+//
+//                return StandardResponse.success(response, "Exam schedule fetched successfully");
+//        }
 
         // ══════════════════════════════════════════════════════════════════
         // ACADEMIC CALENDAR

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+
+    <style>
+
+        body{
+        font-family:"Times New Roman", serif;
+        font-size:12px;
+        margin:25px;
+        }
+
+        /* HEADER */
+
+        .header-table{
+        width:100%;
+        }
+
+        .school-name{
+        font-size:30px;
+        font-weight:bold;
+        color:#1d3763;
+        text-align:center;
+        }
+
+        .report-title{
+        font-size:18px;
+        text-align:center;
+        margin-top:6px;
+        }
+
+        /* STUDENT INFO */
+
+        .info-table{
+        width:100%;
+        margin-top:15px;
+        border-collapse:collapse;
+        }
+
+        .info-table td{
+        padding:6px;
+        }
+
+        .line{
+        border-bottom:1px solid #000;
+        min-width:120px;
+        }
+
+        /* MAIN TABLE */
+
+        .main-table{
+        width:100%;
+        border-collapse:collapse;
+        margin-top:20px;
+        }
+
+        .main-table th,
+        .main-table td{
+        border:1px solid #333;
+        padding:5px;
+        text-align:center;
+        }
+
+        .section-header{
+        background:#e7eef8;
+        font-weight:bold;
+        font-size:14px;
+        }
+
+        .term-header{
+        background:#f4f7fc;
+        }
+
+        .subject{
+        text-align:left;
+        padding-left:8px;
+        }
+
+        /* SUMMARY */
+
+        .summary-table{
+        width:100%;
+        margin-top:15px;
+        border-collapse:collapse;
+        }
+
+        .summary-table td{
+        border:1px solid #333;
+        padding:10px;
+        text-align:center;
+        background:#eef3fb;
+        }
+
+        /* CO-SCHOLASTIC */
+
+        .co-table{
+        width:100%;
+        margin-top:20px;
+        border-collapse:collapse;
+        }
+
+        .co-table th,
+        .co-table td{
+        border:1px solid #333;
+        padding:6px;
+        }
+
+        /* FOOTER */
+
+        .footer{
+        margin-top:25px;
+        width:100%;
+        }
+
+        .footer td{
+        text-align:center;
+        padding-top:25px;
+        }
+
+        .instructions{
+        text-align:center;
+        margin-top:15px;
+        font-size:11px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<!-- HEADER -->
+
+<table class="header-table">
+
+    <tr>
+
+        <td style="width:20%; text-align:left;">
+            <img th:src="${student.leftLogo}" style="height:80px;"/>
+        </td>
+
+        <td style="width:60%; text-align:center;">
+
+            <div>
+                AFFILIATION NO : <span th:text="${student.affiliationNo}"></span>
+            </div>
+
+            <div class="school-name"
+                 th:text="${student.schoolName}">
+            </div>
+
+            <div class="report-title">
+                ANNUAL PROGRESS REPORT
+            </div>
+
+            <div th:text="${student.academicSession}"></div>
+
+        </td>
+
+        <td style="width:20%; text-align:right;">
+
+            <div>
+                SCHOOL CODE : <span th:text="${student.schoolCode}"></span>
+            </div>
+
+            <img th:src="${student.rightLogo}" style="height:80px;"/>
+
+        </td>
+
+    </tr>
+
+</table>
+
+
+<!-- STUDENT DETAILS -->
+
+<table class="info-table">
+
+    <tr>
+
+        <td style="width:18%">ADMISSION NO :</td>
+        <td class="line" th:text="${student.admissionNo}"></td>
+
+        <td style="width:18%">ROLL NO :</td>
+        <td class="line" th:text="${student.rollNo}"></td>
+
+        <td style="width:12%">SEC :</td>
+        <td class="line" th:text="${student.sectionName}"></td>
+
+    </tr>
+
+    <tr>
+
+        <td>STUDENT NAME :</td>
+        <td class="line" th:text="${student.studentName}"></td>
+
+        <td>CLASS :</td>
+        <td class="line" th:text="${student.className}"></td>
+
+        <td></td>
+        <td></td>
+
+    </tr>
+
+    <tr>
+
+        <td>FATHER'S NAME :</td>
+        <td class="line" th:text="${student.fatherName}"></td>
+
+        <td>DATE OF BIRTH :</td>
+        <td class="line" th:text="${student.dob}"></td>
+
+        <td></td>
+        <td></td>
+
+    </tr>
+
+    <tr>
+
+        <td>MOTHER'S NAME :</td>
+        <td class="line" th:text="${student.motherName}"></td>
+
+        <td></td>
+        <td></td>
+
+        <td></td>
+        <td></td>
+
+    </tr>
+
+</table>
+
+
+<!-- SCHOLASTIC AREA -->
+
+<table class="main-table">
+
+    <tr>
+        <th colspan="16" class="section-header">
+            SCHOLASTIC AREA
+        </th>
+    </tr>
+
+    <tr class="term-header">
+
+        <th rowspan="3">SUBJECT</th>
+
+        <th colspan="5">TERM-1 (100)</th>
+        <th rowspan="3">GRADE</th>
+
+        <th colspan="5">TERM-2 (100)</th>
+        <th rowspan="3">GRADE</th>
+
+        <th colspan="2">OVERALL</th>
+
+    </tr>
+
+    <tr class="term-header">
+
+        <th>PT</th>
+        <th>NB</th>
+        <th>SE</th>
+        <th>TERM</th>
+        <th>MARKS</th>
+
+        <th>PT</th>
+        <th>NB</th>
+        <th>SE</th>
+        <th>TERM</th>
+        <th>MARKS</th>
+
+        <th>TOTAL</th>
+        <th>GRADE</th>
+
+    </tr>
+
+    <tr class="term-header">
+
+        <th>(10)</th>
+        <th>(5)</th>
+        <th>(5)</th>
+        <th>(80)</th>
+        <th>(100)</th>
+
+        <th>(10)</th>
+        <th>(5)</th>
+        <th>(5)</th>
+        <th>(80)</th>
+        <th>(100)</th>
+
+        <th>(100)</th>
+        <th></th>
+
+    </tr>
+
+    <tr th:each="s : ${subjects}">
+
+        <td class="subject" th:text="${s.subjectName}"></td>
+
+        <td th:text="${s.term1Pt}"></td>
+        <td th:text="${s.term1Nb}"></td>
+        <td th:text="${s.term1Se}"></td>
+        <td th:text="${s.term1Exam}"></td>
+        <td th:text="${s.term1Total}"></td>
+
+        <td th:text="${s.term1Grade}"></td>
+
+        <td th:text="${s.term2Pt}"></td>
+        <td th:text="${s.term2Nb}"></td>
+        <td th:text="${s.term2Se}"></td>
+        <td th:text="${s.term2Exam}"></td>
+        <td th:text="${s.term2Total}"></td>
+
+        <td th:text="${s.term2Grade}"></td>
+
+        <td th:text="${s.overallTotal}"></td>
+        <td th:text="${s.overallGrade}"></td>
+
+    </tr>
+
+</table>
+
+
+<!-- SUMMARY -->
+
+<table class="summary-table">
+
+    <tr>
+
+        <td>
+            <b>OVERALL MARKS</b><br/>
+            <span th:text="${student.totalMarksObtained}"></span>
+            /
+            <span th:text="${student.totalMaxMarks}"></span>
+        </td>
+
+        <td>
+            <b>PERCENT (%)</b><br/>
+            <span th:text="${student.percentage}"></span>
+        </td>
+
+        <td>
+            <b>OVERALL GRADE</b><br/>
+            <span th:text="${student.grade}"></span>
+        </td>
+
+    </tr>
+
+</table>
+
+
+<!-- CO SCHOLASTIC -->
+
+<table class="co-table">
+
+    <tr>
+        <th colspan="4" class="section-header">
+            CO-SCHOLASTIC AREA
+        </th>
+    </tr>
+
+    <tr>
+        <th>TERM-1</th>
+        <th>GRADE</th>
+        <th>TERM-2</th>
+        <th>GRADE</th>
+    </tr>
+
+    <tr th:each="i,iter : ${student.term1Co}">
+
+        <td th:text="${i.name}"></td>
+        <td th:text="${i.grade}"></td>
+
+        <td th:text="${student.term2Co[iter.index].name}"></td>
+        <td th:text="${student.term2Co[iter.index].grade}"></td>
+
+    </tr>
+
+</table>
+
+
+<!-- FOOTER -->
+
+<table class="footer">
+
+    <tr>
+
+        <td>
+            Promoted to Class :
+            <span th:text="${student.promotedClass}"></span>
+        </td>
+
+        <td>
+            Date :
+            <span th:text="${student.resultDate}"></span>
+        </td>
+
+        <td>School Stamp</td>
+        <td>Class Teacher</td>
+        <td>Principal</td>
+
+    </tr>
+
+</table>
+
+
+<div class="instructions">
+
+    <b>INSTRUCTIONS</b><br/>
+
+    Grade Range :
+    [91-100=A1],
+    [81-90=A2],
+    [71-80=B1],
+    [61-70=B2],
+    [51-60=C1],
+    [41-50=C2],
+    [33-40=D],
+    32 & Below = E
+
+</div>
+
+</body>
+</html>

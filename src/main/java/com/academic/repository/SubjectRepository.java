@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 
 import org.springframework.data.jpa.repository.Query;
+import software.amazon.awssdk.services.s3.endpoints.internal.Value;
 
 import java.util.Optional;
 
@@ -25,7 +26,7 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
             "AND (:credits IS NULL OR s.credits = :credits)")
     Page<Subject> searchAndFilter(String search, String type, String status, Integer credits, Pageable pageable);
 
-    Optional<Subject> findByIdAndIsDeletedFalse(Long id);
+    Optional<Subject> findByIdAndIsDeletedFalse(Integer id);
 
     boolean existsBySubjectCodeAndIsDeletedFalse(java.lang.String subjectCode);
 }

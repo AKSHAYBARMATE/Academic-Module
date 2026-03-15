@@ -30,7 +30,7 @@ public class SubjectMapper {
 
     public static SubjectResponse toResponse(Subject entity) {
         return SubjectResponse.builder()
-                .id(entity.getId())
+                .id(Long.valueOf(entity.getId()))
                 .subjectCode(entity.getSubjectCode())
                 .subjectName(entity.getSubjectName())
                 .department(entity.getDepartment())

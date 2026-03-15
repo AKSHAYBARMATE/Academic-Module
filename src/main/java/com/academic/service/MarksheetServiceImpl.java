@@ -1,48 +1,50 @@
 package com.academic.service;
 
+import com.academic.dto.ComponentMarksResponse;
 import com.academic.dto.MarksheetRequest;
-import com.academic.entity.Marksheet;
-import com.academic.entity.MarksheetSubjectMarks;
-import com.academic.entity.Student;
+import com.academic.entity.*;
+import com.academic.exception.ResourceNotFoundException;
 import com.academic.repository.*;
+import com.academic.request.ComponentMarksRequest;
+import com.academic.request.SubjectMarksRequest;
 import com.academic.response.MarksheetDetailResponse;
 import com.academic.response.MarksheetResponse;
 import com.academic.response.StandardResponse;
 import com.academic.response.SubjectMarksResponse;
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
+import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MarksheetServiceImpl implements MarksheetService {
 
     private final MarksheetRepository marksheetRepo;
-    private final MarksheetSubjectMarksRepository subjectRepo;
+//    private final MarksheetSubjectMarksRepository subjectRepo;
     private final CommonMasterRepository commonRepo;
     private final SessionRepository sessionRepo;
     private final StudentRepository studentRepository;
     private final SubjectRepository subjectMasterRepo;
+    private final TemplateEngine templateEngine;
+    private ExamComponentMasterRepostory componentRepo;
 
     /* CREATE */
     @Transactional
-    public StandardResponse<?> create(MarksheetRequest request) {
-        return saveInternal(null, request);
-    }
-
-    /* UPDATE (SAME AS SAVE) */
-    @Transactional
-    public StandardResponse<?> update(Long id, MarksheetRequest request) {
-        return saveInternal(id, request);
-    }
-
-    private StandardResponse<?> saveInternal(Long id, MarksheetRequest request) {
+    @Override
+    public StandardResponse<?> saveMarksheet(MarksheetRequest request) {
 
         if (request.getSubjects() == null || request.getSubjects().isEmpty()) {
             return StandardResponse.error(
@@ -52,69 +54,195 @@ public class MarksheetServiceImpl implements MarksheetService {
                     "At least one subject is mandatory");
         }
 
-        Marksheet sheet;
-
-        if (id == null) {
-            sheet = new Marksheet();
-        } else {
-            sheet = marksheetRepo.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Marksheet not found"));
-            subjectRepo.deleteByMarksheetId(id); // 🔥 RESET SUBJECTS
-        }
+        Marksheet sheet = new Marksheet();
 
         sheet.setStudentId(request.getStudentId());
         sheet.setClassId(request.getClassId());
         sheet.setSectionId(request.getSectionId());
         sheet.setSessionId(request.getSessionId());
+
         sheet.setExamTypeId(request.getExamTypeId());
+
         sheet.setExamDate(request.getExamDate());
 
         sheet.setTotalMarksObtained(request.getTotalMarksObtained());
         sheet.setTotalMaxMarks(request.getTotalMaxMarks());
         sheet.setPercentage(request.getPercentage());
         sheet.setGrade(request.getGrade());
-        sheet.setGpa(request.getGpa());
 
-        sheet.setAttendanceDays(request.getAttendanceDays());
-        sheet.setTotalWorkingDays(request.getTotalWorkingDays());
-        sheet.setConductGrade(request.getConductGrade());
-        sheet.setSportsGrade(request.getSportsGrade());
-        sheet.setExtraCurricularGrade(request.getExtraCurricularGrade());
-        sheet.setTeacherRemarks(request.getTeacherRemarks());
-        sheet.setPrincipalRemarks(request.getPrincipalRemarks());
+        /* SUBJECTS */
+
+        List<MarksheetSubject> subjects = new ArrayList<>();
+
+        for (SubjectMarksRequest s : request.getSubjects()) {
+
+            MarksheetSubject subject = new MarksheetSubject();
+
+            subject.setMarksheet(sheet);
+            subject.setSubjectId(s.getSubjectId());
+            subject.setSubjectRemarks(s.getSubjectRemarks());
+
+            List<MarksheetSubjectComponent> components = new ArrayList<>();
+
+            int total = 0;
+            int totalMax = 0;
+
+            for (ComponentMarksRequest c : s.getComponents()) {
+
+                ExamComponentMaster component =
+                        componentRepo.findById(c.getComponentId())
+                                .orElseThrow(() -> new RuntimeException("Component not found"));
+
+                MarksheetSubjectComponent comp = new MarksheetSubjectComponent();
+
+                comp.setSubject(subject);
+                comp.setComponent(component);
+                comp.setMarksObtained(c.getMarksObtained());
+                comp.setMaxMarks(c.getMaxMarks());
+
+                total += safe(c.getMarksObtained());
+                totalMax += safe(c.getMaxMarks());
+
+                components.add(comp);
+            }
+
+            subject.setTotalMarks(total);
+            subject.setTotalMax(totalMax);
+            subject.setGrade(calculateGrade(total));
+
+            subject.setComponents(components);
+
+            subjects.add(subject);
+        }
+
+        sheet.setSubjects(subjects);
 
         marksheetRepo.save(sheet);
 
-        request.getSubjects().forEach(s -> {
+        return StandardResponse.success(
+                sheet.getId(), "Marksheet created successfully");
+    }
 
-            int total = safe(s.getTheoryMarks()) +
-                    safe(s.getPracticalMarks()) +
-                    safe(s.getInternalMarks());
+    private String calculateGrade(double marks) {
 
-            int totalMax = safe(s.getTheoryMax()) +
-                    safe(s.getPracticalMax()) +
-                    safe(s.getInternalMax());
+        if (marks >= 90) return "A1";
+        if (marks >= 80) return "A2";
+        if (marks >= 70) return "B1";
+        if (marks >= 60) return "B2";
+        if (marks >= 50) return "C1";
+        if (marks >= 40) return "C2";
 
-            subjectRepo.save(
-                    MarksheetSubjectMarks.builder()
-                            .marksheetId(sheet.getId())
-                            .subjectId(s.getSubjectId())
-                            .theoryMarks(s.getTheoryMarks())
-                            .theoryMax(s.getTheoryMax())
-                            .practicalMarks(s.getPracticalMarks())
-                            .practicalMax(s.getPracticalMax())
-                            .internalMarks(s.getInternalMarks())
-                            .internalMax(s.getInternalMax())
-                            .totalMarks(total)
-                            .totalMax(totalMax)
-                            .subjectRemarks(s.getSubjectRemarks())
-                            .build());
-        });
+        return "F";
+    }
+
+    @Override
+    @Transactional
+    public StandardResponse<?> update(Long id, MarksheetRequest request) {
+
+        if (id == null) {
+            return StandardResponse.error(
+                    "Invalid request",
+                    "INVALID_ID",
+                    "id",
+                    "Marksheet id is required");
+        }
+
+        Marksheet sheet = marksheetRepo.findById(id).orElse(null);
+
+        if (sheet == null || Boolean.TRUE.equals(sheet.getIsDeleted())) {
+            return StandardResponse.error(
+                    "Marksheet not found",
+                    "NOT_FOUND",
+                    "id",
+                    "Invalid marksheet id");
+        }
+
+        if (request.getSubjects() == null || request.getSubjects().isEmpty()) {
+            return StandardResponse.error(
+                    "Subjects are required",
+                    "NO_SUBJECTS",
+                    "subjects",
+                    "At least one subject is mandatory");
+        }
+
+        /* BASIC DETAILS */
+
+        sheet.setStudentId(request.getStudentId());
+        sheet.setClassId(request.getClassId());
+        sheet.setSectionId(request.getSectionId());
+        sheet.setSessionId(request.getSessionId());
+
+        sheet.setExamTypeId(request.getExamTypeId());
+
+        sheet.setExamDate(request.getExamDate());
+
+        sheet.setTotalMarksObtained(request.getTotalMarksObtained());
+        sheet.setTotalMaxMarks(request.getTotalMaxMarks());
+        sheet.setPercentage(request.getPercentage());
+        sheet.setGrade(request.getGrade());
+
+        sheet.setAttendanceDays(request.getAttendanceDays());
+        sheet.setTotalWorkingDays(request.getTotalWorkingDays());
+
+        sheet.setConductGrade(request.getConductGrade());
+        sheet.setSportsGrade(request.getSportsGrade());
+        sheet.setExtraCurricularGrade(request.getExtraCurricularGrade());
+
+        /* RESET SUBJECTS (CASCADE DELETE) */
+
+        sheet.getSubjects().clear();
+
+        List<MarksheetSubject> subjects = new ArrayList<>();
+
+        for (SubjectMarksRequest s : request.getSubjects()) {
+
+            MarksheetSubject subject = new MarksheetSubject();
+
+            subject.setMarksheet(sheet);
+            subject.setSubjectId(s.getSubjectId());
+            subject.setSubjectRemarks(s.getSubjectRemarks());
+
+            List<MarksheetSubjectComponent> components = new ArrayList<>();
+
+            int total = 0;
+            int totalMax = 0;
+
+            for (ComponentMarksRequest c : s.getComponents()) {
+
+                ExamComponentMaster component =
+                        componentRepo.findById(c.getComponentId())
+                                .orElseThrow(() -> new RuntimeException("Component not found"));
+
+                MarksheetSubjectComponent comp = new MarksheetSubjectComponent();
+
+                comp.setSubject(subject);
+                comp.setComponent(component);
+                comp.setMarksObtained(c.getMarksObtained());
+                comp.setMaxMarks(c.getMaxMarks());
+
+                total += safe(c.getMarksObtained());
+                totalMax += safe(c.getMaxMarks());
+
+                components.add(comp);
+            }
+
+            subject.setTotalMarks(total);
+            subject.setTotalMax(totalMax);
+            subject.setGrade(calculateGrade(total));
+            subject.setComponents(components);
+
+            subjects.add(subject);
+        }
+
+        sheet.setSubjects(subjects);
+
+        marksheetRepo.save(sheet);
 
         return StandardResponse.success(
                 sheet.getId(),
-                id == null ? "Marksheet created" : "Marksheet updated");
+                "Marksheet updated successfully");
     }
+    
 
     private int safe(Integer v) {
         return v == null ? 0 : v;
@@ -149,9 +277,18 @@ public class MarksheetServiceImpl implements MarksheetService {
                         .build());
     }
 
+    @Override
     public StandardResponse<?> getById(Long id) {
 
-        Marksheet sheet = marksheetRepo.findById(id).orElse(null);
+        if (id == null) {
+            return StandardResponse.error(
+                    "Invalid request",
+                    "INVALID_ID",
+                    "id",
+                    "Marksheet id is required");
+        }
+
+        Marksheet sheet = marksheetRepo.findByIdAndIsDeletedFalse(id);
 
         if (sheet == null || Boolean.TRUE.equals(sheet.getIsDeleted())) {
             return StandardResponse.error(
@@ -161,8 +298,11 @@ public class MarksheetServiceImpl implements MarksheetService {
                     "Invalid marksheet id");
         }
 
-        return StandardResponse.success(mapToDetailResponse(sheet), "Marksheet fetched");
+        MarksheetDetailResponse response = mapToDetailResponse(sheet);
+
+        return StandardResponse.success(response, "Marksheet fetched successfully");
     }
+
 
     private MarksheetResponse mapToResponse(Marksheet sheet) {
         Student student = studentRepository
@@ -185,33 +325,57 @@ public class MarksheetServiceImpl implements MarksheetService {
     }
 
     private MarksheetDetailResponse mapToDetailResponse(Marksheet sheet) {
+
         Student student = studentRepository
-                .findById(sheet.getStudentId() != null ? sheet.getStudentId().intValue() : -1).get();
-        List<SubjectMarksResponse> subjects = subjectRepo.findByMarksheetId(sheet.getId())
+                .findById(sheet.getStudentId() != null ? sheet.getStudentId().intValue() : -1)
+                .orElse(null);
+
+        List<SubjectMarksResponse> subjectResponses = sheet.getSubjects()
                 .stream()
-                .map(s -> {
-                    SubjectMarksResponse r = new SubjectMarksResponse();
-                    r.setId(s.getId());
-                    r.setSubjectId(s.getSubjectId());
-                    r.setSubjectName(getSubjectName(s.getId()));
-                    r.setTheoryMarks(s.getTheoryMarks());
-                    r.setTheoryMax(s.getTheoryMax());
-                    r.setPracticalMarks(s.getPracticalMarks());
-                    r.setPracticalMax(s.getPracticalMax());
-                    r.setInternalMarks(s.getInternalMarks());
-                    r.setInternalMax(s.getInternalMax());
-                    r.setTotalMarks(s.getTotalMarks());
-                    r.setTotalMax(s.getTotalMax());
-                    r.setSubjectRemarks(s.getSubjectRemarks());
-                    return r;
-                })
-                .toList();
+                .map(subject -> {
+
+                    List<ComponentMarksResponse> components =
+                            subject.getComponents()
+                                    .stream()
+                                    .map(c -> {
+
+                                        ComponentMarksResponse comp = new ComponentMarksResponse();
+
+                                        comp.setComponentId(c.getComponent().getId());
+                                        comp.setComponentName(c.getComponent().getComponentName());
+                                        comp.setMarksObtained(c.getMarksObtained());
+                                        comp.setMaxMarks(c.getMaxMarks());
+
+                                        return comp;
+
+                                    }).toList();
+
+                    SubjectMarksResponse s = new SubjectMarksResponse();
+
+                    s.setId(subject.getId());
+                    s.setSubjectId(subject.getSubjectId());
+                    s.setSubjectName(getSubjectName(subject.getSubjectId()));
+                    s.setTotalMarks(subject.getTotalMarks());
+                    s.setTotalMax(subject.getTotalMax());
+                    s.setGrade(subject.getGrade());
+                    s.setSubjectRemarks(subject.getSubjectRemarks());
+                    s.setComponents(components);
+
+                    return s;
+
+                }).toList();
+
 
         MarksheetDetailResponse response = new MarksheetDetailResponse();
 
         response.setId(sheet.getId());
+
+        /* STUDENT INFO */
+
         response.setStudentId(sheet.getStudentId());
-        response.setStudentName(student.getFirstName() + " " + student.getLastName());
+        response.setStudentName(student != null
+                ? student.getFirstName() + " " + student.getLastName()
+                : null);
 
         response.setClassId(sheet.getClassId());
         response.setClassName(getName(sheet.getClassId()));
@@ -222,30 +386,36 @@ public class MarksheetServiceImpl implements MarksheetService {
         response.setSessionId(sheet.getSessionId());
         response.setSessionName(getSessionName(sheet.getSessionId()));
 
+        /* EXAM */
+
         response.setExamTypeId(sheet.getExamTypeId());
         response.setExamTypeName(getName(sheet.getExamTypeId()));
 
         response.setExamDate(sheet.getExamDate());
-        response.setSubjects(subjects);
+
+        /* SUBJECTS */
+
+        response.setSubjects(subjectResponses);
+
+        /* SUMMARY */
 
         response.setTotalMarksObtained(sheet.getTotalMarksObtained());
         response.setTotalMaxMarks(sheet.getTotalMaxMarks());
         response.setPercentage(sheet.getPercentage());
         response.setGrade(sheet.getGrade());
-        response.setGpa(sheet.getGpa());
+
+        /* EVALUATION */
 
         response.setAttendanceDays(sheet.getAttendanceDays());
         response.setTotalWorkingDays(sheet.getTotalWorkingDays());
         response.setConductGrade(sheet.getConductGrade());
         response.setSportsGrade(sheet.getSportsGrade());
         response.setExtraCurricularGrade(sheet.getExtraCurricularGrade());
-        response.setTeacherRemarks(sheet.getTeacherRemarks());
-        response.setPrincipalRemarks(sheet.getPrincipalRemarks());
+
         response.setPublished(sheet.getPublished());
 
         return response;
     }
-
     private String getName(Integer id) {
         if (id == null)
             return null;
@@ -262,7 +432,7 @@ public class MarksheetServiceImpl implements MarksheetService {
                 .orElse("Unknown (" + id + ")");
     }
 
-    private String getSubjectName(Long id) {
+    private String getSubjectName(Integer id) {
         if (id == null)
             return null;
         return subjectMasterRepo.findByIdAndIsDeletedFalse(id)
@@ -281,4 +451,59 @@ public class MarksheetServiceImpl implements MarksheetService {
                 "id",
                 "Invalid marksheet id"));
     }
+
+
+    @Override
+    public byte[] generateMarksheetPdf(Long id) {
+
+        log.info("Generating marksheet PDF for id {}", id);
+
+        Marksheet sheet = marksheetRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid marksheet id"));
+
+        if (Boolean.TRUE.equals(sheet.getIsDeleted())) {
+            throw new ResourceNotFoundException("Marksheet deleted");
+        }
+
+        MarksheetDetailResponse response = mapToDetailResponse(sheet);
+
+        try {
+
+            String html = generateHtml(response);
+
+            return convertHtmlToPdf(html);
+
+        } catch (Exception e) {
+
+            log.error("Error generating PDF for marksheet {}", id, e);
+
+            throw new RuntimeException("PDF generation failed");
+        }
+
+    }
+
+
+    private String generateHtml(MarksheetDetailResponse data) {
+
+        Context context = new Context();
+
+        context.setVariable("student", data);
+        context.setVariable("subjects", data.getSubjects());
+
+        return templateEngine.process("marksheet-template", context);
+    }
+
+    private byte[] convertHtmlToPdf(String html) throws Exception {
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        PdfRendererBuilder builder = new PdfRendererBuilder();
+
+        builder.withHtmlContent(html, null);
+        builder.toStream(outputStream);
+        builder.run();
+
+        return outputStream.toByteArray();
+    }
+
 }

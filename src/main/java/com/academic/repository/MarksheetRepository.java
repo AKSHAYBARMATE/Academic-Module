@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+
 public interface MarksheetRepository extends JpaRepository<Marksheet, Long> {
 
     Page<Marksheet> findByIsDeletedFalse(Pageable pageable);
@@ -18,4 +19,6 @@ public interface MarksheetRepository extends JpaRepository<Marksheet, Long> {
 
     java.util.List<Marksheet> findByClassIdAndSessionIdAndIsDeletedFalseOrderByPercentageDesc(Integer classId,
             Integer sessionId);
+
+    Marksheet findByIdAndIsDeletedFalse(Long id);
 }

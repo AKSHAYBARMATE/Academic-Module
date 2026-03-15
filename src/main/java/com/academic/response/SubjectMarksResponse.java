@@ -1,12 +1,15 @@
 package com.academic.response;
 
+import com.academic.dto.ComponentMarksResponse;
 import lombok.Data;
+
+import java.util.List;
 
 @Data
 public class SubjectMarksResponse {
 
-    private Long id;
-    private Long subjectId;
+    private Integer id;
+    private Integer subjectId;
     private String subjectName;
 
     private Integer theoryMarks;
@@ -21,5 +24,9 @@ public class SubjectMarksResponse {
     private Integer totalMarks;
     private Integer totalMax;
 
+    private String grade;
+
     private String subjectRemarks;
+
+    private List<ComponentMarksResponse> components;
 }
