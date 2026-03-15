@@ -36,4 +36,5 @@ public interface ExamSubjectConfigService {
 
         public StandardResponse<Void> delete(Long id);
 
+    StandardResponse<?> getAllComponents();
 }

@@ -42,4 +42,9 @@ public class ExamSubjectConfigController {
     public StandardResponse<?> delete(@PathVariable Long id) {
         return service.delete(id);
     }
+
+    @GetMapping("/components")
+    public StandardResponse<?> getComponents() {
+        return service.getAllComponents();
+    }
 }

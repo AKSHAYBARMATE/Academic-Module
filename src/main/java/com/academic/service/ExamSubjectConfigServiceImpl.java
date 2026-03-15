@@ -4,6 +4,7 @@ import com.academic.entity.*;
 import com.academic.repository.*;
 import com.academic.request.*;
 import com.academic.response.ComponentConfigResponse;
+import com.academic.response.ExamComponentResponse;
 import com.academic.response.ExamSubjectConfigResponse;
 import com.academic.response.StandardResponse;
 import jakarta.transaction.Transactional;
@@ -290,5 +291,25 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
                     .components(components)
                     .build();
         }
+
+
+    @Override
+    public StandardResponse<?> getAllComponents() {
+
+        List<ExamComponentResponse> components =
+                componentMasterRepository
+                        .findByActiveTrueOrderByDisplayOrder()
+                        .stream()
+                        .map(c -> ExamComponentResponse.builder()
+                                .id(Long.valueOf(c.getId()))
+                                .componentName(c.getComponentName())
+                                .displayOrder(c.getDisplayOrder())
+                                .build())
+                        .toList();
+
+        return StandardResponse.success(
+                components,
+                "Components fetched successfully");
+    }
 
 }
