@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -53,4 +54,12 @@ public class Marksheet {
 
     @OneToMany(mappedBy = "marksheet", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MarksheetSubject> subjects;
+
+    @OneToMany(
+            mappedBy = "marksheet",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    @Builder.Default
+    private List<MarksheetCoScholastic> coScholasticActivities = new ArrayList<>();
 }

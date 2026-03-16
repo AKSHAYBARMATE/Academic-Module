@@ -5,6 +5,7 @@ import com.academic.dto.MarksheetRequest;
 import com.academic.entity.*;
 import com.academic.exception.ResourceNotFoundException;
 import com.academic.repository.*;
+import com.academic.request.CoScholasticMarksRequest;
 import com.academic.request.ComponentMarksRequest;
 import com.academic.request.SubjectMarksRequest;
 import com.academic.response.MarksheetDetailResponse;
@@ -49,7 +50,18 @@ public class MarksheetServiceImpl implements MarksheetService {
     @Autowired
     private ExamComponentMasterRepostory componentRepo;
 
-    /* CREATE */
+    @Autowired
+    private ExamSubjectConfigRepository examSubjectConfigRepository;
+
+    @Autowired
+    private ExamSubjectConfigComponentRepository examSubjectConfigComponentRepository;
+
+    @Autowired
+    private CoScholasticActivityMasterRepository coScholasticActivityMasterRepository;
+
+    @Autowired
+    private ExamCoScholasticConfigRepository examCoScholasticConfigRepository;
+
     @Transactional
     @Override
     public StandardResponse<?> saveMarksheet(MarksheetRequest request) {
@@ -62,15 +74,15 @@ public class MarksheetServiceImpl implements MarksheetService {
                     "At least one subject is mandatory");
         }
 
+        /* ================= CREATE MARKSHEET ================= */
+
         Marksheet sheet = new Marksheet();
 
         sheet.setStudentId(request.getStudentId());
         sheet.setClassId(request.getClassId());
         sheet.setSectionId(request.getSectionId());
         sheet.setSessionId(request.getSessionId());
-
         sheet.setExamTypeId(request.getExamTypeId());
-
         sheet.setExamDate(request.getExamDate());
 
         sheet.setTotalMarksObtained(request.getTotalMarksObtained());
@@ -78,11 +90,23 @@ public class MarksheetServiceImpl implements MarksheetService {
         sheet.setPercentage(request.getPercentage());
         sheet.setGrade(request.getGrade());
 
-        /* SUBJECTS */
+        /* ================= SUBJECTS ================= */
 
         List<MarksheetSubject> subjects = new ArrayList<>();
 
         for (SubjectMarksRequest s : request.getSubjects()) {
+
+            /* Load subject config */
+
+            ExamSubjectConfig config =
+                    (ExamSubjectConfig) this.examSubjectConfigRepository
+                            .findBySession_IdAndExamType_IdAndSubject_IdAndClassId_IdAndIsDeleteFalse(
+                                    request.getSessionId(),
+                                    request.getExamTypeId(),
+                                    s.getSubjectId(),
+                                    request.getClassId())
+                            .orElseThrow(() ->
+                                    new RuntimeException("Subject config not found"));
 
             MarksheetSubject subject = new MarksheetSubject();
 
@@ -99,17 +123,24 @@ public class MarksheetServiceImpl implements MarksheetService {
 
                 ExamComponentMaster component =
                         componentRepo.findById(c.getComponentId())
-                                .orElseThrow(() -> new RuntimeException("Component not found"));
+                                .orElseThrow(() ->
+                                        new RuntimeException("Component not found"));
+
+                /* Get max marks from configuration */
+
+                ExamSubjectConfigComponent configComponent =
+                        this.examSubjectConfigComponentRepository
+                                .findByConfig_IdAndComponent_Id(config.getId(), component.getId());
 
                 MarksheetSubjectComponent comp = new MarksheetSubjectComponent();
 
                 comp.setSubject(subject);
                 comp.setComponent(component);
                 comp.setMarksObtained(c.getMarksObtained());
-                comp.setMaxMarks(c.getMaxMarks());
+                comp.setMaxMarks(configComponent.getMaxMarks());
 
                 total += safe(c.getMarksObtained());
-                totalMax += safe(c.getMaxMarks());
+                totalMax += safe(configComponent.getMaxMarks());
 
                 components.add(comp);
             }
@@ -125,10 +156,54 @@ public class MarksheetServiceImpl implements MarksheetService {
 
         sheet.setSubjects(subjects);
 
+        /* ================= CO-SCHOLASTIC ================= */
+
+        if (request.getCoScholasticActivities() != null &&
+                !request.getCoScholasticActivities().isEmpty()) {
+
+            List<MarksheetCoScholastic> activities = new ArrayList<>();
+
+            for (CoScholasticMarksRequest c : request.getCoScholasticActivities()) {
+
+                CoScholasticActivityMaster activity =
+                        coScholasticActivityMasterRepository
+                                .findById(c.getActivityId())
+                                .orElseThrow(() -> new RuntimeException("Activity not found"));
+
+                /* get configured max marks */
+
+                ExamCoScholasticConfig config =
+                        (ExamCoScholasticConfig) this.examCoScholasticConfigRepository
+                                .findBySession_IdAndExamType_IdAndClassId_IdAndActivity_IdAndIsDeleteFalse(
+                                        request.getSessionId(),
+                                        request.getExamTypeId(),
+                                        request.getClassId(),
+                                        activity.getId())
+                                .orElseThrow(() -> new RuntimeException("Activity config not found"));
+
+                MarksheetCoScholastic a = new MarksheetCoScholastic();
+
+                a.setMarksheet(sheet);
+                a.setActivity(activity);
+
+                a.setMarksObtained(c.getMarksObtained());
+                a.setMaxMarks(config.getMaxMarks());
+
+                a.setGrade(calculateGrade(c.getMarksObtained()));
+
+                activities.add(a);
+            }
+
+            sheet.setCoScholasticActivities(activities);
+        }
+
+        /* ================= SAVE ================= */
+
         marksheetRepo.save(sheet);
 
         return StandardResponse.success(
-                sheet.getId(), "Marksheet created successfully");
+                sheet.getId(),
+                "Marksheet created successfully");
     }
 
     private String calculateGrade(double marks) {
