@@ -3,10 +3,7 @@ package com.academic.service;
 import com.academic.entity.*;
 import com.academic.repository.*;
 import com.academic.request.*;
-import com.academic.response.ComponentConfigResponse;
-import com.academic.response.ExamComponentResponse;
-import com.academic.response.ExamSubjectConfigResponse;
-import com.academic.response.StandardResponse;
+import com.academic.response.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.antlr.v4.runtime.misc.LogManager;
@@ -218,22 +215,45 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
     }
         /* ================= READ ================= */
 
-        public StandardResponse<List<ExamSubjectConfigResponse>> getAll(
-                        Integer sessionId,
-                        Integer examTypeId,
-                        Integer classId) {
+    public StandardResponse<List<ExamSubjectConfigResponse>> getAll(
+            Integer sessionId,
+            Integer examTypeId,
+            Integer classId) {
 
-                List<ExamSubjectConfigResponse> data = repository.findAllWithFilters(sessionId, examTypeId, classId)
-                                .stream()
-                                .map(this::map)
-                                .toList();
+        /* ================= SUBJECT CONFIG ================= */
 
-                return StandardResponse.success(
-                                data,
-                                "Configurations fetched");
-        }
+        List<ExamSubjectConfigResponse> subjectConfigs =
+                repository.findAllWithFilters(sessionId, examTypeId, classId)
+                        .stream()
+                        .map(this::map)
+                        .toList();
 
-        /* ================= UPDATE ================= */
+
+        /* ================= CO-SCHOLASTIC CONFIG ================= */
+
+        List<CoScholasticConfigResponse> activities =
+                coScholasticConfigRepository
+                        .findAllWithFilters(sessionId, examTypeId, classId)
+                        .stream()
+                        .map(a -> CoScholasticConfigResponse.builder()
+                                .id(Long.valueOf(a.getId()))
+                                .activityId(a.getActivity().getId())
+                                .activityName(a.getActivity().getActivityName())
+                                .maxMarks(a.getMaxMarks())
+                                .build())
+                        .toList();
+
+
+        /* ================= MERGE RESPONSE ================= */
+
+        subjectConfigs.forEach(r -> r.setCoScholasticActivities(activities));
+
+
+        return StandardResponse.success(
+                subjectConfigs,
+                "Configurations fetched");
+    }
+
 
     /* ================= UPDATE ================= */
 
@@ -244,66 +264,118 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
 
         List<ExamSubjectConfigResponse> responses = new ArrayList<>();
 
-        for (SubjectMarksUpdateRequest s : request.getSubjects()) {
+        /* ================= SUBJECT CONFIG UPDATE ================= */
 
-            ExamSubjectConfig config;
+        if (request.getSubjects() != null && !request.getSubjects().isEmpty()) {
 
-            if (s.getId() != null) {
+            for (SubjectMarksUpdateRequest s : request.getSubjects()) {
 
-                config = repository.findById(s.getId())
-                        .orElseThrow(() ->
-                                new RuntimeException("Config not found for id: " + s.getId()));
+                ExamSubjectConfig config;
 
-                /* Clear existing components */
+                if (s.getId() != null) {
 
-                config.getComponents().clear();
+                    config = repository.findById(s.getId())
+                            .orElseThrow(() ->
+                                    new RuntimeException("Config not found for id: " + s.getId()));
 
-            } else {
+                    /* Clear existing components */
 
-                config = new ExamSubjectConfig();
+                    config.getComponents().clear();
 
-                config.setSubject(
-                        subjectRepository.findById(s.getSubjectId()).orElseThrow());
+                } else {
 
-                config.setSession(
-                        sessionRepository.findById(s.getSessionId()).orElseThrow());
+                    config = new ExamSubjectConfig();
 
-                config.setExamType(
-                        commonMasterRepository.findById(s.getExamTypeId()).orElseThrow());
+                    config.setSubject(
+                            subjectRepository.findById(s.getSubjectId()).orElseThrow());
 
-                config.setClassId(
-                        commonMasterRepository.findById(s.getClassId()).orElseThrow());
+                    config.setSession(
+                            sessionRepository.findById(request.getSessionId()).orElseThrow());
+
+                    config.setExamType(
+                            commonMasterRepository.findById(request.getExamTypeId()).orElseThrow());
+
+                    config.setClassId(
+                            commonMasterRepository.findById(request.getClassId()).orElseThrow());
+                }
+
+                /* ================= ADD NEW COMPONENTS ================= */
+
+                List<ExamSubjectConfigComponent> components = new ArrayList<>();
+
+                for (ComponentConfigRequest c : s.getComponents()) {
+
+                    ExamComponentMaster component =
+                            componentMasterRepository.findById(c.getComponentId())
+                                    .orElseThrow(() ->
+                                            new RuntimeException("Invalid component id " + c.getComponentId()));
+
+                    ExamSubjectConfigComponent comp =
+                            ExamSubjectConfigComponent.builder()
+                                    .config(config)
+                                    .component(component)
+                                    .maxMarks(c.getMaxMarks())
+                                    .build();
+
+                    components.add(comp);
+                }
+
+                /* Important: avoid replacing list reference */
+
+                config.getComponents().addAll(components);
+
+                repository.save(config);
+
+                responses.add(map(config));
             }
-
-            List<ExamSubjectConfigComponent> components = new ArrayList<>();
-
-            for (ComponentConfigRequest c : s.getComponents()) {
-
-                ExamComponentMaster component =
-                        componentMasterRepository.findById(c.getComponentId())
-                                .orElseThrow(() ->
-                                        new RuntimeException("Invalid component id"));
-
-                ExamSubjectConfigComponent comp =
-                        ExamSubjectConfigComponent.builder()
-                                .config(config)
-                                .component(component)
-                                .maxMarks(c.getMaxMarks())
-                                .build();
-
-                components.add(comp);
-            }
-
-            config.setComponents(components);
-
-            repository.save(config);
-
-            responses.add(map(config));
         }
+
+
+        /* ================= CO-SCHOLASTIC UPDATE ================= */
+
+        if (request.getCoScholasticActivities() != null &&
+                !request.getCoScholasticActivities().isEmpty()) {
+
+            for (CoScholasticUpdateRequest c : request.getCoScholasticActivities()) {
+
+                ExamCoScholasticConfig config;
+
+                if (c.getId() != null) {
+
+                    config = coScholasticConfigRepository.findById(Math.toIntExact(c.getId()))
+                            .orElseThrow(() ->
+                                    new RuntimeException("CoScholastic config not found: " + c.getId()));
+
+                } else {
+
+                    config = new ExamCoScholasticConfig();
+
+                    config.setSession(
+                            sessionRepository.findById(request.getSessionId()).orElseThrow());
+
+                    config.setExamType(
+                            commonMasterRepository.findById(request.getExamTypeId()).orElseThrow());
+
+                    config.setClassId(
+                            commonMasterRepository.findById(request.getClassId()).orElseThrow());
+                }
+
+                CoScholasticActivityMaster activity =
+                        this.coScholasticActivityMasterRepository.findById(c.getActivityId())
+                                .orElseThrow(() ->
+                                        new RuntimeException("Invalid activity id " + c.getActivityId()));
+
+                config.setActivity(activity);
+                config.setMaxMarks(c.getMaxMarks());
+
+                coScholasticConfigRepository.save(config);
+            }
+        }
+
 
         return StandardResponse.success(
                 responses,
-                "Exam subject configurations updated successfully");
+                "Exam subject and co-scholastic configurations updated successfully");
     }
 
         /* ================= DELETE ================= */
@@ -366,6 +438,24 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
         return StandardResponse.success(
                 components,
                 "Components fetched successfully");
+    }
+
+    @Override
+    public StandardResponse<?> getActivityMasters() {
+
+        List<CoScholasticActivityResponse> activities =
+                this.coScholasticActivityMasterRepository.findByIsActiveTrueOrderByDisplayOrder()
+                        .stream()
+                        .map(a -> CoScholasticActivityResponse.builder()
+                                .id(a.getId())
+                                .activityName(a.getActivityName())
+                                .displayOrder(a.getDisplayOrder())
+                                .build())
+                        .toList();
+
+        return StandardResponse.success(
+                activities,
+                "Co-Scholastic activities fetched successfully");
     }
 
 }

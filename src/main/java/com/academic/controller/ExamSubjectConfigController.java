@@ -48,4 +48,9 @@ public class ExamSubjectConfigController {
     public StandardResponse<?> getComponents() {
         return service.getAllComponents();
     }
+
+    @GetMapping("/activity-masters")
+    public StandardResponse<?> getActivityMasters() {
+        return service.getActivityMasters();
+    }
 }

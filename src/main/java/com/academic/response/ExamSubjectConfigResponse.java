@@ -24,4 +24,6 @@ public class ExamSubjectConfigResponse {
     private String subjectName;
 
     private List<ComponentConfigResponse> components;
+
+    private List<CoScholasticConfigResponse> coScholasticActivities;
 }
