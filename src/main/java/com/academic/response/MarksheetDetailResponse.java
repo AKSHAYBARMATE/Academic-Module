@@ -10,7 +10,7 @@ public class MarksheetDetailResponse {
 
     private Integer id;
 
-    /* STUDENT INFO */
+    /* STUDENT */
 
     private Integer studentId;
     private String studentName;
@@ -24,7 +24,7 @@ public class MarksheetDetailResponse {
     private Integer sessionId;
     private String sessionName;
 
-    /* EXAM INFO */
+    /* EXAM */
 
     private Integer examTypeId;
     private String examTypeName;
@@ -33,16 +33,20 @@ public class MarksheetDetailResponse {
 
     private LocalDate examDate;
 
-    /* SUBJECT MARKS */
+    /* SUBJECTS */
 
     private List<SubjectMarksResponse> subjects;
+
+    /* CO SCHOLASTIC */
+
+    private List<CoScholasticResponse> coScholasticActivities;
 
     /* SUMMARY */
 
     private Integer totalMarksObtained;
     private Integer totalMaxMarks;
-    private Double percentage;
 
+    private Double percentage;
     private String grade;
     private Double gpa;
 

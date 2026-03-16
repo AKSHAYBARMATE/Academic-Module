@@ -52,6 +52,12 @@ public class Marksheet {
 
     private LocalDateTime createdAt;
 
+    private String teacherRemarks;
+
+    private String principalRemarks;
+
+    private Double cgpa;
+
     @OneToMany(mappedBy = "marksheet", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MarksheetSubject> subjects;
 

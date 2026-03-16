@@ -8,10 +8,7 @@ import com.academic.repository.*;
 import com.academic.request.CoScholasticMarksRequest;
 import com.academic.request.ComponentMarksRequest;
 import com.academic.request.SubjectMarksRequest;
-import com.academic.response.MarksheetDetailResponse;
-import com.academic.response.MarksheetResponse;
-import com.academic.response.StandardResponse;
-import com.academic.response.SubjectMarksResponse;
+import com.academic.response.*;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -218,6 +215,7 @@ public class MarksheetServiceImpl implements MarksheetService {
         return "F";
     }
 
+
     @Override
     @Transactional
     public StandardResponse<?> update(Long id, MarksheetRequest request) {
@@ -254,9 +252,7 @@ public class MarksheetServiceImpl implements MarksheetService {
         sheet.setClassId(request.getClassId());
         sheet.setSectionId(request.getSectionId());
         sheet.setSessionId(request.getSessionId());
-
         sheet.setExamTypeId(request.getExamTypeId());
-
         sheet.setExamDate(request.getExamDate());
 
         sheet.setTotalMarksObtained(request.getTotalMarksObtained());
@@ -271,13 +267,25 @@ public class MarksheetServiceImpl implements MarksheetService {
         sheet.setSportsGrade(request.getSportsGrade());
         sheet.setExtraCurricularGrade(request.getExtraCurricularGrade());
 
-        /* RESET SUBJECTS (CASCADE DELETE) */
+        /* ================= RESET SUBJECTS ================= */
 
         sheet.getSubjects().clear();
 
         List<MarksheetSubject> subjects = new ArrayList<>();
 
         for (SubjectMarksRequest s : request.getSubjects()) {
+
+            /* Load subject configuration */
+
+            ExamSubjectConfig config =
+                    (ExamSubjectConfig) examSubjectConfigRepository
+                            .findBySession_IdAndExamType_IdAndSubject_IdAndClassId_IdAndIsDeleteFalse(
+                                    request.getSessionId(),
+                                    request.getExamTypeId(),
+                                    s.getSubjectId(),
+                                    request.getClassId())
+                            .orElseThrow(() ->
+                                    new RuntimeException("Subject config not found"));
 
             MarksheetSubject subject = new MarksheetSubject();
 
@@ -296,15 +304,21 @@ public class MarksheetServiceImpl implements MarksheetService {
                         componentRepo.findById(c.getComponentId())
                                 .orElseThrow(() -> new RuntimeException("Component not found"));
 
+                /* get configured max marks */
+
+                ExamSubjectConfigComponent configComponent =
+                        this.examSubjectConfigComponentRepository
+                                .findByConfig_IdAndComponent_Id(config.getId(), component.getId());
+
                 MarksheetSubjectComponent comp = new MarksheetSubjectComponent();
 
                 comp.setSubject(subject);
                 comp.setComponent(component);
                 comp.setMarksObtained(c.getMarksObtained());
-                comp.setMaxMarks(c.getMaxMarks());
+                comp.setMaxMarks(configComponent.getMaxMarks());
 
                 total += safe(c.getMarksObtained());
-                totalMax += safe(c.getMaxMarks());
+                totalMax += safe(configComponent.getMaxMarks());
 
                 components.add(comp);
             }
@@ -312,12 +326,53 @@ public class MarksheetServiceImpl implements MarksheetService {
             subject.setTotalMarks(total);
             subject.setTotalMax(totalMax);
             subject.setGrade(calculateGrade(total));
+
             subject.setComponents(components);
 
             subjects.add(subject);
         }
 
-        sheet.setSubjects(subjects);
+        sheet.getSubjects().addAll(subjects);
+
+        /* ================= RESET CO-SCHOLASTIC ================= */
+
+        sheet.getCoScholasticActivities().clear();
+
+        if (request.getCoScholasticActivities() != null &&
+                !request.getCoScholasticActivities().isEmpty()) {
+
+            List<MarksheetCoScholastic> activities = new ArrayList<>();
+
+            for (CoScholasticMarksRequest c : request.getCoScholasticActivities()) {
+
+                CoScholasticActivityMaster activity =
+                        coScholasticActivityMasterRepository
+                                .findById(c.getActivityId())
+                                .orElseThrow(() -> new RuntimeException("Activity not found"));
+
+                ExamCoScholasticConfig config =
+                        (ExamCoScholasticConfig) examCoScholasticConfigRepository
+                                .findBySession_IdAndExamType_IdAndClassId_IdAndActivity_IdAndIsDeleteFalse(
+                                        request.getSessionId(),
+                                        request.getExamTypeId(),
+                                        request.getClassId(),
+                                        activity.getId())
+                                .orElseThrow(() ->
+                                        new RuntimeException("Activity config not found"));
+
+                MarksheetCoScholastic a = new MarksheetCoScholastic();
+
+                a.setMarksheet(sheet);
+                a.setActivity(activity);
+                a.setMarksObtained(c.getMarksObtained());
+                a.setMaxMarks(config.getMaxMarks());
+                a.setGrade(calculateGrade(c.getMarksObtained()));
+
+                activities.add(a);
+            }
+
+            sheet.getCoScholasticActivities().addAll(activities);
+        }
 
         marksheetRepo.save(sheet);
 
@@ -325,7 +380,7 @@ public class MarksheetServiceImpl implements MarksheetService {
                 sheet.getId(),
                 "Marksheet updated successfully");
     }
-    
+
 
     private int safe(Integer v) {
         return v == null ? 0 : v;
@@ -373,7 +428,7 @@ public class MarksheetServiceImpl implements MarksheetService {
 
         Marksheet sheet = marksheetRepo.findByIdAndIsDeletedFalse(id);
 
-        if (sheet == null || Boolean.TRUE.equals(sheet.getIsDeleted())) {
+        if (sheet == null) {
             return StandardResponse.error(
                     "Marksheet not found",
                     "NOT_FOUND",
@@ -383,7 +438,9 @@ public class MarksheetServiceImpl implements MarksheetService {
 
         MarksheetDetailResponse response = mapToDetailResponse(sheet);
 
-        return StandardResponse.success(response, "Marksheet fetched successfully");
+        return StandardResponse.success(
+                response,
+                "Marksheet fetched successfully");
     }
 
 
@@ -410,55 +467,83 @@ public class MarksheetServiceImpl implements MarksheetService {
     private MarksheetDetailResponse mapToDetailResponse(Marksheet sheet) {
 
         Student student = studentRepository
-                .findById(sheet.getStudentId() != null ? sheet.getStudentId().intValue() : -1)
+                .findById(sheet.getStudentId() != null ? sheet.getStudentId() : -1)
                 .orElse(null);
 
-        List<SubjectMarksResponse> subjectResponses = sheet.getSubjects()
-                .stream()
-                .map(subject -> {
+        /* ================= SUBJECTS ================= */
 
-                    List<ComponentMarksResponse> components =
-                            subject.getComponents()
-                                    .stream()
-                                    .map(c -> {
+        List<SubjectMarksResponse> subjectResponses =
+                sheet.getSubjects()
+                        .stream()
+                        .map(subject -> {
 
-                                        ComponentMarksResponse comp = new ComponentMarksResponse();
+                            List<ComponentMarksResponse> components =
+                                    subject.getComponents()
+                                            .stream()
+                                            .map(c -> {
 
-                                        comp.setComponentId(c.getComponent().getId());
-                                        comp.setComponentName(c.getComponent().getComponentName());
-                                        comp.setMarksObtained(c.getMarksObtained());
-                                        comp.setMaxMarks(c.getMaxMarks());
+                                                ComponentMarksResponse comp =
+                                                        new ComponentMarksResponse();
 
-                                        return comp;
+                                                comp.setComponentId(c.getComponent().getId());
+                                                comp.setComponentName(c.getComponent().getComponentName());
+                                                comp.setMarksObtained(c.getMarksObtained());
+                                                comp.setMaxMarks(c.getMaxMarks());
 
-                                    }).toList();
+                                                return comp;
 
-                    SubjectMarksResponse s = new SubjectMarksResponse();
+                                            }).toList();
 
-                    s.setId(subject.getId());
-                    s.setSubjectId(subject.getSubjectId());
-                    s.setSubjectName(getSubjectName(subject.getSubjectId()));
-                    s.setTotalMarks(subject.getTotalMarks());
-                    s.setTotalMax(subject.getTotalMax());
-                    s.setGrade(subject.getGrade());
-                    s.setSubjectRemarks(subject.getSubjectRemarks());
-                    s.setComponents(components);
+                            SubjectMarksResponse s = new SubjectMarksResponse();
 
-                    return s;
+                            s.setId(subject.getId());
+                            s.setSubjectId(subject.getSubjectId());
+                            s.setSubjectName(getSubjectName(subject.getSubjectId()));
+                            s.setTotalMarks(subject.getTotalMarks());
+                            s.setTotalMax(subject.getTotalMax());
+                            s.setGrade(subject.getGrade());
+                            s.setSubjectRemarks(subject.getSubjectRemarks());
+                            s.setComponents(components);
 
-                }).toList();
+                            return s;
 
+                        }).toList();
+
+
+        /* ================= CO SCHOLASTIC ================= */
+
+        List<CoScholasticResponse> activities =
+                sheet.getCoScholasticActivities()
+                        .stream()
+                        .map(a -> {
+
+                            CoScholasticResponse r = new CoScholasticResponse();
+
+                            r.setActivityId(a.getActivity().getId());
+                            r.setActivityName(a.getActivity().getActivityName());
+                            r.setMarksObtained(a.getMarksObtained());
+                            r.setMaxMarks(a.getMaxMarks());
+                            r.setGrade(a.getGrade());
+
+                            return r;
+
+                        }).toList();
+
+
+        /* ================= RESPONSE ================= */
 
         MarksheetDetailResponse response = new MarksheetDetailResponse();
 
         response.setId(sheet.getId());
 
-        /* STUDENT INFO */
+        /* STUDENT */
 
         response.setStudentId(sheet.getStudentId());
-        response.setStudentName(student != null
-                ? student.getFirstName() + " " + student.getLastName()
-                : null);
+
+        response.setStudentName(
+                student != null
+                        ? student.getFirstName() + " " + student.getLastName()
+                        : null);
 
         response.setClassId(sheet.getClassId());
         response.setClassName(getName(sheet.getClassId()));
@@ -480,25 +565,36 @@ public class MarksheetServiceImpl implements MarksheetService {
 
         response.setSubjects(subjectResponses);
 
+        /* CO SCHOLASTIC */
+
+        response.setCoScholasticActivities(activities);
+
         /* SUMMARY */
 
         response.setTotalMarksObtained(sheet.getTotalMarksObtained());
         response.setTotalMaxMarks(sheet.getTotalMaxMarks());
         response.setPercentage(sheet.getPercentage());
         response.setGrade(sheet.getGrade());
+        response.setGpa(sheet.getCgpa());
 
         /* EVALUATION */
 
         response.setAttendanceDays(sheet.getAttendanceDays());
         response.setTotalWorkingDays(sheet.getTotalWorkingDays());
+
         response.setConductGrade(sheet.getConductGrade());
         response.setSportsGrade(sheet.getSportsGrade());
         response.setExtraCurricularGrade(sheet.getExtraCurricularGrade());
+
+        response.setTeacherRemarks(sheet.getTeacherRemarks());
+        response.setPrincipalRemarks(sheet.getPrincipalRemarks());
 
         response.setPublished(sheet.getPublished());
 
         return response;
     }
+
+
     private String getName(Integer id) {
         if (id == null)
             return null;
