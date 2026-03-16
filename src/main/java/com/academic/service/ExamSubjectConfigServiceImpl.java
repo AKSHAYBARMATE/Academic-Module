@@ -9,6 +9,7 @@ import com.academic.response.ExamSubjectConfigResponse;
 import com.academic.response.StandardResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.antlr.v4.runtime.misc.LogManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
 import org.springframework.stereotype.Service;
@@ -23,68 +24,79 @@ import java.util.Optional;
 public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
 
     @Autowired
-        private final ExamSubjectConfigRepository repository;
+    private final ExamSubjectConfigRepository repository;
     @Autowired
-        private final SessionRepository sessionRepository;
+    private final SessionRepository sessionRepository;
     @Autowired
-        private final CommonMasterRepository commonMasterRepository;
+    private final CommonMasterRepository commonMasterRepository;
     @Autowired
-        private final SubjectRepository subjectRepository;
-        @Autowired
-        private ExamSubjectConfigComponentRepository componentConfigRepository;
+    private final SubjectRepository subjectRepository;
+    @Autowired
+    private ExamSubjectConfigComponentRepository componentConfigRepository;
 
     @Autowired
     private ExamComponentMasterRepostory componentMasterRepository;
 
+    @Autowired
+    private CoScholasticActivityMasterRepository coScholasticActivityMasterRepository;
+
+    @Autowired
+    private ExamCoScholasticConfigRepository coScholasticConfigRepository;
+
     /* ================= BULK CREATE ================= */
-        @Transactional
-        public StandardResponse<?> createBulk(ExamSubjectConfigBulkRequest request) {
+    @Transactional
+    public StandardResponse<?> createBulk(ExamSubjectConfigBulkRequest request) {
 
-            /* ================= Validate Session ================= */
+        /* ================= Validate Session ================= */
 
-            Session session = sessionRepository
-                    .findById(request.getSessionId())
-                    .orElse(null);
+        Session session = sessionRepository
+                .findById(request.getSessionId())
+                .orElse(null);
 
-            if (session == null) {
-                return StandardResponse.error(
-                        "Invalid Session",
-                        "INVALID_SESSION",
-                        "sessionId",
-                        "No session found with id " + request.getSessionId());
-            }
+        if (session == null) {
+            return StandardResponse.error(
+                    "Invalid Session",
+                    "INVALID_SESSION",
+                    "sessionId",
+                    "No session found with id " + request.getSessionId());
+        }
 
-            /* ================= Validate Exam Type ================= */
+        /* ================= Validate Exam Type ================= */
 
-            CommonMaster examType = commonMasterRepository
-                    .findById(request.getExamTypeId())
-                    .orElse(null);
+        CommonMaster examType = commonMasterRepository
+                .findById(request.getExamTypeId())
+                .orElse(null);
 
-            if (examType == null) {
-                return StandardResponse.error(
-                        "Invalid Exam Type",
-                        "INVALID_EXAM_TYPE",
-                        "examTypeId",
-                        "No exam type found with id " + request.getExamTypeId());
-            }
+        if (examType == null) {
+            return StandardResponse.error(
+                    "Invalid Exam Type",
+                    "INVALID_EXAM_TYPE",
+                    "examTypeId",
+                    "No exam type found with id " + request.getExamTypeId());
+        }
 
-            /* ================= Validate Class ================= */
+        /* ================= Validate Class ================= */
 
-            CommonMaster classMaster = commonMasterRepository
-                    .findById(request.getClassId())
-                    .orElse(null);
+        CommonMaster classMaster = commonMasterRepository
+                .findById(request.getClassId())
+                .orElse(null);
 
-            if (classMaster == null) {
-                return StandardResponse.error(
-                        "Invalid Class",
-                        "INVALID_CLASS",
-                        "classId",
-                        "No class found with id " + request.getClassId());
-            }
+        if (classMaster == null) {
+            return StandardResponse.error(
+                    "Invalid Class",
+                    "INVALID_CLASS",
+                    "classId",
+                    "No class found with id " + request.getClassId());
+        }
 
-            List<ExamSubjectConfigResponse> responses = new ArrayList<>();
+        List<ExamSubjectConfigResponse> responses = new ArrayList<>();
 
-            /* ================= Loop Subjects ================= */
+
+    /* ======================================================
+       SUBJECT CONFIGURATION
+       ====================================================== */
+
+        if (request.getSubjects() != null && !request.getSubjects().isEmpty()) {
 
             for (SubjectMarksRequest s : request.getSubjects()) {
 
@@ -134,32 +146,76 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
 
                 List<ExamSubjectConfigComponent> components = new ArrayList<>();
 
-                for (ComponentMarksRequest c : s.getComponents()) {
+                if (s.getComponents() != null) {
 
-                    ExamComponentMaster component = this.componentMasterRepository
-                            .findById(c.getComponentId())
-                            .orElseThrow(() ->
-                                    new RuntimeException("Invalid component id " + c.getComponentId()));
+                    for (ComponentMarksRequest c : s.getComponents()) {
 
-                    ExamSubjectConfigComponent comp = ExamSubjectConfigComponent.builder()
-                            .config(config)
-                            .component(component)
-                            .maxMarks(c.getMaxMarks())
-                            .build();
+                        ExamComponentMaster component = componentMasterRepository
+                                .findById(c.getComponentId())
+                                .orElseThrow(() ->
+                                        new RuntimeException("Invalid component id " + c.getComponentId()));
 
-                    components.add(comp);
+                        ExamSubjectConfigComponent comp = ExamSubjectConfigComponent.builder()
+                                .config(config)
+                                .component(component)
+                                .maxMarks(c.getMaxMarks())
+                                .build();
+
+                        components.add(comp);
+                    }
+
+                    componentConfigRepository.saveAll(components);
                 }
-
-                this.componentConfigRepository.saveAll(components);
 
                 responses.add(map(config));
             }
-
-            return StandardResponse.success(
-                    responses,
-                    "Exam subject configurations saved successfully");
         }
 
+
+    /* ======================================================
+       CO-SCHOLASTIC CONFIGURATION
+       ====================================================== */
+
+        if (request.getCoScholasticActivities() != null &&
+                !request.getCoScholasticActivities().isEmpty()) {
+
+            for (CoScholasticUpdateRequest c : request.getCoScholasticActivities()) {
+
+                CoScholasticActivityMaster activity =
+                        this.coScholasticActivityMasterRepository.findById(c.getActivityId())
+                                .orElseThrow(() ->
+                                        new RuntimeException("Invalid activity id " + c.getActivityId()));
+
+                boolean exists = this.coScholasticConfigRepository
+                        .findBySession_IdAndExamType_IdAndClassId_IdAndActivity_IdAndIsDeleteFalse(
+                                session.getId(),
+                                examType.getId(),
+                                classMaster.getId(),
+                                activity.getId())
+                        .isPresent();
+
+                if (exists) {
+                    continue;
+                }
+
+                ExamCoScholasticConfig config = ExamCoScholasticConfig.builder()
+                        .session(session)
+                        .examType(examType)
+                        .classId(classMaster)
+                        .activity(activity)
+                        .maxMarks(c.getMaxMarks())
+                        .build();
+
+                coScholasticConfigRepository.save(config);
+            }
+        }
+
+        /* ================= SUCCESS RESPONSE ================= */
+
+        return StandardResponse.success(
+                responses,
+                "Exam subject and co-scholastic configurations saved successfully");
+    }
         /* ================= READ ================= */
 
         public StandardResponse<List<ExamSubjectConfigResponse>> getAll(
