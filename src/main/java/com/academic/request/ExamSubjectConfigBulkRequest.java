@@ -11,4 +11,6 @@ public class ExamSubjectConfigBulkRequest {
     private Integer classId;
     /** Multiple subjects in one save */
     private List<SubjectMarksRequest> subjects;
+
+    private List<CoScholasticUpdateRequest> coScholasticActivities;
 }

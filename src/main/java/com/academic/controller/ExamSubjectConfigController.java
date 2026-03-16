@@ -25,6 +25,7 @@ public class ExamSubjectConfigController {
     @GetMapping("/getAllExamSubjectMarks")
     public StandardResponse<?> getAll(
             @RequestParam Integer sessionId,
+
             @RequestParam(required = false) Integer examTypeId,
             @RequestParam(required = false) Integer classId) {
         return service.getAll(sessionId, examTypeId, classId);
@@ -41,5 +42,15 @@ public class ExamSubjectConfigController {
     @DeleteMapping("deleteExamSubjectMarks/{id}")
     public StandardResponse<?> delete(@PathVariable Long id) {
         return service.delete(id);
+    }
+
+    @GetMapping("/components")
+    public StandardResponse<?> getComponents() {
+        return service.getAllComponents();
+    }
+
+    @GetMapping("/activity-masters")
+    public StandardResponse<?> getActivityMasters() {
+        return service.getActivityMasters();
     }
 }

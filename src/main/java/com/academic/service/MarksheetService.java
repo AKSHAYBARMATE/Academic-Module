@@ -8,10 +8,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public interface MarksheetService {
 
-
     /* CREATE */
     @Transactional
-    public StandardResponse<?> create(MarksheetRequest request);
+    StandardResponse<?> saveMarksheet(MarksheetRequest request);
 
     /* UPDATE (SAME AS SAVE) */
     @Transactional
@@ -28,4 +27,6 @@ public interface MarksheetService {
     public StandardResponse<?> getById(Long id);
 
     public StandardResponse<?> delete(Long id);
+
+    byte[] generateMarksheetPdf(Long id);
 }

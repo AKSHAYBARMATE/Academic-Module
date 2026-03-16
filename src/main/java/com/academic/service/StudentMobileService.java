@@ -10,11 +10,11 @@ public interface StudentMobileService {
 
     StandardResponse<?> getTimetable(Long studentId, Integer dayOfWeek);
 
-    StandardResponse<?> getExamResults(Long studentId);
+//    StandardResponse<?> getExamResults(Long studentId);
 
     StandardResponse<?> getFeesDetails(Long studentId);
 
-    StandardResponse<?> getExamSchedule(Long studentId);
+//    StandardResponse<?> getExamSchedule(Long studentId);
 
     StandardResponse<?> getAcademicCalendar(Long studentId);
 }

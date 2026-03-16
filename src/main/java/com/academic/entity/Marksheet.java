@@ -2,10 +2,12 @@ package com.academic.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
+
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "marksheet")
@@ -17,21 +19,21 @@ public class Marksheet {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
-    private Long studentId;
+    private Integer studentId;
+
     private Integer classId;
     private Integer sectionId;
     private Integer sessionId;
+
     private Integer examTypeId;
+
+
     private LocalDate examDate;
 
-    /* SUMMARY */
     private Integer totalMarksObtained;
     private Integer totalMaxMarks;
-    private Double percentage;
-    private String grade;
-    private Double gpa;
 
     /* EVALUATION */
     private Integer attendanceDays;
@@ -40,15 +42,30 @@ public class Marksheet {
     private String sportsGrade;
     private String extraCurricularGrade;
 
-    @Column(columnDefinition = "TEXT")
-    private String teacherRemarks;
+    private Double percentage;
 
-    @Column(columnDefinition = "TEXT")
-    private String principalRemarks;
+    private String grade;
 
     private Boolean published = false;
+
     private Boolean isDeleted = false;
 
-    @CreatedDate
     private LocalDateTime createdAt;
+
+    private String teacherRemarks;
+
+    private String principalRemarks;
+
+    private Double cgpa;
+
+    @OneToMany(mappedBy = "marksheet", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MarksheetSubject> subjects;
+
+    @OneToMany(
+            mappedBy = "marksheet",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    @Builder.Default
+    private List<MarksheetCoScholastic> coScholasticActivities = new ArrayList<>();
 }

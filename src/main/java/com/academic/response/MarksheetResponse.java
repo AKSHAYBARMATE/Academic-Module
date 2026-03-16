@@ -11,8 +11,8 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 public class MarksheetResponse {
-    private Long id;
-    private Long studentId;
+    private Integer id;
+    private Integer studentId;
     private String studentName;
     private String className;
     private String sectionName;
