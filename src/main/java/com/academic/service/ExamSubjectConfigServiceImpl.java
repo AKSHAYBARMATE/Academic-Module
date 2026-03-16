@@ -130,7 +130,7 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
                 /* ================= Create Config ================= */
 
                 ExamSubjectConfig config = ExamSubjectConfig.builder()
-                        .session(session)
+                        .session(session).isDelete(false)
                         .examType(examType)
                         .classId(classMaster)
                         .subject(subject)
