@@ -196,7 +196,7 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
                 }
 
                 ExamCoScholasticConfig config = ExamCoScholasticConfig.builder()
-                        .session(session)
+                        .session(session).isDelete(false)
                         .examType(examType)
                         .classId(classMaster)
                         .activity(activity)
