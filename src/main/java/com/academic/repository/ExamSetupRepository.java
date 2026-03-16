@@ -10,8 +10,12 @@ import java.util.List;
 @Repository
 public interface ExamSetupRepository extends JpaRepository<ExamSetup, Long>, JpaSpecificationExecutor<ExamSetup> {
 
+    boolean existsByExamNameAndClassIdAndAcademicYearIdAndIsDeletedFalse(String examName, Integer classId,
+            Integer academicYearId);
 
-    boolean existsByExamNameAndClassIdAndAcademicYearIdAndIsDeletedFalse(String examName, Integer classId, Integer academicYearId);
+    boolean existsByExamNameAndClassIdAndAcademicYearIdAndIsDeletedFalseAndIdNot(String examName, Integer classId,
+            Integer academicYearId, Long id);
 
-    boolean existsByExamNameAndClassIdAndAcademicYearIdAndIsDeletedFalseAndIdNot(String examName, Integer classId, Integer academicYearId, Long id);
+    List<ExamSetup> findByAcademicYearIdAndClassIdAndIsDeletedFalseOrderByExamDateAsc(Integer academicYearId,
+            Integer classId);
 }

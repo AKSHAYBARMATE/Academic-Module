@@ -11,4 +11,6 @@ public interface MarksheetSubjectMarksRepository
     List<MarksheetSubjectMarks> findByMarksheetId(Long marksheetId);
 
     void deleteByMarksheetId(Long marksheetId);
+
+    java.util.Optional<MarksheetSubjectMarks> findByMarksheetIdAndSubjectId(Long marksheetId, Long subjectId);
 }

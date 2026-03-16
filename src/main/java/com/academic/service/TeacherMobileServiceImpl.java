@@ -33,6 +33,12 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         private final SessionRepository sessionRepository;
         private final StudentPromotionMapperRepository studentPromotionMapperRepository;
         private final TimeTableRepository timeTableRepository;
+        private final ExamScheduleRepository examScheduleRepository;
+        private final ExamSetupRepository examSetupRepository;
+        private final ExamSubjectConfigRepository examSubjectConfigRepository;
+        private final MarksheetRepository marksheetRepository;
+        private final MarksheetSubjectMarksRepository marksheetSubjectMarksRepository;
+        private final LeaveApplicationRepository leaveApplicationRepository;
 
         @Override
         public StandardResponse<?> getDashboardData(String employeeId) {
@@ -274,5 +280,227 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                         studentAttendanceRepository.save(att);
                 }
                 return StandardResponse.success(null, "Attendance submitted");
+        }
+
+        @Override
+        public StandardResponse<?> getExamSchedule(Long staffId) {
+                TeacherAssignment assignment = teacherAssignmentRepository
+                                .findByEmployeeIdAndIsDeletedFalse(staffId.toString())
+                                .orElseThrow(() -> new RuntimeException("Teacher assignment not found"));
+
+                if (assignment.getClassId() == null) {
+                        return StandardResponse.error("No class assigned to teacher", "NO_CLASS", null);
+                }
+
+                Session session = getActiveSession();
+                List<ExamSchedule> schedules = examScheduleRepository.findBySession_IdAndIsActiveTrue(session.getId());
+
+                if (schedules.isEmpty()) {
+                        return StandardResponse.success(new ArrayList<>(), "No active exam schedule found");
+                }
+
+                // Taking the first active one for simplicity
+                ExamSchedule currentExam = schedules.get(0);
+
+                List<ExamSetup> examSetups = examSetupRepository
+                                .findByAcademicYearIdAndClassIdAndIsDeletedFalseOrderByExamDateAsc(
+                                                session.getId(), assignment.getClassId().intValue());
+
+                List<TeacherExamScheduleResponse.ExamSlotDto> slots = examSetups.stream().map(es -> {
+                        String subName = subjectRepository.findById(es.getSubjectId().longValue())
+                                        .map(Subject::getSubjectName).orElse("Unknown");
+                        String subCode = subjectRepository.findById(es.getSubjectId().longValue())
+                                        .map(Subject::getSubjectCode).orElse("");
+
+                        return TeacherExamScheduleResponse.ExamSlotDto.builder()
+                                        .date(es.getExamDate().format(DateTimeFormatter.ofPattern("MMM dd, EEEE")))
+                                        .subjectName(subName)
+                                        .subjectCode(subCode)
+                                        .timeRange("TBD")
+                                        .location("Hall TBD")
+                                        .status(es.getExamDate().isBefore(IstClock.today()) ? "COMPLETED" : "UPCOMING")
+                                        .build();
+                }).collect(Collectors.toList());
+
+                return StandardResponse.success(TeacherExamScheduleResponse.builder()
+                                .examTitle(currentExam.getExamTitle())
+                                .subTitle(currentExam.getExamTitle() + " - " + session.getSession())
+                                .exams(slots)
+                                .build(), "Exam schedule fetched");
+        }
+
+        @Override
+        public StandardResponse<?> getStudentListForMarks(Integer classId, Integer examTypeId, Long subjectId) {
+                Session session = getActiveSession();
+
+                List<StudentPromotionMapper> activePromotions = studentPromotionMapperRepository
+                                .findActivePromotionsByClassAndSection(classId, null, session.getId());
+
+                List<Integer> studentIds = activePromotions.stream().map(StudentPromotionMapper::getStudentId)
+                                .collect(Collectors.toList());
+
+                List<Student> students = studentRepository.findAllById(studentIds);
+
+                Optional<ExamSubjectConfig> config = examSubjectConfigRepository
+                                .findBySession_IdAndExamType_IdAndClassId_IdAndSubject_IdAndIsDeleteFalse(
+                                                session.getId(), examTypeId, classId, subjectId);
+
+                Integer maxMarks = config.map(ExamSubjectConfig::getTotalMarks).orElse(100);
+
+                List<EnterMarksResponse.StudentMarkListDto> dtoList = students.stream().map(s -> {
+                        Optional<Marksheet> sheetOpt = marksheetRepository
+                                        .findByStudentIdAndClassIdAndExamTypeIdAndSessionIdAndIsDeletedFalse(
+                                                        Long.valueOf(s.getId()), classId, examTypeId, session.getId());
+
+                        Integer marksObtained = 0;
+                        if (sheetOpt.isPresent()) {
+                                marksObtained = marksheetSubjectMarksRepository
+                                                .findByMarksheetIdAndSubjectId(sheetOpt.get().getId(), subjectId)
+                                                .map(MarksheetSubjectMarks::getTotalMarks).orElse(0);
+                        }
+
+                        return EnterMarksResponse.StudentMarkListDto.builder()
+                                        .studentId(Long.valueOf(s.getId()))
+                                        .studentName(s.getFirstName() + " " + s.getLastName())
+                                        .rollNo(String.format("%02d", students.indexOf(s) + 1))
+                                        .marksObtained(marksObtained)
+                                        .build();
+                }).collect(Collectors.toList());
+
+                return StandardResponse.success(EnterMarksResponse.builder()
+                                .className(getName(classId))
+                                .examType(getName(examTypeId))
+                                .subjectName(subjectRepository.findById(subjectId).map(Subject::getSubjectName)
+                                                .orElse("Unknown"))
+                                .maxMarks(maxMarks)
+                                .students(dtoList)
+                                .build(), "Student list for marks fetched");
+        }
+
+        @Override
+        @Transactional
+        public StandardResponse<?> saveMarks(EnterMarksRequest request) {
+                Session session = getActiveSession();
+
+                for (EnterMarksRequest.StudentMarkDto dto : request.getMarks()) {
+                        Marksheet sheet = marksheetRepository
+                                        .findByStudentIdAndClassIdAndExamTypeIdAndSessionIdAndIsDeletedFalse(
+                                                        dto.getStudentId(), request.getClassId(),
+                                                        request.getExamTypeId(), session.getId())
+                                        .orElse(Marksheet.builder()
+                                                        .studentId(dto.getStudentId())
+                                                        .classId(request.getClassId())
+                                                        .examTypeId(request.getExamTypeId())
+                                                        .sessionId(session.getId())
+                                                        .examDate(IstClock.today())
+                                                        .published(false)
+                                                        .isDeleted(false)
+                                                        .build());
+
+                        marksheetRepository.save(sheet);
+
+                        MarksheetSubjectMarks subMarks = marksheetSubjectMarksRepository
+                                        .findByMarksheetIdAndSubjectId(sheet.getId(), request.getSubjectId())
+                                        .orElse(MarksheetSubjectMarks.builder()
+                                                        .marksheetId(sheet.getId())
+                                                        .subjectId(request.getSubjectId())
+                                                        .build());
+
+                        subMarks.setTheoryMarks(dto.getTheoryMarks());
+                        subMarks.setPracticalMarks(dto.getPracticalMarks());
+                        subMarks.setInternalMarks(dto.getInternalMarks());
+
+                        int total = safeMarks(dto.getTheoryMarks()) + safeMarks(dto.getPracticalMarks())
+                                        + safeMarks(dto.getInternalMarks());
+                        subMarks.setTotalMarks(total);
+
+                        Optional<ExamSubjectConfig> config = examSubjectConfigRepository
+                                        .findBySession_IdAndExamType_IdAndClassId_IdAndSubject_IdAndIsDeleteFalse(
+                                                        session.getId(), request.getExamTypeId(), request.getClassId(),
+                                                        request.getSubjectId());
+
+                        if (config.isPresent()) {
+                                subMarks.setTheoryMax(config.get().getTheoryMarks());
+                                subMarks.setPracticalMax(config.get().getPracticalMarks());
+                                subMarks.setInternalMax(config.get().getInternalMarks());
+                                subMarks.setTotalMax(config.get().getTotalMarks());
+                        } else {
+                                subMarks.setTotalMax(100);
+                        }
+
+                        marksheetSubjectMarksRepository.save(subMarks);
+
+                        List<MarksheetSubjectMarks> allSubMarks = marksheetSubjectMarksRepository
+                                        .findByMarksheetId(sheet.getId());
+                        int totalObtained = allSubMarks.stream().mapToInt(m -> safeMarks(m.getTotalMarks())).sum();
+                        int totalMax = allSubMarks.stream().mapToInt(m -> safeMarks(m.getTotalMax())).sum();
+
+                        sheet.setTotalMarksObtained(totalObtained);
+                        sheet.setTotalMaxMarks(totalMax);
+                        if (totalMax > 0) {
+                                sheet.setPercentage((double) totalObtained * 100 / totalMax);
+                        }
+                        marksheetRepository.save(sheet);
+                }
+
+                return StandardResponse.success(null, "Marks saved successfully");
+        }
+
+        private int safeMarks(Integer v) {
+                return v == null ? 0 : v;
+        }
+
+        @Override
+        @Transactional
+        public StandardResponse<?> applyLeave(Long staffId, LeaveSubmissionRequest request) {
+                LeaveApplication leave = LeaveApplication.builder()
+                                .employeeId(staffId)
+                                .leaveType(request.getLeaveType())
+                                .fromDate(request.getFromDate())
+                                .toDate(request.getToDate())
+                                .reason(request.getReason())
+                                .attachmentPath(request.getAttachmentUrl())
+                                .status("PENDING")
+                                .createdAt(IstClock.nowDateTime())
+                                .isDelete(false)
+                                .applicationNo("LV-" + System.currentTimeMillis())
+                                .build();
+
+                leaveApplicationRepository.save(leave);
+                return StandardResponse.success(null, "Leave application submitted");
+        }
+
+        @Override
+        public StandardResponse<?> getLeaveHistory(Long staffId) {
+                List<LeaveApplication> history = leaveApplicationRepository
+                                .findByEmployeeIdAndIsDeleteFalseOrderByFromDateDesc(staffId);
+
+                List<TeacherLeaveHistoryResponse.LeaveItemDto> dtoList = history.stream().map(l -> {
+                        long days = java.time.temporal.ChronoUnit.DAYS.between(l.getFromDate(), l.getToDate()) + 1;
+                        String dateRange = l.getFromDate().format(DateTimeFormatter.ofPattern("dd MMM")) + " - " +
+                                        l.getToDate().format(DateTimeFormatter.ofPattern("dd MMM")) + " (" + days
+                                        + " Days)";
+
+                        return TeacherLeaveHistoryResponse.LeaveItemDto.builder()
+                                        .leaveType(l.getLeaveType())
+                                        .dateRange(dateRange)
+                                        .reason(l.getReason())
+                                        .status(l.getStatus())
+                                        .rejectionReason(l.getLastActionComments())
+                                        .build();
+                }).collect(Collectors.toList());
+
+                return StandardResponse.success(TeacherLeaveHistoryResponse.builder().history(dtoList).build(),
+                                "Leave history fetched");
+        }
+
+        private Session getActiveSession() {
+                String sessionText = StudentMobileServiceImpl.getCurrentSession();
+                Session session = sessionRepository.findBySession(sessionText);
+                if (session == null) {
+                        session = sessionRepository.findByIsActiveTrue()
+                                        .orElseThrow(() -> new RuntimeException("No active session found"));
+                }
+                return session;
         }
 }

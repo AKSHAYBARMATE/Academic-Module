@@ -10,4 +10,14 @@ public interface TeacherMobileService {
     StandardResponse<?> getAttendanceList(Long staffId, LocalDate date);
 
     StandardResponse<?> submitAttendance(AttendanceSubmissionRequest request);
+
+    StandardResponse<?> getExamSchedule(Long staffId);
+
+    StandardResponse<?> getStudentListForMarks(Integer classId, Integer examTypeId, Long subjectId);
+
+    StandardResponse<?> saveMarks(EnterMarksRequest request);
+
+    StandardResponse<?> applyLeave(Long staffId, LeaveSubmissionRequest request);
+
+    StandardResponse<?> getLeaveHistory(Long staffId);
 }
