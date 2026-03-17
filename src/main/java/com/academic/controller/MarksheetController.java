@@ -3,6 +3,7 @@ package com.academic.controller;
 
 import com.academic.dto.MarksheetRequest;
 import com.academic.exception.ResourceNotFoundException;
+import com.academic.response.MarksheetDetailResponse;
 import com.academic.response.StandardResponse;
 import com.academic.service.MarksheetService;
 import lombok.RequiredArgsConstructor;
@@ -55,44 +56,24 @@ public class MarksheetController {
     }
 
 
-    @GetMapping("/download/{id}")
-    public ResponseEntity<?> downloadMarksheet(@PathVariable Long id) {
+    @GetMapping("/downloadMarksheet")
+    public ResponseEntity<byte[]> downloadMarksheet(
+            @RequestParam Long studentId,
+            @RequestParam Integer sessionId,
+            @RequestParam(required = false, defaultValue = "ANNUAL") String type
+            ,@RequestParam Integer examTypeId
+    ) {
 
-        log.info("Download marksheet request received for id: {}", id);
+        byte[] pdf = service
+                .generateMarksheetPdf(studentId, sessionId, type,examTypeId);
 
-        try {
+        String fileName = "marksheet_" + type.toLowerCase() + ".pdf";
 
-            byte[] pdf = service.generateMarksheetPdf(id);
-
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=marksheet_" + id + ".pdf")
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .body(pdf);
-
-        } catch (ResourceNotFoundException ex) {
-
-            log.error("Marksheet not found for id: {}", id, ex);
-
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(StandardResponse.error(
-                            "Marksheet not found",
-                            "NOT_FOUND",
-                            "id",
-                            ex.getMessage()));
-
-        } catch (Exception ex) {
-
-            log.error("Error generating marksheet PDF for id {}", id, ex);
-
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(StandardResponse.error(
-                            "Failed to generate marksheet",
-                            "PDF_ERROR",
-                            null,
-                            ex.getMessage()));
-        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=" + fileName)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
-
 
 }

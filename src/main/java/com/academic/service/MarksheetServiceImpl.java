@@ -3,12 +3,12 @@ package com.academic.service;
 import com.academic.dto.ComponentMarksResponse;
 import com.academic.dto.MarksheetRequest;
 import com.academic.entity.*;
-import com.academic.exception.ResourceNotFoundException;
 import com.academic.repository.*;
 import com.academic.request.CoScholasticMarksRequest;
 import com.academic.request.ComponentMarksRequest;
 import com.academic.request.SubjectMarksRequest;
 import com.academic.response.*;
+import com.academic.utility.Template;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,11 +20,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.TemplateEngine;
-import org.thymeleaf.context.Context;
 
 import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalDate;
+import java.util.*;
+import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -632,57 +633,343 @@ public class MarksheetServiceImpl implements MarksheetService {
     }
 
 
-    @Override
-    public byte[] generateMarksheetPdf(Long id) {
+    public byte[] generateMarksheetPdf(Long studentId,
+                                       Integer sessionId,
+                                       String type,
+                                       Integer examTypeId) {
 
-        log.info("Generating marksheet PDF for id {}", id);
+        String requestType = type == null ? "ANNUAL" : type.toUpperCase();
 
-        Marksheet sheet = marksheetRepo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Invalid marksheet id"));
+        String html;
 
-        if (Boolean.TRUE.equals(sheet.getIsDeleted())) {
-            throw new ResourceNotFoundException("Marksheet deleted");
+        if ("TERM".equals(requestType)) {
+
+            Marksheet sheet = marksheetRepo
+                    .findByStudentIdAndSessionIdAndExamTypeIdAndIsDeletedFalse(
+                            studentId, sessionId, examTypeId);
+
+            MarksheetDetailResponse data = mapToDetailResponse(sheet);
+
+            html = buildTermHtml(data);
+
+        } else {
+
+            Integer term1Id = getExamTypeId("TERM 1");
+            Integer term2Id = getExamTypeId("TERM 2");
+
+            MarksheetDetailResponse t1 = mapToDetailResponse(
+                    marksheetRepo.findByStudentIdAndSessionIdAndExamTypeIdAndIsDeletedFalse(studentId, sessionId, term1Id)
+            );
+
+            MarksheetDetailResponse t2 = mapToDetailResponse(
+                    marksheetRepo.findByStudentIdAndSessionIdAndExamTypeIdAndIsDeletedFalse(studentId, sessionId, term2Id)
+            );
+
+            html = buildAnnualHtml(t1, t2);
         }
-
-        MarksheetDetailResponse response = mapToDetailResponse(sheet);
 
         try {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-            String html = generateHtml(response);
+            String baseUri = getClass().getClassLoader()
+                    .getResource("templates/").toExternalForm();
 
-            return convertHtmlToPdf(html);
+            PdfRendererBuilder builder = new PdfRendererBuilder();
+            builder.withHtmlContent(html, baseUri);
+            builder.toStream(output);
+            builder.run();
+
+            return output.toByteArray();
 
         } catch (Exception e) {
+            throw new RuntimeException("PDF generation failed", e);
+        }
+    }
 
-            log.error("Error generating PDF for marksheet {}", id, e);
+    private Integer getExamTypeId(String name) {
 
-            throw new RuntimeException("PDF generation failed");
+        CommonMaster cm = commonRepo
+                .findByCommonMasterKeyAndDataAndStatusTrue("EXAM_TYPE", name);
+
+        if (cm == null) {
+            throw new RuntimeException(name + " not configured");
         }
 
+        return cm.getId();
     }
 
 
-    private String generateHtml(MarksheetDetailResponse data) {
+    private String buildTermHtml(MarksheetDetailResponse data) {
 
-        Context context = new Context();
+        String html = Template.TERM_MARKSHEET_HTML;
 
-        context.setVariable("student", data);
-        context.setVariable("subjects", data.getSubjects());
+        html = patchCommon(html, data);
 
-        return templateEngine.process("marksheet-template", context);
+        html = html.replace("${SUBJECT_ROWS}", buildTermRows(data.getSubjects()));
+        html = html.replace("${TOTAL_MARKS}", String.valueOf(data.getTotalMarksObtained()));
+        html = html.replace("${TOTAL_MAX}", String.valueOf(data.getTotalMaxMarks()));
+        html = html.replace("${PERCENTAGE}", String.valueOf(data.getPercentage()));
+        html = html.replace("${GRADE}", safe(data.getGrade()));
+        html = html.replace("${ACTIVITY_ROWS}", buildCoSingle(data.getCoScholasticActivities()));
+        html = html.replace("${DATE}", String.valueOf(data.getExamDate()));
+        html = html.replace("${REPORT_TITLE}", "TERM REPORT");
+
+        return html;
     }
 
-    private byte[] convertHtmlToPdf(String html) throws Exception {
+    private String buildAnnualHtml(MarksheetDetailResponse t1,
+                                   MarksheetDetailResponse t2) {
 
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        String html = Template.ANNUAL_MARKSHEET_HTML;
 
-        PdfRendererBuilder builder = new PdfRendererBuilder();
+        html = patchCommon(html, t1);
 
-        builder.withHtmlContent(html, null);
-        builder.toStream(outputStream);
-        builder.run();
+        html = html.replace("${SUBJECT_ROWS}", buildAnnualRows(t1, t2));
 
-        return outputStream.toByteArray();
+        int total = t1.getTotalMarksObtained() + t2.getTotalMarksObtained();
+        int max = t1.getTotalMaxMarks() + t2.getTotalMaxMarks();
+
+        html = html.replace("${TOTAL_MARKS}", String.valueOf(total));
+        html = html.replace("${TOTAL_MAX}", String.valueOf(max));
+        html = html.replace("${PERCENTAGE}", String.format("%.2f", (total * 100.0 / max)));
+        html = html.replace("${GRADE}", calculateGrade(total));
+        html = html.replace("${ACTIVITY_ROWS}", buildCoDual(t1.getCoScholasticActivities(), t2.getCoScholasticActivities()));
+        html = html.replace("${DATE}", LocalDate.now().toString());
+
+        return html;
     }
 
+
+    private String buildCoSingle(List<CoScholasticResponse> list) {
+
+        StringBuilder rows = new StringBuilder();
+
+        if (list == null || list.isEmpty()) {
+            return "";
+        }
+
+        for (CoScholasticResponse a : list) {
+
+            if (a == null) continue;
+
+            rows.append("<tr>")
+                    .append("<td>").append(safe(a.getActivityName())).append("</td>")
+                    .append("<td>").append(safe(a.getGrade())).append("</td>")
+                    .append("</tr>");
+        }
+
+        return rows.toString();
+    }
+
+    private String buildCoDual(List<CoScholasticResponse> t1,
+                               List<CoScholasticResponse> t2) {
+
+        StringBuilder rows = new StringBuilder();
+
+        int size1 = (t1 != null) ? t1.size() : 0;
+        int size2 = (t2 != null) ? t2.size() : 0;
+
+        int max = Math.max(size1, size2);
+
+        for (int i = 0; i < max; i++) {
+
+            CoScholasticResponse a1 = (t1 != null && i < size1) ? t1.get(i) : null;
+            CoScholasticResponse a2 = (t2 != null && i < size2) ? t2.get(i) : null;
+
+            rows.append("<tr>");
+
+            // TERM 1
+            rows.append("<td>")
+                    .append(a1 != null ? safe(a1.getActivityName()) : "")
+                    .append("</td>");
+
+            rows.append("<td>")
+                    .append(a1 != null ? safe(a1.getGrade()) : "")
+                    .append("</td>");
+
+            // TERM 2
+            rows.append("<td>")
+                    .append(a2 != null ? safe(a2.getActivityName()) : "")
+                    .append("</td>");
+
+            rows.append("<td>")
+                    .append(a2 != null ? safe(a2.getGrade()) : "")
+                    .append("</td>");
+
+            rows.append("</tr>");
+        }
+
+        return rows.toString();
+    }
+
+
+    private String patchCommon(String html, MarksheetDetailResponse d) {
+
+        return html
+                .replace("${LEFT_LOGO}", "left_logo.png")
+                .replace("${RIGHT_LOGO}", "right_logo.png")
+                .replace("${SCHOOL_NAME}", "PROGRESSIVE PUBLIC SCHOOL (PPS)")
+                .replace("${SESSION}", safe(d.getSessionName()))
+                .replace("${STUDENT_NAME}", safe(d.getStudentName()))
+                .replace("${CLASS}", safe(d.getClassName()))
+                .replace("${SECTION}", safe(d.getSectionName()))
+                .replace("${ROLL_NO}", String.valueOf(d.getStudentId()))
+                .replace("${FATHER_NAME}", "FATHER NAME")
+                .replace("${MOTHER_NAME}", "MOTHER NAME")
+                .replace("${DOB}", "01/01/2010");
+    }
+
+
+
+
+    private String buildTermRows(List<SubjectMarksResponse> subjects) {
+
+        StringBuilder rows = new StringBuilder();
+
+        for (SubjectMarksResponse s : subjects) {
+
+            int pt=0, nb=0, se=0, term=0;
+
+            for (ComponentMarksResponse c : s.getComponents()) {
+
+                switch (c.getComponentName()) {
+                    case "Periodic Test (PT)" -> pt = safe(c.getMarksObtained());
+                    case "Notebook (NB)" -> nb = safe(c.getMarksObtained());
+                    case "Subject Enrichment (SE)" -> se = safe(c.getMarksObtained());
+                    case "Term" -> term = safe(c.getMarksObtained());
+                }
+            }
+
+            rows.append("<tr>")
+                    .append("<td>").append(s.getSubjectName()).append("</td>")
+                    .append("<td>").append(pt).append("</td>")
+                    .append("<td>").append(nb).append("</td>")
+                    .append("<td>").append(se).append("</td>")
+                    .append("<td>").append(term).append("</td>")
+                    .append("<td>").append(s.getGrade()).append("</td>")
+                    .append("</tr>");
+        }
+
+        return rows.toString();
+    }
+
+    private String buildAnnualRows(MarksheetDetailResponse t1,
+                                   MarksheetDetailResponse t2) {
+
+        Map<Integer, SubjectMarksResponse> map1 = t1.getSubjects().stream()
+                .collect(Collectors.toMap(SubjectMarksResponse::getSubjectId, s -> s));
+
+        Map<Integer, SubjectMarksResponse> map2 = t2.getSubjects().stream()
+                .collect(Collectors.toMap(SubjectMarksResponse::getSubjectId, s -> s));
+
+        Set<Integer> all = new HashSet<>();
+        all.addAll(map1.keySet());
+        all.addAll(map2.keySet());
+
+        StringBuilder rows = new StringBuilder();
+
+        for (Integer id : all) {
+
+            SubjectMarksResponse s1 = map1.get(id);
+            SubjectMarksResponse s2 = map2.get(id);
+
+            rows.append("<tr>");
+            rows.append("<td>").append(s1 != null ? s1.getSubjectName() : s2.getSubjectName()).append("</td>");
+
+            appendComponents(rows, s1);
+            appendComponents(rows, s2);
+
+            int total = safe(s1 != null ? s1.getTotalMarks() : 0)
+                    + safe(s2 != null ? s2.getTotalMarks() : 0);
+
+            rows.append("<td>").append(total).append("</td>");
+            rows.append("<td>").append(calculateGrade(total)).append("</td>");
+
+            rows.append("</tr>");
+        }
+
+        return rows.toString();
+    }
+
+    private String buildCoScholasticSingle(List<CoScholasticResponse> list) {
+
+        StringBuilder rows = new StringBuilder();
+
+        for (CoScholasticResponse a : list) {
+            rows.append("<tr>")
+                    .append("<td>").append(a.getActivityName()).append("</td>")
+                    .append("<td>").append(a.getGrade()).append("</td>")
+                    .append("</tr>");
+        }
+
+        return rows.toString();
+    }
+
+
+    private String commonHeader(String html, MarksheetDetailResponse data) {
+
+        html = html.replace("${LEFT_LOGO}", "left_logo.png");
+        html = html.replace("${RIGHT_LOGO}", "right_logo.png");
+
+        html = html.replace("${SCHOOL_NAME}", "PROGRESSIVE PUBLIC SCHOOL (PPS)");
+        html = html.replace("${SESSION}", safe(data.getSessionName()));
+
+        html = html.replace("${STUDENT_NAME}", safe(data.getStudentName()));
+        html = html.replace("${CLASS}", safe(data.getClassName()));
+        html = html.replace("${SECTION}", safe(data.getSectionName()));
+        html = html.replace("${ROLL_NO}", String.valueOf(data.getStudentId()));
+        html = html.replace("${ADMISSION_NO}", String.valueOf(data.getStudentId()));
+
+        html = html.replace("${FATHER_NAME}", "FATHER NAME");
+        html = html.replace("${MOTHER_NAME}", "MOTHER NAME");
+        html = html.replace("${DOB}", "01/01/2010");
+
+        return html;
+    }
+
+    private void appendComponents(StringBuilder rows, SubjectMarksResponse s) {
+
+        // ✅ Handle NULL subject (important for ANNUAL merge)
+        if (s == null) {
+            rows.append("<td></td>");
+            rows.append("<td></td>");
+            rows.append("<td></td>");
+            rows.append("<td></td>");
+            rows.append("<td></td>");
+            return;
+        }
+
+        int pt = 0;
+        int nb = 0;
+        int se = 0;
+        int term = 0;
+
+        // ✅ Handle NULL components
+        if (s.getComponents() != null) {
+
+            for (ComponentMarksResponse c : s.getComponents()) {
+
+                if (c == null || c.getComponentName() == null) continue;
+
+                switch (c.getComponentName()) {
+
+                    case "Periodic Test (PT)" -> pt = safe(c.getMarksObtained());
+                    case "Notebook (NB)" -> nb = safe(c.getMarksObtained());
+                    case "Subject Enrichment (SE)" -> se = safe(c.getMarksObtained());
+                    case "Term" -> term = safe(c.getMarksObtained());
+                }
+            }
+        }
+
+        rows.append("<td>").append(pt).append("</td>");
+        rows.append("<td>").append(nb).append("</td>");
+        rows.append("<td>").append(se).append("</td>");
+        rows.append("<td>").append(term).append("</td>");
+        rows.append("<td>").append(safe(s.getGrade())).append("</td>");
+    }
+
+
+    private String safe(String v){
+        return v==null?"":v;
+    }
 }
