@@ -13,7 +13,7 @@ public interface TeacherMobileService {
 
     StandardResponse<?> getExamSchedule(Long staffId);
 
-    StandardResponse<?> getStudentListForMarks(Integer classId, Integer examTypeId, Long subjectId);
+    StandardResponse<?> getStudentListForMarks( Integer examTypeId, Long subjectId);
 
     StandardResponse<?> saveMarks(EnterMarksRequest request);
 

@@ -50,10 +50,9 @@ public class TeacherMobileController {
 
     @GetMapping("/getStudentListForMarks")
     public ResponseEntity<StandardResponse<?>> getStudentListForMarks(
-            @RequestParam Integer classId,
             @RequestParam Integer examTypeId,
             @RequestParam Long subjectId) {
-        return ResponseEntity.ok(teacherMobileService.getStudentListForMarks(classId, examTypeId, subjectId));
+        return ResponseEntity.ok(teacherMobileService.getStudentListForMarks( examTypeId, subjectId));
     }
 
     @PostMapping("/saveMarks")
