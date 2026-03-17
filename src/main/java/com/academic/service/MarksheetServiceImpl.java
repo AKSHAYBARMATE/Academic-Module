@@ -9,6 +9,7 @@ import com.academic.request.ComponentMarksRequest;
 import com.academic.request.SubjectMarksRequest;
 import com.academic.response.*;
 import com.academic.utility.Template;
+import com.academic.exception.ResourceNotFoundException;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -96,15 +97,13 @@ public class MarksheetServiceImpl implements MarksheetService {
 
             /* Load subject config */
 
-            ExamSubjectConfig config =
-                    (ExamSubjectConfig) this.examSubjectConfigRepository
-                            .findBySession_IdAndExamType_IdAndSubject_IdAndClassId_IdAndIsDeleteFalse(
-                                    request.getSessionId(),
-                                    request.getExamTypeId(),
-                                    s.getSubjectId(),
-                                    request.getClassId())
-                            .orElseThrow(() ->
-                                    new RuntimeException("Subject config not found"));
+            ExamSubjectConfig config = (ExamSubjectConfig) this.examSubjectConfigRepository
+                    .findBySession_IdAndExamType_IdAndSubject_IdAndClassId_IdAndIsDeleteFalse(
+                            request.getSessionId(),
+                            request.getExamTypeId(),
+                            s.getSubjectId(),
+                            request.getClassId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Subject config not found"));
 
             MarksheetSubject subject = new MarksheetSubject();
 
@@ -119,10 +118,8 @@ public class MarksheetServiceImpl implements MarksheetService {
 
             for (ComponentMarksRequest c : s.getComponents()) {
 
-                ExamComponentMaster component =
-                        componentRepo.findById(c.getComponentId())
-                                .orElseThrow(() ->
-                                        new RuntimeException("Component not found"));
+                ExamComponentMaster component = componentRepo.findById(c.getComponentId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Component not found"));
 
                 /* Get max marks from configuration */
 
@@ -163,10 +160,9 @@ public class MarksheetServiceImpl implements MarksheetService {
 
             for (CoScholasticMarksRequest c : request.getCoScholasticActivities()) {
 
-                CoScholasticActivityMaster activity =
-                        coScholasticActivityMasterRepository
-                                .findById(c.getActivityId())
-                                .orElseThrow(() -> new RuntimeException("Activity not found"));
+                CoScholasticActivityMaster activity = coScholasticActivityMasterRepository
+                        .findById(c.getActivityId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Activity not found"));
 
                 /* get configured max marks */
 
@@ -177,7 +173,7 @@ public class MarksheetServiceImpl implements MarksheetService {
                                         request.getExamTypeId(),
                                         request.getClassId(),
                                         activity.getId())
-                                .orElseThrow(() -> new RuntimeException("Activity config not found"));
+                                .orElseThrow(() -> new ResourceNotFoundException("Activity config not found"));
 
                 MarksheetCoScholastic a = new MarksheetCoScholastic();
 
@@ -284,8 +280,7 @@ public class MarksheetServiceImpl implements MarksheetService {
                                     request.getExamTypeId(),
                                     s.getSubjectId(),
                                     request.getClassId())
-                            .orElseThrow(() ->
-                                    new RuntimeException("Subject config not found"));
+                            .orElseThrow(() -> new ResourceNotFoundException("Subject config not found"));
 
             MarksheetSubject subject = new MarksheetSubject();
 
@@ -302,7 +297,7 @@ public class MarksheetServiceImpl implements MarksheetService {
 
                 ExamComponentMaster component =
                         componentRepo.findById(c.getComponentId())
-                                .orElseThrow(() -> new RuntimeException("Component not found"));
+                                .orElseThrow(() -> new ResourceNotFoundException("Component not found"));
 
                 /* get configured max marks */
 
@@ -345,10 +340,9 @@ public class MarksheetServiceImpl implements MarksheetService {
 
             for (CoScholasticMarksRequest c : request.getCoScholasticActivities()) {
 
-                CoScholasticActivityMaster activity =
-                        coScholasticActivityMasterRepository
-                                .findById(c.getActivityId())
-                                .orElseThrow(() -> new RuntimeException("Activity not found"));
+                CoScholasticActivityMaster activity = coScholasticActivityMasterRepository
+                        .findById(c.getActivityId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Activity not found"));
 
                 ExamCoScholasticConfig config =
                         (ExamCoScholasticConfig) examCoScholasticConfigRepository
@@ -358,7 +352,7 @@ public class MarksheetServiceImpl implements MarksheetService {
                                         request.getClassId(),
                                         activity.getId())
                                 .orElseThrow(() ->
-                                        new RuntimeException("Activity config not found"));
+                                        new ResourceNotFoundException("Activity config not found"));
 
                 MarksheetCoScholastic a = new MarksheetCoScholastic();
 
@@ -671,7 +665,7 @@ public class MarksheetServiceImpl implements MarksheetService {
             );
 
             if (t1 == null && t2 == null) {
-                throw new RuntimeException("No marksheet data found for Term 1 or Term 2 for student " + studentId);
+                throw new ResourceNotFoundException("No marksheet data found for Term 1 or Term 2 for student " + studentId);
             }
 
             html = buildAnnualHtml(t1, t2);
@@ -701,7 +695,7 @@ public class MarksheetServiceImpl implements MarksheetService {
                 .findByCommonMasterKeyAndDataAndStatusTrue("EXAM_TYPE", name);
 
         if (cm == null) {
-            throw new RuntimeException(name + " not configured");
+            throw new ResourceNotFoundException(name + " not configured");
         }
 
         return cm.getId();
