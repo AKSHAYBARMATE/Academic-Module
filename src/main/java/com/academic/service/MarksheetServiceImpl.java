@@ -720,7 +720,7 @@ public class MarksheetServiceImpl implements MarksheetService {
         html = html.replace("${PERCENTAGE}", String.valueOf(data.getPercentage()));
         html = html.replace("${GRADE}", safe(data.getGrade()));
         html = html.replace("${ACTIVITY_ROWS}", buildCoSingle(data.getCoScholasticActivities()));
-        html = html.replace("${DATE}", String.valueOf(data.getExamDate()));
+        html = html.replace("${DATE}", data.getExamDate() != null ? data.getExamDate().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "");
         html = html.replace("${REPORT_TITLE}", "TERM REPORT");
 
         return html;
@@ -752,7 +752,7 @@ public class MarksheetServiceImpl implements MarksheetService {
         html = html.replace("${ACTIVITY_ROWS}", buildCoDual(
                 t1 != null ? t1.getCoScholasticActivities() : null,
                 t2 != null ? t2.getCoScholasticActivities() : null));
-        html = html.replace("${DATE}", LocalDate.now().toString());
+        html = html.replace("${DATE}", LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")));
         html = html.replace("${PROMOTED_TO}", "__________"); // Placeholder for promotion field
 
         return html;
@@ -836,7 +836,7 @@ public class MarksheetServiceImpl implements MarksheetService {
                 .replace("${ADMISSION_NO}", safe(d.getAdmissionNo()))
                 .replace("${FATHER_NAME}", safe(d.getFatherName()))
                 .replace("${MOTHER_NAME}", safe(d.getMotherName()))
-                .replace("${DOB}", d.getDob() != null ? d.getDob().toString() : "");
+                .replace("${DOB}", d.getDob() != null ? d.getDob().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "");
     }
 
 
@@ -908,13 +908,23 @@ public class MarksheetServiceImpl implements MarksheetService {
             double m2 = s2 != null ? safe(s2.getTotalMarks()) : 0;
             double x2 = s2 != null ? safe(s2.getTotalMax()) : 100;
 
-            // GRAD TOTAL = T1(50%) + T2(50%)
-            // Assuming max marks for Term 1 and Term 2 are normalized to 100 in the display or we follow the formula literally
-            double gradTotal = ( (m1 * 100.0 / x1) + (m2 * 100.0 / x2) ) / 2.0;
+            // GRAND TOTAL = T1(50%) + T2(50%)
+            // Handle cases where one term might be missing to avoid penalizing the score
+            double gradTotal;
+            if (s1 != null && s2 != null) {
+                gradTotal = ((m1 * 100.0 / x1) + (m2 * 100.0 / x2)) / 2.0;
+            } else if (s1 != null) {
+                gradTotal = (m1 * 100.0 / x1);
+            } else if (s2 != null) {
+                gradTotal = (m2 * 100.0 / x2);
+            } else {
+                gradTotal = 0;
+            }
+            
             long roundedGradTotal = Math.round(gradTotal);
 
-            rows.append("<td>").append(roundedGradTotal).append("</td>");
-            rows.append("<td>").append(calculateGrade(gradTotal)).append("</td>");
+            rows.append("<td style='font-weight:bold;'>").append(roundedGradTotal).append("</td>");
+            rows.append("<td style='font-weight:bold;'>").append(calculateGrade(gradTotal)).append("</td>");
 
             rows.append("</tr>");
         }
