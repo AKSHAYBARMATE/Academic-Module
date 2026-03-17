@@ -1,6 +1,7 @@
 package com.academic.repository;
 
 import com.academic.entity.CommonMaster;
+import org.springframework.data.domain.Range;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
@@ -12,7 +13,7 @@ public interface CommonMasterRepository extends JpaRepository<CommonMaster, Inte
 
     boolean existsByIdAndStatusTrue(Integer classId);
 
-    Optional<CommonMaster> findByCommonMasterKeyAndStatusTrue(String key);
+    List<CommonMaster> findByCommonMasterKeyAndStatusTrue(String key);
 
     /**
      * Find a CommonMaster record whose 'data' field matches the given value.
@@ -20,4 +21,6 @@ public interface CommonMasterRepository extends JpaRepository<CommonMaster, Inte
      * "2025-26".
      */
     Optional<CommonMaster> findByDataAndStatusTrue(String data);
+
+    CommonMaster findByCommonMasterKeyAndDataAndStatusTrue(String examType, String name);
 }

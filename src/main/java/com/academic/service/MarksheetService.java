@@ -28,5 +28,5 @@ public interface MarksheetService {
 
     public StandardResponse<?> delete(Long id);
 
-    byte[] generateMarksheetPdf(Long id);
+    byte[] generateMarksheetPdf(Long studentId, Integer sessionId, String type,Integer examTypeId);
 }
