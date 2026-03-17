@@ -204,16 +204,15 @@ public class MarksheetServiceImpl implements MarksheetService {
                 "Marksheet created successfully");
     }
 
-    private String calculateGrade(double marks) {
-
-        if (marks >= 90) return "A1";
-        if (marks >= 80) return "A2";
-        if (marks >= 70) return "B1";
-        if (marks >= 60) return "B2";
-        if (marks >= 50) return "C1";
-        if (marks >= 40) return "C2";
-
-        return "F";
+    private String calculateGrade(double percentage) {
+        if (percentage >= 91) return "A1";
+        if (percentage >= 81) return "A2";
+        if (percentage >= 71) return "B1";
+        if (percentage >= 61) return "B2";
+        if (percentage >= 51) return "C1";
+        if (percentage >= 41) return "C2";
+        if (percentage >= 33) return "D";
+        return "E (Needs Improvement)";
     }
 
 
@@ -383,9 +382,6 @@ public class MarksheetServiceImpl implements MarksheetService {
     }
 
 
-    private int safe(Integer v) {
-        return v == null ? 0 : v;
-    }
 
     /* GET ALL (PAGINATION + FILTERS) */
     public StandardResponse<?> getAll(
@@ -467,6 +463,10 @@ public class MarksheetServiceImpl implements MarksheetService {
 
     private MarksheetDetailResponse mapToDetailResponse(Marksheet sheet) {
 
+        if (sheet == null) {
+            return null;
+        }
+
         Student student = studentRepository
                 .findById(sheet.getStudentId() != null ? sheet.getStudentId() : -1)
                 .orElse(null);
@@ -543,8 +543,13 @@ public class MarksheetServiceImpl implements MarksheetService {
 
         response.setStudentName(
                 student != null
-                        ? student.getFirstName() + " " + student.getLastName()
+                        ? student.getFirstName() + " " + (student.getMiddleName() != null ? student.getMiddleName() + " " : "") + student.getLastName()
                         : null);
+
+        response.setAdmissionNo(student != null ? student.getAdmissionNo() : null);
+        response.setFatherName(student != null ? student.getFatherName() : null);
+        response.setMotherName(student != null ? student.getMotherName() : null);
+        response.setDob(student != null ? student.getDateOfBirth() : null);
 
         response.setClassId(sheet.getClassId());
         response.setClassName(getName(sheet.getClassId()));
@@ -665,6 +670,10 @@ public class MarksheetServiceImpl implements MarksheetService {
                     marksheetRepo.findByStudentIdAndSessionIdAndExamTypeIdAndIsDeletedFalse(studentId, sessionId, term2Id)
             );
 
+            if (t1 == null && t2 == null) {
+                throw new RuntimeException("No marksheet data found for Term 1 or Term 2 for student " + studentId);
+            }
+
             html = buildAnnualHtml(t1, t2);
         }
 
@@ -722,19 +731,29 @@ public class MarksheetServiceImpl implements MarksheetService {
 
         String html = Template.ANNUAL_MARKSHEET_HTML;
 
-        html = patchCommon(html, t1);
+        MarksheetDetailResponse base = (t1 != null) ? t1 : t2;
+        html = patchCommon(html, base);
 
         html = html.replace("${SUBJECT_ROWS}", buildAnnualRows(t1, t2));
 
-        int total = t1.getTotalMarksObtained() + t2.getTotalMarksObtained();
-        int max = t1.getTotalMaxMarks() + t2.getTotalMaxMarks();
+        int t1Marks = (t1 != null) ? safe(t1.getTotalMarksObtained()) : 0;
+        int t2Marks = (t2 != null) ? safe(t2.getTotalMarksObtained()) : 0;
+        int t1Max = (t1 != null) ? safe(t1.getTotalMaxMarks()) : 0;
+        int t2Max = (t2 != null) ? safe(t2.getTotalMaxMarks()) : 0;
+
+        int total = t1Marks + t2Marks;
+        int max = t1Max + t2Max;
 
         html = html.replace("${TOTAL_MARKS}", String.valueOf(total));
         html = html.replace("${TOTAL_MAX}", String.valueOf(max));
-        html = html.replace("${PERCENTAGE}", String.format("%.2f", (total * 100.0 / max)));
-        html = html.replace("${GRADE}", calculateGrade(total));
-        html = html.replace("${ACTIVITY_ROWS}", buildCoDual(t1.getCoScholasticActivities(), t2.getCoScholasticActivities()));
+        double percentage = (max > 0) ? (total * 100.0 / max) : 0;
+        html = html.replace("${PERCENTAGE}", String.format("%.2f", percentage));
+        html = html.replace("${GRADE}", calculateGrade(percentage));
+        html = html.replace("${ACTIVITY_ROWS}", buildCoDual(
+                t1 != null ? t1.getCoScholasticActivities() : null,
+                t2 != null ? t2.getCoScholasticActivities() : null));
         html = html.replace("${DATE}", LocalDate.now().toString());
+        html = html.replace("${PROMOTED_TO}", "__________"); // Placeholder for promotion field
 
         return html;
     }
@@ -813,10 +832,11 @@ public class MarksheetServiceImpl implements MarksheetService {
                 .replace("${STUDENT_NAME}", safe(d.getStudentName()))
                 .replace("${CLASS}", safe(d.getClassName()))
                 .replace("${SECTION}", safe(d.getSectionName()))
-                .replace("${ROLL_NO}", String.valueOf(d.getStudentId()))
-                .replace("${FATHER_NAME}", "FATHER NAME")
-                .replace("${MOTHER_NAME}", "MOTHER NAME")
-                .replace("${DOB}", "01/01/2010");
+                .replace("${ROLL_NO}", d.getStudentId() != null ? String.valueOf(d.getStudentId()) : "")
+                .replace("${ADMISSION_NO}", safe(d.getAdmissionNo()))
+                .replace("${FATHER_NAME}", safe(d.getFatherName()))
+                .replace("${MOTHER_NAME}", safe(d.getMotherName()))
+                .replace("${DOB}", d.getDob() != null ? d.getDob().toString() : "");
     }
 
 
@@ -832,20 +852,22 @@ public class MarksheetServiceImpl implements MarksheetService {
 
             for (ComponentMarksResponse c : s.getComponents()) {
 
-                switch (c.getComponentName()) {
-                    case "Periodic Test (PT)" -> pt = safe(c.getMarksObtained());
-                    case "Notebook (NB)" -> nb = safe(c.getMarksObtained());
-                    case "Subject Enrichment (SE)" -> se = safe(c.getMarksObtained());
-                    case "Term" -> term = safe(c.getMarksObtained());
-                }
+                String name = c.getComponentName().toUpperCase();
+                if (name.contains("PERIODIC") || name.contains("PT")) pt = safe(c.getMarksObtained());
+                else if (name.contains("NOTEBOOK") || name.contains("NB")) nb = safe(c.getMarksObtained());
+                else if (name.contains("ENRICHMENT") || name.contains("SE")) se = safe(c.getMarksObtained());
+                else if (name.contains("TERM")) term = safe(c.getMarksObtained());
             }
 
+            int total = pt + nb + se + term;
+
             rows.append("<tr>")
-                    .append("<td>").append(s.getSubjectName()).append("</td>")
+                    .append("<td style='text-align:left; padding-left:10px;'>").append(s.getSubjectName()).append("</td>")
                     .append("<td>").append(pt).append("</td>")
                     .append("<td>").append(nb).append("</td>")
                     .append("<td>").append(se).append("</td>")
                     .append("<td>").append(term).append("</td>")
+                    .append("<td style='background-color: #f3f4f6; font-weight:bold;'>").append(total).append("</td>")
                     .append("<td>").append(s.getGrade()).append("</td>")
                     .append("</tr>");
         }
@@ -856,11 +878,13 @@ public class MarksheetServiceImpl implements MarksheetService {
     private String buildAnnualRows(MarksheetDetailResponse t1,
                                    MarksheetDetailResponse t2) {
 
-        Map<Integer, SubjectMarksResponse> map1 = t1.getSubjects().stream()
-                .collect(Collectors.toMap(SubjectMarksResponse::getSubjectId, s -> s));
+        Map<Integer, SubjectMarksResponse> map1 = (t1 != null && t1.getSubjects() != null)
+                ? t1.getSubjects().stream().collect(Collectors.toMap(SubjectMarksResponse::getSubjectId, s -> s))
+                : Collections.emptyMap();
 
-        Map<Integer, SubjectMarksResponse> map2 = t2.getSubjects().stream()
-                .collect(Collectors.toMap(SubjectMarksResponse::getSubjectId, s -> s));
+        Map<Integer, SubjectMarksResponse> map2 = (t2 != null && t2.getSubjects() != null)
+                ? t2.getSubjects().stream().collect(Collectors.toMap(SubjectMarksResponse::getSubjectId, s -> s))
+                : Collections.emptyMap();
 
         Set<Integer> all = new HashSet<>();
         all.addAll(map1.keySet());
@@ -874,16 +898,23 @@ public class MarksheetServiceImpl implements MarksheetService {
             SubjectMarksResponse s2 = map2.get(id);
 
             rows.append("<tr>");
-            rows.append("<td>").append(s1 != null ? s1.getSubjectName() : s2.getSubjectName()).append("</td>");
+            rows.append("<td style='text-align:left; padding-left:10px;'>").append(s1 != null ? s1.getSubjectName() : s2.getSubjectName()).append("</td>");
 
             appendComponents(rows, s1);
             appendComponents(rows, s2);
 
-            int total = safe(s1 != null ? s1.getTotalMarks() : 0)
-                    + safe(s2 != null ? s2.getTotalMarks() : 0);
+            double m1 = s1 != null ? safe(s1.getTotalMarks()) : 0;
+            double x1 = s1 != null ? safe(s1.getTotalMax()) : 100;
+            double m2 = s2 != null ? safe(s2.getTotalMarks()) : 0;
+            double x2 = s2 != null ? safe(s2.getTotalMax()) : 100;
 
-            rows.append("<td>").append(total).append("</td>");
-            rows.append("<td>").append(calculateGrade(total)).append("</td>");
+            // GRAD TOTAL = T1(50%) + T2(50%)
+            // Assuming max marks for Term 1 and Term 2 are normalized to 100 in the display or we follow the formula literally
+            double gradTotal = ( (m1 * 100.0 / x1) + (m2 * 100.0 / x2) ) / 2.0;
+            long roundedGradTotal = Math.round(gradTotal);
+
+            rows.append("<td>").append(roundedGradTotal).append("</td>");
+            rows.append("<td>").append(calculateGrade(gradTotal)).append("</td>");
 
             rows.append("</tr>");
         }
@@ -931,11 +962,12 @@ public class MarksheetServiceImpl implements MarksheetService {
 
         // ✅ Handle NULL subject (important for ANNUAL merge)
         if (s == null) {
-            rows.append("<td></td>");
-            rows.append("<td></td>");
-            rows.append("<td></td>");
-            rows.append("<td></td>");
-            rows.append("<td></td>");
+            rows.append("<td></td>"); // PT
+            rows.append("<td></td>"); // NB
+            rows.append("<td></td>"); // SE
+            rows.append("<td></td>"); // TERM
+            rows.append("<td></td>"); // TOTAL
+            rows.append("<td></td>"); // GRADE
             return;
         }
 
@@ -951,25 +983,30 @@ public class MarksheetServiceImpl implements MarksheetService {
 
                 if (c == null || c.getComponentName() == null) continue;
 
-                switch (c.getComponentName()) {
-
-                    case "Periodic Test (PT)" -> pt = safe(c.getMarksObtained());
-                    case "Notebook (NB)" -> nb = safe(c.getMarksObtained());
-                    case "Subject Enrichment (SE)" -> se = safe(c.getMarksObtained());
-                    case "Term" -> term = safe(c.getMarksObtained());
-                }
+                String name = c.getComponentName().toUpperCase();
+                if (name.contains("PERIODIC") || name.contains("PT")) pt = safe(c.getMarksObtained());
+                else if (name.contains("NOTEBOOK") || name.contains("NB")) nb = safe(c.getMarksObtained());
+                else if (name.contains("ENRICHMENT") || name.contains("SE")) se = safe(c.getMarksObtained());
+                else if (name.contains("TERM")) term = safe(c.getMarksObtained());
             }
         }
+
+        int total = pt + nb + se + term;
 
         rows.append("<td>").append(pt).append("</td>");
         rows.append("<td>").append(nb).append("</td>");
         rows.append("<td>").append(se).append("</td>");
         rows.append("<td>").append(term).append("</td>");
+        rows.append("<td style='background-color: #f3f4f6; font-weight:bold;'>").append(total).append("</td>");
         rows.append("<td>").append(safe(s.getGrade())).append("</td>");
     }
 
 
-    private String safe(String v){
-        return v==null?"":v;
+    private int safe(Integer v) {
+        return v == null ? 0 : v;
+    }
+
+    private String safe(String v) {
+        return v == null ? "" : v;
     }
 }

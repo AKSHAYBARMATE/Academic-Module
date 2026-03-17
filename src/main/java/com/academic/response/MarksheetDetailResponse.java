@@ -14,6 +14,10 @@ public class MarksheetDetailResponse {
 
     private Integer studentId;
     private String studentName;
+    private String admissionNo;
+    private String fatherName;
+    private String motherName;
+    private LocalDate dob;
 
     private Integer classId;
     private String className;
