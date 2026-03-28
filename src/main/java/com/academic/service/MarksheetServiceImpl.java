@@ -632,6 +632,7 @@ public class MarksheetServiceImpl implements MarksheetService {
     }
 
 
+    @Transactional(readOnly = true)
     public byte[] generateMarksheetPdf(Long studentId,
                                        Integer sessionId,
                                        String type,

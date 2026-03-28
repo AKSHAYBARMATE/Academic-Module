@@ -136,7 +136,7 @@ public class Template {
                             <th>NB</th>
                             <th>SE</th>
                             <th>TERM</th>
-                            <th style="background-color: #e5e7eb;">TOTAL</th>
+                            <th style="background-color: #e5e7eb;">MARKS OBTAINED</th>
                             <th style="width: 80px;">GRADE</th>
                         </tr>
                         <tr class="sub-header" style="font-size: 8px;">
@@ -344,18 +344,21 @@ public class Template {
                 <table>
                     <thead>
                         <tr>
+                            <th colspan="15" class="section-header">SCHOLASTIC AREA</th>
+                        </tr>
+                        <tr>
                             <th rowspan="3" class="section-header" style="width: 140px;">SUBJECTS</th>
                             <th colspan="6" class="section-header">TERM - 1 (100)</th>
                             <th colspan="6" class="section-header">TERM - 2 (100)</th>
                             <th colspan="2" class="section-header">OVERALL</th>
                         </tr>
                         <tr class="sub-header">
-                            <th rowspan="2">PT<br/>(10)</th><th rowspan="2">NB<br/>(5)</th><th rowspan="2">SE<br/>(5)</th><th rowspan="2">TERM 1<br/>(80)</th><th rowspan="2" style="background-color:#e5e7eb">TOTAL<br/>(100)</th><th rowspan="2">GR</th>
-                            <th rowspan="2">PT<br/>(10)</th><th rowspan="2">NB<br/>(5)</th><th rowspan="2">SE<br/>(5)</th><th rowspan="2">TERM 2<br/>(80)</th><th rowspan="2" style="background-color:#e5e7eb">TOTAL<br/>(100)</th><th rowspan="2">GR</th>
-                            <th style="font-size: 7px;">T1(50%)+T2(50%)</th><th rowspan="2">GR</th>
+                            <th rowspan="2">PT<br/>(10)</th><th rowspan="2">NB<br/>(5)</th><th rowspan="2">SE<br/>(5)</th><th rowspan="2">TERM 1<br/>(80)</th><th rowspan="2" style="background-color:#e5e7eb">MARKS OBTAINED<br/>(100)</th><th rowspan="2">GRADE</th>
+                            <th rowspan="2">PT<br/>(10)</th><th rowspan="2">NB<br/>(5)</th><th rowspan="2">SE<br/>(5)</th><th rowspan="2">TERM 2<br/>(80)</th><th rowspan="2" style="background-color:#e5e7eb">MARKS OBTAINED<br/>(100)</th><th rowspan="2">GRADE</th>
+                            <th style="font-size: 7px;">T1(50%)+T2(50%)</th><th rowspan="2">GRADE</th>
                         </tr>
                         <tr class="sub-header">
-                            <th>GRAND TOTAL</th>
+                            <th>MARKS OBTAINED<br/>(100)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -367,7 +370,7 @@ public class Template {
                     <tr>
                         <td width="33%">
                             <div class="summary-box">
-                                <div class="summary-label">OVERALL TOTAL</div>
+                                <div class="summary-label">OVERALL MARKS OBTAINED</div>
                                 <div class="summary-value">${TOTAL_MARKS} / ${TOTAL_MAX}</div>
                             </div>
                         </td>
