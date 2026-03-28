@@ -28,9 +28,17 @@ public class StudentExamScheduleResponse {
     @AllArgsConstructor
     public static class SubjectExamDto {
         private String subjectName;
-        private Integer theoryMarks;
-        private Integer practicalMarks;
-        private Integer internalMarks;
+        private String examDate;
+        private List<ComponentDto> components;
         private Integer totalMarks;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ComponentDto {
+        private String componentName;
+        private Integer maxMarks;
     }
 }

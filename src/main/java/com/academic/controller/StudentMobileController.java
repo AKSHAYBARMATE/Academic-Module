@@ -50,15 +50,15 @@ public class StudentMobileController {
         return ResponseEntity.ok(studentMobileService.getTimetable(studentId, dayOfWeek));
     }
 
-//    @GetMapping("/exam-results")
-//    public ResponseEntity<StandardResponse<?>> getExamResults() {
-//        Long studentId = UserContext.getStudentId();
-//        if (studentId == null) {
-//            return ResponseEntity.badRequest()
-//                    .body(StandardResponse.error("Student ID not found for this user", "ID_NOT_FOUND", null));
-//        }
-//        return ResponseEntity.ok(studentMobileService.getExamResults(studentId));
-//    }
+    @GetMapping("/exam-results")
+    public ResponseEntity<StandardResponse<?>> getExamResults() {
+        Long studentId = UserContext.getStudentId();
+        if (studentId == null) {
+            return ResponseEntity.badRequest()
+                    .body(StandardResponse.error("Student ID not found for this user", "ID_NOT_FOUND", null));
+        }
+        return ResponseEntity.ok(studentMobileService.getExamResults(studentId));
+    }
 
     @GetMapping("/fees")
     public ResponseEntity<StandardResponse<?>> getFees() {
@@ -70,15 +70,15 @@ public class StudentMobileController {
         return ResponseEntity.ok(studentMobileService.getFeesDetails(studentId));
     }
 
-//    @GetMapping("/exam-schedule")
-//    public ResponseEntity<StandardResponse<?>> getExamSchedule() {
-//        Long studentId = UserContext.getStudentId();
-//        if (studentId == null) {
-//            return ResponseEntity.badRequest()
-//                    .body(StandardResponse.error("Student ID not found for this user", "ID_NOT_FOUND", null));
-//        }
-//        return ResponseEntity.ok(studentMobileService.getExamSchedule(studentId));
-//    }
+    @GetMapping("/exam-schedule")
+    public ResponseEntity<StandardResponse<?>> getExamSchedule() {
+        Long studentId = UserContext.getStudentId();
+        if (studentId == null) {
+            return ResponseEntity.badRequest()
+                    .body(StandardResponse.error("Student ID not found for this user", "ID_NOT_FOUND", null));
+        }
+        return ResponseEntity.ok(studentMobileService.getExamSchedule(studentId));
+    }
 
     @GetMapping("/academic-calendar")
     public ResponseEntity<StandardResponse<?>> getAcademicCalendar() {

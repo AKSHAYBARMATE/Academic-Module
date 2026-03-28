@@ -12,9 +12,11 @@ public interface StudentMobileService {
 
 //    StandardResponse<?> getExamResults(Long studentId);
 
+    StandardResponse<?> getExamResults(Long studentId);
+
     StandardResponse<?> getFeesDetails(Long studentId);
 
-//    StandardResponse<?> getExamSchedule(Long studentId);
+    StandardResponse<?> getExamSchedule(Long studentId);
 
     StandardResponse<?> getAcademicCalendar(Long studentId);
 }
