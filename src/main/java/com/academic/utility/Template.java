@@ -210,6 +210,7 @@ public class Template {
                     <div class="instructions">
                         <div class="instructions-title">INSTRUCTIONS</div>
                         <div class="grade-range">Grade Range: [91-100=A1], [81-90=A2], [71-80=B1], [61-70=B2], [51-60=C1], [41-50=C2], [33-40=D], 32 &amp; Below=E]</div>
+                        <div class="grade-range" style="margin-top: 3px;">Abbreviation : [PT-Periodic Test], [NB-Note Book], [SE-Subject Enrichment], [ABS-Absent]</div>
                     </div>
                 </div>
             </div>
@@ -395,9 +396,9 @@ public class Template {
                             <th colspan="4" class="section-header">CO-SCHOLASTIC AREA</th>
                         </tr>
                         <tr class="sub-header" style="font-weight: bold;">
-                            <th style="width: 35%;">TERM-1 (A-C scale)</th>
+                            <th style="width: 35%;">TERM-1<br/>(Grades are awarded on 3-point [A-C] Scale)</th>
                             <th style="width: 15%;">GRADE</th>
-                            <th style="width: 35%;">TERM-2 (A-C scale)</th>
+                            <th style="width: 35%;">TERM-2<br/>(Grades are awarded on 3-point [A-C] Scale)</th>
                             <th style="width: 15%;">GRADE</th>
                         </tr>
                     </thead>
@@ -424,6 +425,7 @@ public class Template {
                     <div class="instructions">
                         <div class="instructions-title">INSTRUCTIONS</div>
                         <div class="grade-range">Grade Range: [91-100=A1], [81-90=A2], [71-80=B1], [61-70=B2], [51-60=C1], [41-50=C2], [33-40=D], 32 &amp; Below=E]</div>
+                        <div class="grade-range" style="margin-top: 3px;">Abbreviation : [PT-Periodic Test], [NB-Note Book], [SE-Subject Enrichment], [ABS-Absent]</div>
                     </div>
                 </div>
             </div>
