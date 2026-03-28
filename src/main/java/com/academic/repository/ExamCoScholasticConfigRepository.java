@@ -14,7 +14,7 @@ public interface ExamCoScholasticConfigRepository extends JpaRepository<ExamCoSc
     Optional<Object> findBySession_IdAndExamType_IdAndClassId_IdAndActivity_IdAndIsDeleteFalse(Integer id, Integer id1, Integer id2, Long id3);
 
     @Query("""
-       SELECT c FROM ExamCoScholasticConfig c
+       SELECT DISTINCT c FROM ExamCoScholasticConfig c
        WHERE c.isDelete = false
          AND (:sessionId IS NULL OR c.session.id = :sessionId)
          AND (:examTypeId IS NULL OR c.examType.id = :examTypeId)

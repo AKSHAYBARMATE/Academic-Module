@@ -220,38 +220,33 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
             Integer examTypeId,
             Integer classId) {
 
-        /* ================= SUBJECT CONFIG ================= */
-
         List<ExamSubjectConfigResponse> subjectConfigs =
                 repository.findAllWithFilters(sessionId, examTypeId, classId)
                         .stream()
                         .map(this::map)
                         .toList();
 
+        subjectConfigs.forEach(config -> {
 
-        /* ================= CO-SCHOLASTIC CONFIG ================= */
+            List<CoScholasticConfigResponse> activities =
+                    coScholasticConfigRepository
+                            .findAllWithFilters(
+                                    sessionId,
+                                    config.getExamTypeId(),
+                                    config.getClassId())
+                            .stream()
+                            .map(a -> CoScholasticConfigResponse.builder()
+                                    .id(Long.valueOf(a.getId()))
+                                    .activityId(a.getActivity().getId())
+                                    .activityName(a.getActivity().getActivityName())
+                                    .maxMarks(a.getMaxMarks())
+                                    .build())
+                            .toList();
 
-        List<CoScholasticConfigResponse> activities =
-                coScholasticConfigRepository
-                        .findAllWithFilters(sessionId, examTypeId, classId)
-                        .stream()
-                        .map(a -> CoScholasticConfigResponse.builder()
-                                .id(Long.valueOf(a.getId()))
-                                .activityId(a.getActivity().getId())
-                                .activityName(a.getActivity().getActivityName())
-                                .maxMarks(a.getMaxMarks())
-                                .build())
-                        .toList();
+            config.setCoScholasticActivities(activities);
+        });
 
-
-        /* ================= MERGE RESPONSE ================= */
-
-        subjectConfigs.forEach(r -> r.setCoScholasticActivities(activities));
-
-
-        return StandardResponse.success(
-                subjectConfigs,
-                "Configurations fetched");
+        return StandardResponse.success(subjectConfigs, "Configurations fetched");
     }
 
 
