@@ -385,7 +385,7 @@ public class MarksheetServiceImpl implements MarksheetService {
         Page<Marksheet> result = (classId != null && examTypeId != null)
                 ? marksheetRepo.findByClassIdAndExamTypeIdAndSessionIdAndIsDeletedFalse(
                         classId, examTypeId,sessionId ,pageable)
-                : marksheetRepo.findByIsDeletedFalse(pageable);
+                : marksheetRepo.findBySessionIdAndIsDeletedFalse(sessionId,pageable);
 
         List<MarksheetResponse> dtoList = result.getContent()
                 .stream()
