@@ -26,5 +26,5 @@ public interface MarksheetRepository extends JpaRepository<Marksheet, Long> {
 
         Marksheet findByStudentIdAndSessionIdAndExamTypeIdAndIsDeletedFalse(Long studentId, Integer sessionId, int i);
 
-    Page<Marksheet> findByClassIdAndExamTypeIdAndSessionIdAndIsDeletedFalse(Integer classId, Integer examTypeId, Pageable pageable);
+    Page<Marksheet> findByClassIdAndExamTypeIdAndSessionIdAndIsDeletedFalse(Integer classId, Integer examTypeId,Integer sessionId ,Pageable pageable);
 }
