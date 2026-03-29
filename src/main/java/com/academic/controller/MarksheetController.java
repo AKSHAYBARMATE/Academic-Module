@@ -39,10 +39,11 @@ public class MarksheetController {
     public StandardResponse<?> getAll(
             @RequestParam(required = false) Integer classId,
             @RequestParam(required = false) Integer examTypeId,
+            @RequestParam(required = false) Integer sessionId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return service.getAll(classId, examTypeId, page, size);
+        return service.getAll(classId, examTypeId, page, size,sessionId);
     }
 
     @GetMapping("getMarksheetById/{id}")

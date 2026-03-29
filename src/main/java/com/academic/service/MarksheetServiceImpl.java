@@ -378,15 +378,12 @@ public class MarksheetServiceImpl implements MarksheetService {
 
 
     /* GET ALL (PAGINATION + FILTERS) */
-    public StandardResponse<?> getAll(
-            Integer classId,
-            Integer examTypeId,
-            int page,
-            int size) {
+    public StandardResponse<?> getAll(Integer classId, Integer examTypeId, int page, int size,Integer sessionId) {
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         Page<Marksheet> result = (classId != null && examTypeId != null)
-                ? marksheetRepo.findByClassIdAndExamTypeIdAndIsDeletedFalse(
+                ? marksheetRepo.findByClassIdAndExamTypeIdAndSessionIdAndIsDeletedFalse(
                         classId, examTypeId, pageable)
                 : marksheetRepo.findByIsDeletedFalse(pageable);
 
