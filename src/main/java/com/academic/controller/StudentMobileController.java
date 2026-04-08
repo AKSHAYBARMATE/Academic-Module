@@ -30,8 +30,14 @@ public class StudentMobileController {
     @GetMapping("/attendance")
     public ResponseEntity<StandardResponse<?>> getAttendance(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        Long studentId = UserContext.getStudentId();
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) Long studId) {
+        Long studentId = null;
+        if (studId != null) {
+            studentId = studId;
+        } else {
+            studentId = UserContext.getStudentId();
+        }
         if (studentId == null) {
             return ResponseEntity.badRequest()
                     .body(StandardResponse.error("Student ID not found for this user", "ID_NOT_FOUND", null));
@@ -51,8 +57,13 @@ public class StudentMobileController {
     }
 
     @GetMapping("/exam-results")
-    public ResponseEntity<StandardResponse<?>> getExamResults() {
-        Long studentId = UserContext.getStudentId();
+    public ResponseEntity<StandardResponse<?>> getExamResults(@RequestParam(required = false) Long studId) {
+        Long studentId = null;
+        if (studId != null) {
+            studentId = studId;
+        } else {
+            studentId = UserContext.getStudentId();
+        }
         if (studentId == null) {
             return ResponseEntity.badRequest()
                     .body(StandardResponse.error("Student ID not found for this user", "ID_NOT_FOUND", null));
