@@ -7,11 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(
-        name = "exam_subject_config",
-        uniqueConstraints = @UniqueConstraint(
-                columnNames = { "session_id", "exam_type_id", "class_id", "subject_id" }
-        ))
+@Table(name = "exam_subject_config")
 @Data
 @Builder
 @NoArgsConstructor

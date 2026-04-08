@@ -378,17 +378,14 @@ public class MarksheetServiceImpl implements MarksheetService {
 
 
     /* GET ALL (PAGINATION + FILTERS) */
-    public StandardResponse<?> getAll(
-            Integer classId,
-            Integer examTypeId,
-            int page,
-            int size) {
+    public StandardResponse<?> getAll(Integer classId, Integer examTypeId, int page, int size,Integer sessionId) {
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         Page<Marksheet> result = (classId != null && examTypeId != null)
-                ? marksheetRepo.findByClassIdAndExamTypeIdAndIsDeletedFalse(
-                        classId, examTypeId, pageable)
-                : marksheetRepo.findByIsDeletedFalse(pageable);
+                ? marksheetRepo.findByClassIdAndExamTypeIdAndSessionIdAndIsDeletedFalse(
+                        classId, examTypeId,sessionId ,pageable)
+                : marksheetRepo.findBySessionIdAndIsDeletedFalse(sessionId,pageable);
 
         List<MarksheetResponse> dtoList = result.getContent()
                 .stream()
@@ -632,6 +629,7 @@ public class MarksheetServiceImpl implements MarksheetService {
     }
 
 
+    @Transactional(readOnly = true)
     public byte[] generateMarksheetPdf(Long studentId,
                                        Integer sessionId,
                                        String type,

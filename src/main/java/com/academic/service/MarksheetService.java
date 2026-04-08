@@ -21,7 +21,7 @@ public interface MarksheetService {
             Integer classId,
             Integer examTypeId,
             int page,
-            int size
+            int size,Integer sessionId
     );
 
     public StandardResponse<?> getById(Long id);

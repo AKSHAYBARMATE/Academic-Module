@@ -136,7 +136,7 @@ public class Template {
                             <th>NB</th>
                             <th>SE</th>
                             <th>TERM</th>
-                            <th style="background-color: #e5e7eb;">TOTAL</th>
+                            <th style="background-color: #e5e7eb;">MARKS OBTAINED</th>
                             <th style="width: 80px;">GRADE</th>
                         </tr>
                         <tr class="sub-header" style="font-size: 8px;">
@@ -210,6 +210,7 @@ public class Template {
                     <div class="instructions">
                         <div class="instructions-title">INSTRUCTIONS</div>
                         <div class="grade-range">Grade Range: [91-100=A1], [81-90=A2], [71-80=B1], [61-70=B2], [51-60=C1], [41-50=C2], [33-40=D], 32 &amp; Below=E]</div>
+                        <div class="grade-range" style="margin-top: 3px;">Abbreviation : [PT-Periodic Test], [NB-Note Book], [SE-Subject Enrichment], [ABS-Absent]</div>
                     </div>
                 </div>
             </div>
@@ -344,18 +345,21 @@ public class Template {
                 <table>
                     <thead>
                         <tr>
+                            <th colspan="15" class="section-header">SCHOLASTIC AREA</th>
+                        </tr>
+                        <tr>
                             <th rowspan="3" class="section-header" style="width: 140px;">SUBJECTS</th>
                             <th colspan="6" class="section-header">TERM - 1 (100)</th>
                             <th colspan="6" class="section-header">TERM - 2 (100)</th>
                             <th colspan="2" class="section-header">OVERALL</th>
                         </tr>
                         <tr class="sub-header">
-                            <th rowspan="2">PT<br/>(10)</th><th rowspan="2">NB<br/>(5)</th><th rowspan="2">SE<br/>(5)</th><th rowspan="2">TERM 1<br/>(80)</th><th rowspan="2" style="background-color:#e5e7eb">TOTAL<br/>(100)</th><th rowspan="2">GR</th>
-                            <th rowspan="2">PT<br/>(10)</th><th rowspan="2">NB<br/>(5)</th><th rowspan="2">SE<br/>(5)</th><th rowspan="2">TERM 2<br/>(80)</th><th rowspan="2" style="background-color:#e5e7eb">TOTAL<br/>(100)</th><th rowspan="2">GR</th>
-                            <th style="font-size: 7px;">T1(50%)+T2(50%)</th><th rowspan="2">GR</th>
+                            <th rowspan="2">PT<br/>(10)</th><th rowspan="2">NB<br/>(5)</th><th rowspan="2">SE<br/>(5)</th><th rowspan="2">TERM 1<br/>(80)</th><th rowspan="2" style="background-color:#e5e7eb">MARKS OBTAINED<br/>(100)</th><th rowspan="2">GRADE</th>
+                            <th rowspan="2">PT<br/>(10)</th><th rowspan="2">NB<br/>(5)</th><th rowspan="2">SE<br/>(5)</th><th rowspan="2">TERM 2<br/>(80)</th><th rowspan="2" style="background-color:#e5e7eb">MARKS OBTAINED<br/>(100)</th><th rowspan="2">GRADE</th>
+                            <th style="font-size: 7px;">T1(50%)+T2(50%)</th><th rowspan="2">GRADE</th>
                         </tr>
                         <tr class="sub-header">
-                            <th>GRAND TOTAL</th>
+                            <th>MARKS OBTAINED<br/>(100)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -367,7 +371,7 @@ public class Template {
                     <tr>
                         <td width="33%">
                             <div class="summary-box">
-                                <div class="summary-label">OVERALL TOTAL</div>
+                                <div class="summary-label">OVERALL MARKS OBTAINED</div>
                                 <div class="summary-value">${TOTAL_MARKS} / ${TOTAL_MAX}</div>
                             </div>
                         </td>
@@ -392,9 +396,9 @@ public class Template {
                             <th colspan="4" class="section-header">CO-SCHOLASTIC AREA</th>
                         </tr>
                         <tr class="sub-header" style="font-weight: bold;">
-                            <th style="width: 35%;">TERM-1 (A-C scale)</th>
+                            <th style="width: 35%;">TERM-1<br/>(Grades are awarded on 3-point [A-C] Scale)</th>
                             <th style="width: 15%;">GRADE</th>
-                            <th style="width: 35%;">TERM-2 (A-C scale)</th>
+                            <th style="width: 35%;">TERM-2<br/>(Grades are awarded on 3-point [A-C] Scale)</th>
                             <th style="width: 15%;">GRADE</th>
                         </tr>
                     </thead>
@@ -421,6 +425,7 @@ public class Template {
                     <div class="instructions">
                         <div class="instructions-title">INSTRUCTIONS</div>
                         <div class="grade-range">Grade Range: [91-100=A1], [81-90=A2], [71-80=B1], [61-70=B2], [51-60=C1], [41-50=C2], [33-40=D], 32 &amp; Below=E]</div>
+                        <div class="grade-range" style="margin-top: 3px;">Abbreviation : [PT-Periodic Test], [NB-Note Book], [SE-Subject Enrichment], [ABS-Absent]</div>
                     </div>
                 </div>
             </div>
