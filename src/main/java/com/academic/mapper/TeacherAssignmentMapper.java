@@ -1,8 +1,10 @@
 package com.academic.mapper;
 
 import com.academic.entity.CommonMaster;
+import com.academic.entity.Staff;
 import com.academic.entity.TeacherAssignment;
 import com.academic.repository.CommonMasterRepository;
+import com.academic.repository.StaffRepository;
 import com.academic.request.TeacherAssignmentRequest;
 import com.academic.response.TeacherAssignmentResponse;
 
@@ -49,7 +51,7 @@ public class TeacherAssignmentMapper {
 
     // Convert Entity → Response DTO
     public static TeacherAssignmentResponse toResponse(TeacherAssignment entity,
-            CommonMasterRepository commonMasterRepository) {
+                                                       CommonMasterRepository commonMasterRepository, StaffRepository staffRepository) {
         List<Long> classIds = entity.getClassesInvolved(); // Already stored as List<Long>
 
         // Fetch human-readable names from CommonMaster
@@ -59,10 +61,12 @@ public class TeacherAssignmentMapper {
                         .orElse("Unknown"))
                 .collect(Collectors.toList());
 
+        Staff staff = staffRepository.findById(Long.parseLong(entity.getEmployeeId())).get();
+
         return TeacherAssignmentResponse.builder()
                 .id(entity.getId())
                 .teacherName(entity.getTeacherName())
-                .employeeId(entity.getEmployeeId())
+                .employeeId(staff.getStaffCode())
                 .subject(entity.getSubject())
                 .classIds(classIds)
                 .classNames(classNames)

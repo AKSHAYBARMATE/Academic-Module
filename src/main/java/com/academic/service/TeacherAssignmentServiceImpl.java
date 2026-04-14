@@ -5,6 +5,7 @@ import com.academic.exception.CustomException;
 import com.academic.exception.ResourceNotFoundException;
 import com.academic.mapper.TeacherAssignmentMapper;
 import com.academic.repository.CommonMasterRepository;
+import com.academic.repository.StaffRepository;
 import com.academic.repository.TeacherAssignmentRepository;
 import com.academic.request.TeacherAssignmentRequest;
 import com.academic.response.TeacherAssignmentResponse;
@@ -27,6 +28,7 @@ public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
 
     private final TeacherAssignmentRepository repository;
     private final CommonMasterRepository commonMasterRepository;
+    private final StaffRepository staffRepository;
 
     @Override
     public TeacherAssignmentResponse create(TeacherAssignmentRequest request) {
@@ -37,7 +39,7 @@ public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
 
         TeacherAssignment entity = TeacherAssignmentMapper.toEntity(request);
         TeacherAssignment saved = repository.save(entity);
-        return TeacherAssignmentMapper.toResponse(saved, commonMasterRepository);
+        return TeacherAssignmentMapper.toResponse(saved, commonMasterRepository, staffRepository);
     }
 
     @Override
@@ -47,14 +49,14 @@ public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
 
         TeacherAssignmentMapper.updateEntity(existing, request);
         TeacherAssignment updated = repository.save(existing);
-        return TeacherAssignmentMapper.toResponse(updated, commonMasterRepository);
+        return TeacherAssignmentMapper.toResponse(updated, commonMasterRepository, staffRepository);
     }
 
     @Override
     public TeacherAssignmentResponse getById(Long id) {
         TeacherAssignment entity = repository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment not found with id: " + id));
-        return TeacherAssignmentMapper.toResponse(entity, commonMasterRepository);
+        return TeacherAssignmentMapper.toResponse(entity, commonMasterRepository, staffRepository);
     }
 
     @Override
@@ -63,7 +65,7 @@ public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
         Specification<TeacherAssignment> spec = withFilters(search, status, year,null);
 
         return repository.findAll(spec, pageable)
-                .map(entity -> TeacherAssignmentMapper.toResponse(entity, commonMasterRepository));
+                .map(entity -> TeacherAssignmentMapper.toResponse(entity, commonMasterRepository, staffRepository));
     }
 
 
