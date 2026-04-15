@@ -16,7 +16,9 @@ public class TeacherAssignmentResponse {
     private List<Long> classIds; // IDs
     private List<String> classNames; // Human-readable names (comma-separated)
     private Long classId;
+    private String className;
     private Long sectionId;
+    private String sectionName;
     private Integer loadHours;
     private String status;
 }

@@ -61,6 +61,8 @@ public class TeacherAssignmentMapper {
                         .orElse("Unknown"))
                 .collect(Collectors.toList());
 
+       CommonMaster classs = commonMasterRepository.findById(entity.getClassId().intValue()).get();
+        CommonMaster section =  commonMasterRepository.findById(entity.getSectionId().intValue()).get();
         Staff staff = staffRepository.findById(Long.parseLong(entity.getEmployeeId())).get();
 
         return TeacherAssignmentResponse.builder()
@@ -69,9 +71,11 @@ public class TeacherAssignmentMapper {
                 .employeeId(staff.getStaffCode())
                 .subject(entity.getSubject())
                 .classIds(classIds)
+                .className(classs.getData())
                 .classNames(classNames)
                 .classId(entity.getClassId())
                 .sectionId(entity.getSectionId())
+                .sectionName(section.getData())
                 .loadHours(entity.getLoadHours())
                 .status(entity.getStatus())
                 .build();
