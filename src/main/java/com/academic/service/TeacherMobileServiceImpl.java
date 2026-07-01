@@ -120,7 +120,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         List<TeacherDashboardResponse.TeacherScheduleSlotDto> slots = new ArrayList<>();
 
         for (TimeSlotSubjectMapper s : mapperSlots) {
-            if (s.getDay() != null && s.getDay() == dayOfWeek && Boolean.TRUE.equals(s.getActive())) {
+            if (s.getDay() != null && s.getDay() == dayOfWeek) {
                 TimeTable tt = s.getTimeTable();
                 if (tt == null || Boolean.TRUE.equals(tt.getIsDeleted())) {
                     continue;

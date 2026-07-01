@@ -8,6 +8,7 @@ import java.util.List;
 @Builder
 public class StudentDashboardResponse {
     private String studentName;
+    private Integer studentId;
     private String profilePicUrl;
     private String admissionNo;
     private AttendanceSummary attendance;
