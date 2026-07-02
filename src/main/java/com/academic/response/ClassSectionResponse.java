@@ -18,7 +18,7 @@ public class ClassSectionResponse {
     private String sectionName;   // resolved from common master
     private Integer sectionId;    // original ID
     private String classTeacher;
-    private Integer classTeacherId;
+    private Long classTeacherId;
 
     private Integer students;
     private String roomNo;
