@@ -35,8 +35,17 @@ public class ClassSectionServiceImpl implements ClassSectionService {
     public ClassSectionResponse create(ClassSectionRequest request) {
         log.info("Creating new ClassSection: {}", request);
 
-        // Validate class and section
+        // Validate class and section exist in common master
         validateClassAndSection(request.getClassId(), request.getSection());
+
+        // Validate that the classTeacher (staff) actually exists before saving
+        if (request.getClassTeacherId() == null) {
+            throw new CustomException("Missing Teacher", "MISSING_TEACHER_ID", "classTeacherId is required.");
+        }
+        Staff teacher = staffRepository.findByIsDeletedAndId(false, request.getClassTeacherId());
+        if (teacher == null) {
+            throw new ResourceNotFoundException("No active staff found with classTeacherId: " + request.getClassTeacherId());
+        }
 
         ClassSection entity = ClassSectionMapper.toEntity(request);
         entity.setIsDeleted(false);
@@ -122,7 +131,12 @@ public class ClassSectionServiceImpl implements ClassSectionService {
         String sectionName = commonMasterRepository.findByIdAndStatusTrue(entity.getSection())
                 .map(cm -> cm.getData())
                 .orElse("Unknown Section");
-        Staff staff =staffRepository.findByIsDeletedAndId(false,entity.getClassTeacherId());
+
+        Staff staff = staffRepository.findByIsDeletedAndId(false, entity.getClassTeacherId());
+        String classTeacherName = (staff != null)
+                ? staff.getFirstName() + " " + staff.getLastName()
+                : "Unknown Teacher";
+        Long classTeacherId = (staff != null) ? staff.getId() : entity.getClassTeacherId();
 
         return ClassSectionResponse.builder()
                 .id(entity.getId())
@@ -130,8 +144,8 @@ public class ClassSectionServiceImpl implements ClassSectionService {
                 .className(className)
                 .sectionId(entity.getSection())
                 .sectionName(sectionName)
-                .classTeacher(staff.getFirstName()+" "+staff.getLastName())
-                .classTeacherId(staff.getId())
+                .classTeacher(classTeacherName)
+                .classTeacherId(classTeacherId)
                 .students(entity.getStudents())
                 .roomNo(entity.getRoomNo())
                 .createdAt(entity.getCreatedAt())
