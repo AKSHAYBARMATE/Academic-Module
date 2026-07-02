@@ -257,7 +257,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
             return TeacherAttendanceListResponse.StudentAttendanceDto.builder()
                     .studentId(Long.valueOf(s.getId()))
                     .studentName(s.getFirstName() + " " + s.getLastName())
-                    .rollNo(String.format("%02d", students.indexOf(s) + 1))
+                    .rollNo(s.getAdmissionNo())
                     .status(att.map(a -> a.getStatus().name()).orElse("NOT_MARKED")).build();
         }).collect(Collectors.toList());
 
