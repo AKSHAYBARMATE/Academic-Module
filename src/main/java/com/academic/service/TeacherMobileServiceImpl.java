@@ -136,9 +136,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 }
                 String clsName = "Class " + tt.getClassId();
                 if (tt.getClassId() != null) {
-                    clsName = classSectionRepository.findById(tt.getClassId())
-                            .map(cs -> getName(cs.getClassId()))
-                            .orElse("Class " + tt.getClassId());
+                    clsName = getName(tt.getClassId().intValue());
                 }
 
                 LocalTime start = null;
@@ -182,7 +180,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 slots.add(TeacherDashboardResponse.TeacherScheduleSlotDto.builder()
                         .id(s.getId()).subjectName(subName)
                         .classSection(clsName + (tt.getSectionId() != null
-                                ? "-" + tt.getSectionId()
+                                ? "-" + getName(tt.getSectionId().intValue())
                                 : ""))
                         .timeRange(timeRange)
                         .room(s.getRoom()).status(status)
