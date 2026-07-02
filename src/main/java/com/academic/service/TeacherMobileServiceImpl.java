@@ -212,23 +212,22 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
             // 1. Fetch the record from the teacherAssignment table first to get the class &
             // section of teacher
-            TeacherAssignment assignment = teacherAssignmentRepository
-                    .findByEmployeeIdAndIsDeletedFalse(staffId.toString())
+            ClassSection assignment = classSectionRepository
+                    .findByClassTeacherIdAndIsDeletedFalse(staffId)
                     .orElseThrow(() -> new RuntimeException(
                             "Teacher assignment not found for staff ID: " + staffId));
 
-            if (assignment.getClassId() == null || assignment.getSectionId() == null) {
+            if (assignment.getClassId() == null || assignment.getSection() == null) {
                 return StandardResponse.error(
                         "Teacher is not assigned to any specific class and section for attendance",
                         "ASSIGNMENT_INCOMPLETE", null);
             }
 
-            targetClassId = assignment.getClassId();
-            targetSectionId = assignment.getSectionId();
+            targetClassId = assignment.getClassId().longValue();
+            targetSectionId = assignment.getSection().longValue();
         }
 
         // 2. Fetch students for that section for that day
-
         String sessionText = StudentMobileServiceImpl.getCurrentSession();
         Session session = sessionRepository.findBySession(sessionText);
         if (session == null) {
@@ -237,9 +236,8 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         }
 
         List<StudentPromotionMapper> activePromotions = studentPromotionMapperRepository
-                .findActivePromotionsByClassAndSection(targetClassId.intValue(),
+                .findByToClassAndToSectionAndAcademicYear(targetClassId.intValue(),
                         targetSectionId.intValue(),
-
                         session.getId());
 
         List<Integer> studentIds = activePromotions.stream().map(StudentPromotionMapper::getStudentId)
