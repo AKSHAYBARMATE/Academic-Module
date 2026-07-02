@@ -28,7 +28,8 @@ public class ClassSection {
     private Integer section;
 
     @Column(nullable = false)
-    private String classTeacher;
+    private Long classTeacherId;
+
 
     private Integer students;
 

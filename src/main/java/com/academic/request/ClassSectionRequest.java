@@ -13,6 +13,7 @@ public class ClassSectionRequest {
     private Integer classId;
     private Integer section;
     private String classTeacher;
+    private Long classTeacherId;
     private Integer students;
     private String roomNo;
     private Boolean active;
