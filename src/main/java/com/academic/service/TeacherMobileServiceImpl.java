@@ -224,14 +224,13 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         String sessionText = StudentMobileServiceImpl.getCurrentSession();
         Session session = sessionRepository.findBySession(sessionText);
         if (session == null) {
-            session = sessionRepository.findByIsActiveTrue()
-                    .orElseThrow(() -> new RuntimeException("Session " + sessionText
+            session = sessionRepository.findByIsActiveTrue().orElseThrow(() -> new RuntimeException("Session " + sessionText
                             + " not found and no active session fallback"));
         }
 
         List<StudentPromotionMapper> activePromotions = studentPromotionMapperRepository
-                .findActivePromotionsByClassAndSection(classId.intValue(),
-                        sectionId.intValue(),
+                .findByToClassAndToSectionAndAcademicYear(classId,
+                        sectionId,
                         session.getId());
 
         List<Integer> studentIds = activePromotions.stream().map(StudentPromotionMapper::getStudentId)
