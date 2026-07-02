@@ -2,11 +2,13 @@ package com.academic.service;
 
 import com.academic.entity.ClassSection;
 import com.academic.entity.CommonMaster;
+import com.academic.entity.Staff;
 import com.academic.exception.CustomException;
 import com.academic.exception.ResourceNotFoundException;
 import com.academic.mapper.ClassSectionMapper;
 import com.academic.repository.ClassSectionRepository;
 import com.academic.repository.CommonMasterRepository;
+import com.academic.repository.StaffRepository;
 import com.academic.request.ClassSectionRequest;
 import com.academic.response.ClassSectionResponse;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class ClassSectionServiceImpl implements ClassSectionService {
 
     private final ClassSectionRepository repository;
     private final CommonMasterRepository commonMasterRepository; // to resolve names
+    private final StaffRepository staffRepository;
 
     /**
      * Create new ClassSection
@@ -32,8 +35,17 @@ public class ClassSectionServiceImpl implements ClassSectionService {
     public ClassSectionResponse create(ClassSectionRequest request) {
         log.info("Creating new ClassSection: {}", request);
 
-        // Validate class and section
+        // Validate class and section exist in common master
         validateClassAndSection(request.getClassId(), request.getSection());
+
+        // Validate that the classTeacher (staff) actually exists before saving
+        if (request.getClassTeacherId() == null) {
+            throw new CustomException("Missing Teacher", "MISSING_TEACHER_ID", "classTeacherId is required.");
+        }
+        Staff teacher = staffRepository.findByIsDeletedAndId(false, request.getClassTeacherId());
+        if (teacher == null) {
+            throw new ResourceNotFoundException("No active staff found with classTeacherId: " + request.getClassTeacherId());
+        }
 
         ClassSection entity = ClassSectionMapper.toEntity(request);
         entity.setIsDeleted(false);
@@ -120,13 +132,20 @@ public class ClassSectionServiceImpl implements ClassSectionService {
                 .map(cm -> cm.getData())
                 .orElse("Unknown Section");
 
+        Staff staff = staffRepository.findByIsDeletedAndId(false, entity.getClassTeacherId());
+        String classTeacherName = (staff != null)
+                ? staff.getFirstName() + " " + staff.getLastName()
+                : "Unknown Teacher";
+        Long classTeacherId = (staff != null) ? staff.getId() : entity.getClassTeacherId();
+
         return ClassSectionResponse.builder()
                 .id(entity.getId())
                 .classId(entity.getClassId())
                 .className(className)
                 .sectionId(entity.getSection())
                 .sectionName(sectionName)
-                .classTeacher(entity.getClassTeacher())
+                .classTeacher(classTeacherName)
+                .classTeacherId(classTeacherId)
                 .students(entity.getStudents())
                 .roomNo(entity.getRoomNo())
                 .createdAt(entity.getCreatedAt())

@@ -13,7 +13,8 @@ public class TimeSlotDTO {
 
     private Long subjectId;
     private String subjectName;
-    private String teacherId;
+    private Long teacherId;
+    private String teacherName;
     private String roomId;
     private Integer day;
     private String notes;

@@ -227,19 +227,42 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
             targetSectionId = assignment.getSectionId();
         }
 
+<<<<<<< HEAD
+=======
+        // 1. Fetch the record from the teacherAssignment table first to get the class &
+        // section of teacher
+        ClassSection assignment = classSectionRepository
+                .findByClassTeacherIdAndIsDeletedFalse(staffId)
+                .orElseThrow(() -> new RuntimeException(
+                        "Teacher assignment not found for staff ID: " + staffId));
+
+        if (assignment.getClassId() == null || assignment.getSection() == null) {
+            return StandardResponse.error(
+                    "Teacher is not assigned to any specific class and section for attendance",
+                    "ASSIGNMENT_INCOMPLETE", null);
+        }
+
+        Integer classId = assignment.getClassId();
+        Integer sectionId = assignment.getSection();
+
+>>>>>>> origin/prod_main
         // 2. Fetch students for that section for that day
 
         String sessionText = StudentMobileServiceImpl.getCurrentSession();
         Session session = sessionRepository.findBySession(sessionText);
         if (session == null) {
-            session = sessionRepository.findByIsActiveTrue()
-                    .orElseThrow(() -> new RuntimeException("Session " + sessionText
+            session = sessionRepository.findByIsActiveTrue().orElseThrow(() -> new RuntimeException("Session " + sessionText
                             + " not found and no active session fallback"));
         }
 
         List<StudentPromotionMapper> activePromotions = studentPromotionMapperRepository
+<<<<<<< HEAD
                 .findActivePromotionsByClassAndSection(targetClassId.intValue(),
                         targetSectionId.intValue(),
+=======
+                .findByToClassAndToSectionAndAcademicYear(classId,
+                        sectionId,
+>>>>>>> origin/prod_main
                         session.getId());
 
         List<Integer> studentIds = activePromotions.stream().map(StudentPromotionMapper::getStudentId)

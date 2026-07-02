@@ -18,4 +18,6 @@ public interface StudentPromotionMapperRepository extends JpaRepository<StudentP
     @Query("SELECT s FROM StudentPromotionMapper s WHERE s.toClass = :toClass AND s.toSection = :toSection AND s.academicYear = :academicYear AND s.status = 1")
     List<StudentPromotionMapper> findActivePromotionsByClassAndSection(Integer toClass, Integer toSection,
             Integer academicYear);
+
+    List<StudentPromotionMapper> findByToClassAndToSectionAndAcademicYear(Integer classId, Integer sectionId, Integer id);
 }

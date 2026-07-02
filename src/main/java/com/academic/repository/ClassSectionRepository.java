@@ -15,4 +15,6 @@ public interface ClassSectionRepository extends JpaRepository<ClassSection, Long
     Page<ClassSection> findByIsDeletedFalse(Pageable pageable);
 
     Optional<ClassSection> findByIdAndIsDeletedFalse(Long id);
+
+    Optional<ClassSection> findByClassTeacherIdAndIsDeletedFalse(Long staffId);
 }
