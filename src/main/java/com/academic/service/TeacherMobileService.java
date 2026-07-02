@@ -7,7 +7,7 @@ import java.time.LocalDate;
 public interface TeacherMobileService {
     StandardResponse<?> getDashboardData(String employeeId);
 
-    StandardResponse<?> getAttendanceList(Long staffId, LocalDate date);
+    StandardResponse<?> getAttendanceList(Long staffId, LocalDate date, Long classId, Long sectionId);
 
     StandardResponse<?> submitAttendance(AttendanceSubmissionRequest request);
 

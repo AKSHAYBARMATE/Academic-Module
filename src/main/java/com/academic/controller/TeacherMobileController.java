@@ -32,9 +32,12 @@ public class TeacherMobileController {
 
     @GetMapping("/getAttendanceList")
     public ResponseEntity<StandardResponse<?>> getAttendanceList(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        Long staffId = UserContext.getStaffId();
-        return ResponseEntity.ok(teacherMobileService.getAttendanceList(staffId, date));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) Long classId,
+            @RequestParam(required = false) Long sectionId) {
+        // If classId and sectionId are both provided, staffId is not required
+        Long staffId = (classId != null && sectionId != null) ? null : UserContext.getStaffId();
+        return ResponseEntity.ok(teacherMobileService.getAttendanceList(staffId, date, classId, sectionId));
     }
 
     @PostMapping("/submit-attendance")

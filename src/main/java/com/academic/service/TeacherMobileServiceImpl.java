@@ -198,26 +198,34 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
     }
 
     @Override
-    public StandardResponse<?> getAttendanceList(Long staffId, LocalDate date) {
-        if (staffId == null) {
-            return StandardResponse.error("Staff ID not found", "ID_MISSING", null);
+    public StandardResponse<?> getAttendanceList(Long staffId, LocalDate date, Long classId, Long sectionId) {
+        Long targetClassId;
+        Long targetSectionId;
+
+        if (classId != null && sectionId != null) {
+            targetClassId = classId;
+            targetSectionId = sectionId;
+        } else {
+            if (staffId == null) {
+                return StandardResponse.error("Staff ID not found", "ID_MISSING", null);
+            }
+
+            // 1. Fetch the record from the teacherAssignment table first to get the class &
+            // section of teacher
+            TeacherAssignment assignment = teacherAssignmentRepository
+                    .findByEmployeeIdAndIsDeletedFalse(staffId.toString())
+                    .orElseThrow(() -> new RuntimeException(
+                            "Teacher assignment not found for staff ID: " + staffId));
+
+            if (assignment.getClassId() == null || assignment.getSectionId() == null) {
+                return StandardResponse.error(
+                        "Teacher is not assigned to any specific class and section for attendance",
+                        "ASSIGNMENT_INCOMPLETE", null);
+            }
+
+            targetClassId = assignment.getClassId();
+            targetSectionId = assignment.getSectionId();
         }
-
-        // 1. Fetch the record from the teacherAssignment table first to get the class &
-        // section of teacher
-        TeacherAssignment assignment = teacherAssignmentRepository
-                .findByEmployeeIdAndIsDeletedFalse(staffId.toString())
-                .orElseThrow(() -> new RuntimeException(
-                        "Teacher assignment not found for staff ID: " + staffId));
-
-        if (assignment.getClassId() == null || assignment.getSectionId() == null) {
-            return StandardResponse.error(
-                    "Teacher is not assigned to any specific class and section for attendance",
-                    "ASSIGNMENT_INCOMPLETE", null);
-        }
-
-        Long classId = assignment.getClassId();
-        Long sectionId = assignment.getSectionId();
 
         // 2. Fetch students for that section for that day
 
@@ -230,8 +238,8 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         }
 
         List<StudentPromotionMapper> activePromotions = studentPromotionMapperRepository
-                .findActivePromotionsByClassAndSection(classId.intValue(),
-                        sectionId.intValue(),
+                .findActivePromotionsByClassAndSection(targetClassId.intValue(),
+                        targetSectionId.intValue(),
                         session.getId());
 
         List<Integer> studentIds = activePromotions.stream().map(StudentPromotionMapper::getStudentId)
@@ -258,8 +266,8 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         long p = dtoList.stream().filter(d -> "PRESENT".equals(d.getStatus())).count();
         long a = dtoList.stream().filter(d -> "ABSENT".equals(d.getStatus())).count();
 
-        String className = getName(classId.intValue());
-        String secName = getName(sectionId.intValue());
+        String className = getName(targetClassId.intValue());
+        String secName = getName(targetSectionId.intValue());
         String classSectionName = (className != null ? className : "Unknown") + "-"
                 + (secName != null ? secName : "Unknown");
 
