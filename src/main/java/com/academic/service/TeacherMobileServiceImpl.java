@@ -45,13 +45,15 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
     @Override
     public StandardResponse<?> getDashboardData(String employeeId) {
-        TeacherAssignment teacher = teacherAssignmentRepository.findByEmployeeIdAndIsDeletedFalse(employeeId)
-                .orElseThrow(() -> new RuntimeException("Teacher assignment not found"));
+        ClassSection assignment = classSectionRepository
+                .findByClassTeacherIdAndIsDeletedFalse(Long.valueOf(employeeId))
+                .orElseThrow(() -> new RuntimeException(
+                        "Teacher assignment not found for staff ID: " + employeeId));
 
         LocalDate today = IstClock.today();
 
         Optional<StaffPunchLog> punchLogOpt = staffPunchLogRepository.findByStaffIdAndWorkDate(
-                Integer.valueOf(teacher.getEmployeeId()),
+                assignment.getClassTeacherId().intValue(),
                 today.toString());
         TeacherDashboardResponse.PunchStatusResponse punchStatus = null;
 
@@ -75,7 +77,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
         Long teacherId = null;
         try {
-            teacherId = Long.parseLong(teacher.getEmployeeId()); // user mentioned teacher name stores
+            teacherId = assignment.getClassTeacherId(); // user mentioned teacher name stores
             // staff id
         } catch (NumberFormatException e) {
             return StandardResponse.error("Invalid Teacher ID stored in TeacherName", "DATA_ERROR", null);
@@ -99,7 +101,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 .collect(Collectors.toList());
 
         return StandardResponse.success(TeacherDashboardResponse.builder()
-                .teacherName(teacher.getTeacherName())
+                .teacherName(punchLogOpt.get().getStaff().getFirstName() + ' ' + punchLogOpt.get().getStaff().getLastName())
                 .date(today.format(DateTimeFormatter.ofPattern("EEEE, MMM dd")))
                 .punchStatus(punchStatus)
                 .summary(TeacherDashboardResponse.DailySummaryResponse.builder()
