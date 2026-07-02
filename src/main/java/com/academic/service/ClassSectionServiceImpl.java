@@ -2,11 +2,13 @@ package com.academic.service;
 
 import com.academic.entity.ClassSection;
 import com.academic.entity.CommonMaster;
+import com.academic.entity.Staff;
 import com.academic.exception.CustomException;
 import com.academic.exception.ResourceNotFoundException;
 import com.academic.mapper.ClassSectionMapper;
 import com.academic.repository.ClassSectionRepository;
 import com.academic.repository.CommonMasterRepository;
+import com.academic.repository.StaffRepository;
 import com.academic.request.ClassSectionRequest;
 import com.academic.response.ClassSectionResponse;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class ClassSectionServiceImpl implements ClassSectionService {
 
     private final ClassSectionRepository repository;
     private final CommonMasterRepository commonMasterRepository; // to resolve names
+    private final StaffRepository staffRepository;
 
     /**
      * Create new ClassSection
@@ -119,6 +122,7 @@ public class ClassSectionServiceImpl implements ClassSectionService {
         String sectionName = commonMasterRepository.findByIdAndStatusTrue(entity.getSection())
                 .map(cm -> cm.getData())
                 .orElse("Unknown Section");
+        Staff staff =staffRepository.findByIsDeletedAndId(false,entity.getClassTeacherId());
 
         return ClassSectionResponse.builder()
                 .id(entity.getId())
@@ -126,7 +130,8 @@ public class ClassSectionServiceImpl implements ClassSectionService {
                 .className(className)
                 .sectionId(entity.getSection())
                 .sectionName(sectionName)
-                .classTeacher(entity.getClassTeacher())
+                .classTeacher(staff.getFirstName()+" "+staff.getLastName())
+                .classTeacherId(staff.getId())
                 .students(entity.getStudents())
                 .roomNo(entity.getRoomNo())
                 .createdAt(entity.getCreatedAt())

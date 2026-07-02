@@ -12,7 +12,7 @@ public class ClassSectionMapper {
         return ClassSection.builder()
                 .classId(request.getClassId())
                 .section(request.getSection())
-                .classTeacher(request.getClassTeacher())
+                .classTeacherId(request.getClassTeacherId())
                 .students(request.getStudents())
                 .isDeleted(false)
                 .roomNo(request.getRoomNo())
@@ -22,7 +22,7 @@ public class ClassSectionMapper {
     public static void updateEntity(ClassSection entity, ClassSectionRequest request) {
         entity.setClassId(request.getClassId());
         entity.setSection(request.getSection());
-        entity.setClassTeacher(request.getClassTeacher());
+        entity.setClassTeacherId(request.getClassTeacherId());
         entity.setStudents(request.getStudents());
         entity.setRoomNo(request.getRoomNo());
     }
@@ -38,13 +38,14 @@ public class ClassSectionMapper {
                 .map(CommonMaster::getData)
                 .orElse("Unknown Section");
 
+
+
         return ClassSectionResponse.builder()
                 .id(entity.getId())
                 .className(className)          // Name from CommonMaster
                 .classId(entity.getClassId())
                 .sectionName(sectionName)
                 .sectionId(entity.getSection())// Section name from CommonMaster
-                .classTeacher(entity.getClassTeacher())
                 .students(entity.getStudents())
                 .roomNo(entity.getRoomNo())
                 .createdAt(entity.getCreatedAt())

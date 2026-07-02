@@ -205,19 +205,19 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
         // 1. Fetch the record from the teacherAssignment table first to get the class &
         // section of teacher
-        TeacherAssignment assignment = teacherAssignmentRepository
-                .findByEmployeeIdAndIsDeletedFalse(staffId.toString())
+        ClassSection assignment = classSectionRepository
+                .findByClassTeacherIdAndIsDeletedFalse(staffId)
                 .orElseThrow(() -> new RuntimeException(
                         "Teacher assignment not found for staff ID: " + staffId));
 
-        if (assignment.getClassId() == null || assignment.getSectionId() == null) {
+        if (assignment.getClassId() == null || assignment.getSection() == null) {
             return StandardResponse.error(
                     "Teacher is not assigned to any specific class and section for attendance",
                     "ASSIGNMENT_INCOMPLETE", null);
         }
 
-        Long classId = assignment.getClassId();
-        Long sectionId = assignment.getSectionId();
+        Integer classId = assignment.getClassId();
+        Integer sectionId = assignment.getSection();
 
         // 2. Fetch students for that section for that day
 
