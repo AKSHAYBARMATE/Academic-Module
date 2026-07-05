@@ -292,10 +292,170 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
     }
 
     @Override
+    public StandardResponse<?> getMonthlyAttendanceCalendar(Long classId, Long sectionId, int month, int year) {
+
+        if (classId == null || sectionId == null) {
+            return StandardResponse.error("classId and sectionId are required", "PARAMS_MISSING", null);
+        }
+        if (month < 1 || month > 12) {
+            return StandardResponse.error("month must be between 1 and 12", "INVALID_MONTH", null);
+        }
+
+        // ── 1. Resolve students for the given class & section ──────────────────────
+        Session session = getActiveSession();
+
+        List<StudentPromotionMapper> promotions = studentPromotionMapperRepository
+                .findByToClassAndToSectionAndAcademicYear(
+                        classId.intValue(), sectionId.intValue(), session.getId());
+
+        List<Integer> studentIntIds = promotions.stream()
+                .map(StudentPromotionMapper::getStudentId)
+                .collect(Collectors.toList());
+
+        if (studentIntIds.isEmpty()) {
+            return StandardResponse.error(
+                    "No students found for the given class and section",
+                    "NO_STUDENTS", null);
+        }
+
+        List<Student> students = studentRepository.findAllById(studentIntIds);
+        List<Long> studentLongIds = students.stream()
+                .map(s -> Long.valueOf(s.getId()))
+                .collect(Collectors.toList());
+
+        // ── 2. Bulk-fetch all attendance for the month ─────────────────────────────
+        java.time.YearMonth yearMonth = java.time.YearMonth.of(year, month);
+        LocalDate startDate = yearMonth.atDay(1);
+        LocalDate endDate   = yearMonth.atEndOfMonth();
+
+        List<StudentAttendance> monthAttendances = studentAttendanceRepository
+                .findByStudentIdInAndAttendanceDateBetween(studentLongIds, startDate, endDate);
+
+        // Group by date for quick lookup
+        java.util.Map<LocalDate, List<StudentAttendance>> byDate = monthAttendances.stream()
+                .collect(Collectors.groupingBy(StudentAttendance::getAttendanceDate));
+
+        // Build a quick lookup map: studentId → Student
+        java.util.Map<Long, Student> studentMap = students.stream()
+                .collect(Collectors.toMap(s -> Long.valueOf(s.getId()), s -> s));
+
+        // ── 3. Build per-day records ───────────────────────────────────────────────
+        int totalStudents = students.size();
+        List<MonthlyAttendanceCalendarResponse.DailyRecord> dailyRecords = new ArrayList<>();
+
+        long monthTotalPresent = 0;
+        long monthTotalAbsent  = 0;
+        int  workingDays       = 0;
+
+        java.time.format.DateTimeFormatter dayFmt  = java.time.format.DateTimeFormatter.ofPattern("EEE").withLocale(java.util.Locale.ENGLISH);
+        java.time.format.DateTimeFormatter dateFmt  = java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+
+        for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
+            LocalDate date = yearMonth.atDay(day);
+
+            List<StudentAttendance> dayRecords = byDate.getOrDefault(date, java.util.Collections.emptyList());
+
+            // Build present / absent student lists for this day
+            List<MonthlyAttendanceCalendarResponse.StudentRecord> presentList = new ArrayList<>();
+            List<MonthlyAttendanceCalendarResponse.StudentRecord> absentList  = new ArrayList<>();
+
+            for (StudentAttendance att : dayRecords) {
+                Student stu = studentMap.get(att.getStudentId());
+                if (stu == null) continue;
+
+                MonthlyAttendanceCalendarResponse.StudentRecord rec =
+                        MonthlyAttendanceCalendarResponse.StudentRecord.builder()
+                                .studentId(Long.valueOf(stu.getId()))
+                                .studentName(stu.getFirstName() + " " + stu.getLastName())
+                                .rollNo(stu.getAdmissionNo())
+                                .build();
+
+                if (att.getStatus() == StudentAttendance.AttendanceStatus.PRESENT) {
+                    presentList.add(rec);
+                } else if (att.getStatus() == StudentAttendance.AttendanceStatus.ABSENT) {
+                    absentList.add(rec);
+                }
+            }
+
+            int presentCount = presentList.size();
+            int absentCount  = absentList.size();
+            int notMarked    = totalStudents - dayRecords.size();
+            boolean hasRecord = !dayRecords.isEmpty();
+
+            Double pct = null;
+            String tag = "NO_RECORD";
+            if (hasRecord && totalStudents > 0) {
+                pct = (presentCount * 100.0) / totalStudents;
+                if (pct > 80)       tag = "HIGH";
+                else if (pct >= 60) tag = "MEDIUM";
+                else                tag = "LOW";
+
+                workingDays++;
+                monthTotalPresent += presentCount;
+                monthTotalAbsent  += absentCount;
+            }
+
+            dailyRecords.add(MonthlyAttendanceCalendarResponse.DailyRecord.builder()
+                    .date(date.format(dateFmt))
+                    .dayOfMonth(day)
+                    .dayName(date.format(dayFmt).toUpperCase())
+                    .totalStudents(totalStudents)
+                    .presentCount(presentCount)
+                    .absentCount(absentCount)
+                    .notMarkedCount(notMarked < 0 ? 0 : notMarked)
+                    .attendancePercentage(pct != null ? Math.round(pct * 10.0) / 10.0 : null)
+                    .attendanceTag(tag)
+                    .presentStudents(presentList)
+                    .absentStudents(absentList)
+                    .build());
+        }
+
+        // ── 4. Overall monthly summary ─────────────────────────────────────────────
+        long possibleAttendances = (long) workingDays * totalStudents;
+        double overallPct = possibleAttendances > 0
+                ? (monthTotalPresent * 100.0) / possibleAttendances
+                : 0.0;
+        overallPct = Math.round(overallPct * 10.0) / 10.0;
+
+        MonthlyAttendanceCalendarResponse.MonthlySummary summary =
+                MonthlyAttendanceCalendarResponse.MonthlySummary.builder()
+                        .totalWorkingDays(workingDays)
+                        .totalStudents(totalStudents)
+                        .totalPresent(monthTotalPresent)
+                        .totalAbsent(monthTotalAbsent)
+                        .overallAttendancePercentage(overallPct)
+                        .overallAttendanceLabel(overallPct + "%")
+                        .build();
+
+        // ── 5. Class/section names ─────────────────────────────────────────────────
+        String className  = getName(classId.intValue());
+        String secName    = getName(sectionId.intValue());
+        String csName     = (className != null ? className : "Unknown")
+                          + "-" + (secName != null ? secName : "Unknown");
+
+        java.time.format.DateTimeFormatter monthLabelFmt =
+                java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale.ENGLISH);
+        String monthLabel = yearMonth.atDay(1).format(monthLabelFmt).toUpperCase();
+
+        return StandardResponse.success(
+                MonthlyAttendanceCalendarResponse.builder()
+                        .classSectionName(csName)
+                        .monthLabel(monthLabel)
+                        .month(month)
+                        .year(year)
+                        .dailyRecords(dailyRecords)
+                        .monthlySummary(summary)
+                        .build(),
+                "Monthly attendance calendar fetched");
+    }
+
+
+    @Override
     public StandardResponse<?> getExamSchedule(Long staffId) {
         TeacherAssignment assignment = teacherAssignmentRepository
                 .findByEmployeeIdAndIsDeletedFalse(staffId.toString())
                 .orElseThrow(() -> new RuntimeException("Teacher assignment not found"));
+
 
         if (assignment.getClassId() == null) {
             return StandardResponse.error("No class assigned to teacher", "NO_CLASS", null);
@@ -376,7 +536,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         List<Integer> studentIds = activePromotions.stream().map(StudentPromotionMapper::getStudentId)
                 .collect(Collectors.toList());
 
-        List<Student> students = studentRepository.findAllById(studentIds);
+        List<Student> students = studentRepository.findByIdInAndStatus(studentIds, 1);
 
         Optional<ExamSubjectConfig> configOpt = examSubjectConfigRepository
                 .findBySession_IdAndExamType_IdAndClassId_IdAndSubject_IdAndIsDeleteFalse(

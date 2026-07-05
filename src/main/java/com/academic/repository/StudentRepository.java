@@ -1,6 +1,5 @@
 package com.academic.repository;
 
-import com.academic.entity.AcademicCalendarEvent;
 import com.academic.entity.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -13,4 +12,6 @@ public interface StudentRepository extends JpaRepository<Student, Integer>, JpaS
     List<Student> findByClassApplyingForAndSection(Integer classId, Integer sectionId);
 
     Optional<Student> findByIdAndIsDeletedFalse(Integer id);
+
+    List<Student> findByIdInAndStatus(List<Integer> studentIds, Integer status);
 }

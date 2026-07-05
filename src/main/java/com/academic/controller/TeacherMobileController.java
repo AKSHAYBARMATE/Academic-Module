@@ -45,11 +45,33 @@ public class TeacherMobileController {
         return ResponseEntity.ok(teacherMobileService.submitAttendance(request));
     }
 
+    /**
+     * GET /api/v1/academic-module/teacher-mobile/getMonthlyAttendanceCalendar
+     *
+     * Query params:
+     *   classId   – common-master ID of the class  (required)
+     *   sectionId – common-master ID of the section (required)
+     *   month     – 1..12                           (required)
+     *   year      – e.g. 2026                       (required)
+     *
+     * Returns per-day present/absent counts + student lists + monthly % summary.
+     */
+    @GetMapping("/getMonthlyAttendanceCalendar")
+    public ResponseEntity<StandardResponse<?>> getMonthlyAttendanceCalendar(
+            @RequestParam Long classId,
+            @RequestParam Long sectionId,
+            @RequestParam int month,
+            @RequestParam int year) {
+        return ResponseEntity.ok(
+                teacherMobileService.getMonthlyAttendanceCalendar(classId, sectionId, month, year));
+    }
+
     @GetMapping("/getExamSchedule")
     public ResponseEntity<StandardResponse<?>> getExamSchedule() {
         Long staffId = UserContext.getStaffId();
         return ResponseEntity.ok(teacherMobileService.getExamSchedule(staffId));
     }
+
 
     @GetMapping("/getStudentListForMarks")
     public ResponseEntity<StandardResponse<?>> getStudentListForMarks(

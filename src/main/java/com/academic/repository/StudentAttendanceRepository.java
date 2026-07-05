@@ -25,4 +25,22 @@ public interface StudentAttendanceRepository extends JpaRepository<StudentAttend
                         @Param("endDate") LocalDate endDate);
 
         boolean existsByStudentIdInAndAttendanceDate(java.util.Collection<Long> studentIds, LocalDate date);
+
+        /**
+         * Fetch all attendance records for the given student IDs within a date range.
+         * Used for the monthly attendance calendar.
+         */
+        List<StudentAttendance> findByStudentIdInAndAttendanceDateBetween(
+                        java.util.Collection<Long> studentIds,
+                        LocalDate startDate,
+                        LocalDate endDate);
+
+        /**
+         * Count students with a specific status on a specific date from a given set.
+         */
+        @Query("SELECT COUNT(a) FROM StudentAttendance a WHERE a.studentId IN :studentIds AND a.attendanceDate = :date AND a.status = :status")
+        long countByStudentIdInAndAttendanceDateAndStatus(
+                        @Param("studentIds") java.util.Collection<Long> studentIds,
+                        @Param("date") LocalDate date,
+                        @Param("status") StudentAttendance.AttendanceStatus status);
 }

@@ -11,6 +11,17 @@ public interface TeacherMobileService {
 
     StandardResponse<?> submitAttendance(AttendanceSubmissionRequest request);
 
+    /**
+     * Returns a per-day attendance breakdown for every day in the given month,
+     * plus a whole-month summary.
+     *
+     * @param classId   the class common-master ID
+     * @param sectionId the section common-master ID
+     * @param month     1-based month number (1 = Jan … 12 = Dec)
+     * @param year      calendar year (e.g. 2026)
+     */
+    StandardResponse<?> getMonthlyAttendanceCalendar(Long classId, Long sectionId, int month, int year);
+
     StandardResponse<?> getExamSchedule(Long staffId);
 
     StandardResponse<?> getStudentListForMarks( Integer examTypeId, Long subjectId);
