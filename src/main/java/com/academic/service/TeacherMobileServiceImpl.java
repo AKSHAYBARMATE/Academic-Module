@@ -245,7 +245,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
         List<Student> initialStudents = new ArrayList<>();
         if (!studentIds.isEmpty()) {
-            initialStudents = studentRepository.findAllById(studentIds);
+            initialStudents = studentRepository.findByIdInAndStatus(studentIds, 1);
             // Just sorting them by ID or Name could be good, but we just use the fetched
             // list
         }
