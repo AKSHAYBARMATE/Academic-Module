@@ -46,6 +46,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
     private final MarksheetSubjectComponentRepository marksheetSubjectComponentRepository;
     private final ExamComponentMasterRepostory componentMasterRepository;
     private final LeaveApplicationRepository leaveApplicationRepository;
+    private final StaffRepository staffRepository;
 
     @Override
     public StandardResponse<?> getDashboardData(String employeeId) {
@@ -104,8 +105,18 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                         .build())
                 .collect(Collectors.toList());
 
+        // Resolve teacher name directly from the Staff table using the teacher ID,
+        // so it is always available even when no punch log exists for today.
+        String teacherFullName = "Unknown";
+        if (teacherId != null) {
+            Staff staffEntity = staffRepository.findByIsDeletedAndId(false, teacherId);
+            if (staffEntity != null) {
+                teacherFullName = staffEntity.getFirstName() + ' ' + staffEntity.getLastName();
+            }
+        }
+
         return StandardResponse.success(TeacherDashboardResponse.builder()
-                .teacherName(punchLogOpt.get().getStaff().getFirstName() + ' ' + punchLogOpt.get().getStaff().getLastName())
+                .teacherName(teacherFullName)
                 .date(today.format(DateTimeFormatter.ofPattern("EEEE, MMM dd")))
                 .punchStatus(punchStatus)
                 .summary(TeacherDashboardResponse.DailySummaryResponse.builder()
