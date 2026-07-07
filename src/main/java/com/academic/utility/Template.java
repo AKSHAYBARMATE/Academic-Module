@@ -432,4 +432,193 @@ public class Template {
             </body>
             </html>
             """;
+
+    public static final String TIMETABLE_PDF_HTML = """
+            <html xmlns="http://www.w3.org/1999/xhtml">
+            <head>
+            <meta charset="UTF-8"/>
+            <title>SCHOOL TIMETABLE</title>
+            <style>
+                @page {
+                    size: A4 landscape;
+                    margin: 0.8cm;
+                }
+                body { 
+                    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+                    font-size: 11px; 
+                    margin: 0; 
+                    padding: 0; 
+                    color: #1e293b; 
+                    background-color: #ffffff;
+                }
+                .container {
+                    border: 2px solid #0f172a;
+                    border-radius: 8px;
+                    padding: 15px;
+                    background-color: #ffffff;
+                }
+                .school-title {
+                    font-size: 22px;
+                    font-weight: 800;
+                    color: #1e3a8a;
+                    text-align: center;
+                    margin-bottom: 5px;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                }
+                .banner-title {
+                    font-size: 14px;
+                    font-weight: bold;
+                    color: #475569;
+                    text-align: center;
+                    margin-bottom: 15px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+                .meta-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 15px;
+                }
+                .meta-table td {
+                    border: none;
+                    padding: 3px 0;
+                    font-size: 11px;
+                    color: #334155;
+                }
+                .meta-label {
+                    font-weight: bold;
+                    color: #0f172a;
+                    width: 12%;
+                }
+                .meta-value {
+                    border-bottom: 1px dashed #cbd5e1;
+                    padding-left: 5px;
+                }
+                .timetable-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                    margin-top: 10px;
+                }
+                .timetable-table th {
+                    background-color: #0f172a;
+                    color: #ffffff;
+                    font-weight: bold;
+                    padding: 8px 4px;
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    border: 1px solid #334155;
+                    text-align: center;
+                }
+                .timetable-table td {
+                    border: 1px solid #cbd5e1;
+                    padding: 6px 4px;
+                    text-align: center;
+                    vertical-align: middle;
+                    font-size: 9px;
+                    height: 52px;
+                }
+                .time-cell {
+                    font-weight: bold;
+                    background-color: #f8fafc;
+                    color: #1e293b;
+                    font-size: 10px;
+                }
+                .subject-name {
+                    font-weight: bold;
+                    color: #1e3a8a;
+                    font-size: 10px;
+                    margin-bottom: 3px;
+                }
+                .teacher-name {
+                    font-size: 8px;
+                    color: #475569;
+                    margin-bottom: 3px;
+                }
+                .room-badge {
+                    display: inline-block;
+                    background-color: #f1f5f9;
+                    color: #475569;
+                    font-size: 8px;
+                    font-weight: bold;
+                    padding: 1px 4px;
+                    border-radius: 3px;
+                    border: 1px solid #cbd5e1;
+                }
+                .empty-cell {
+                    color: #cbd5e1;
+                    font-size: 12px;
+                }
+                .footer-table {
+                    width: 100%;
+                    margin-top: 30px;
+                    border-collapse: collapse;
+                }
+                .footer-table td {
+                    border: none;
+                    font-size: 10px;
+                    color: #475569;
+                }
+                .sig-line {
+                    border-top: 1px solid #cbd5e1;
+                    width: 150px;
+                    margin: 0 auto;
+                    margin-top: 35px;
+                    padding-top: 5px;
+                    font-weight: bold;
+                }
+            </style>
+            </head>
+            <body>
+            <div class="container">
+                <div class="school-title">PROGRESSIVE PUBLIC SCHOOL</div>
+                <div class="banner-title">CLASS TIMETABLE (SESSION ${SESSION})</div>
+                
+                <table class="meta-table">
+                    <tr>
+                        <td class="meta-label">Timetable Name:</td>
+                        <td class="meta-value" style="width: 38%;">${TIMETABLE_NAME}</td>
+                        <td style="width: 10%;"></td>
+                        <td class="meta-label">Class-Section:</td>
+                        <td class="meta-value" style="width: 38%;">${CLASS_SECTION}</td>
+                    </tr>
+                    <tr>
+                        <td class="meta-label">Days Covered:</td>
+                        <td class="meta-value">${DAYS_COVERED}</td>
+                        <td></td>
+                        <td class="meta-label">Print Date:</td>
+                        <td class="meta-value">${PRINT_DATE}</td>
+                    </tr>
+                </table>
+                
+                <table class="timetable-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 14%;">TIME SLOT</th>
+                            ${DAY_HEADERS}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${GRID_ROWS}
+                    </tbody>
+                </table>
+                
+                <table class="footer-table">
+                    <tr>
+                        <td align="left" style="width: 33%;">
+                            <div class="sig-line" style="margin-left: 0; text-align: left;">Class Teacher</div>
+                        </td>
+                        <td align="center" style="width: 34%;">
+                            <div class="sig-line">School Stamp</div>
+                        </td>
+                        <td align="right" style="width: 33%;">
+                            <div class="sig-line" style="margin-right: 0; text-align: right;">Principal</div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            </body>
+            </html>
+            """;
 }

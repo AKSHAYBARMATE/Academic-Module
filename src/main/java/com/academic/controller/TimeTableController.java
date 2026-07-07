@@ -7,6 +7,8 @@ import com.academic.response.TimeTableResponse;
 import com.academic.service.TimeTableService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -89,4 +91,19 @@ public class TimeTableController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Download the timetable PDF by ID
+     */
+    @GetMapping("/downloadTimetablePdf/{id}")
+    public ResponseEntity<byte[]> downloadPdf(@PathVariable Long id) {
+        log.info("[{}][{}] API - Download Timetable PDF ID: {}", LogContext.getRequestId(), LogContext.getLogId(), id);
+        byte[] pdf = service.generateTimetablePdf(id);
+        String fileName = "timetable_" + id + ".pdf";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
+
 }
+

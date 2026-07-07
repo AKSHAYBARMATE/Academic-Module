@@ -23,6 +23,8 @@ public interface TimeTableService {
 
     void delete(Long id);
 
+    byte[] generateTimetablePdf(Long id);
+
 
     @Transactional(readOnly = true)
     StandardResponse<Map<String, Object>> listAll(
