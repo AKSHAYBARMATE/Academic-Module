@@ -39,4 +39,11 @@ public interface TeacherMobileService {
      *   Cols  – Student Name | % | P | L | A | H | F | day-1 … day-N
      */
     byte[] generateAttendanceExcel(Long classId, Long sectionId, int month, int year);
+
+    /**
+     * Returns a monthly grid (JSON) representation of student attendance
+     * with exactly the same shape and statistics as the Excel download format.
+     */
+    StandardResponse<?> getMonthlyAttendanceGrid(Long classId, Long sectionId, int month, int year);
 }
+

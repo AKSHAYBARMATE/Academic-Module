@@ -1091,5 +1091,142 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         setBorder(style);
         return style;
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StandardResponse<?> getMonthlyAttendanceGrid(Long classId, Long sectionId, int month, int year) {
+        // ─── 1. Resolve students ───────────────────────────────────────
+        Session session = getActiveSession();
+
+        List<StudentPromotionMapper> promotions = studentPromotionMapperRepository
+                .findByToClassAndToSectionAndAcademicYear(
+                        classId.intValue(), sectionId.intValue(), session.getId());
+
+        List<Integer> studentIntIds = promotions.stream()
+                .map(StudentPromotionMapper::getStudentId)
+                .collect(Collectors.toList());
+
+        List<Student> students = studentIntIds.isEmpty()
+                ? Collections.emptyList()
+                : studentRepository.findByIdInAndStatus(studentIntIds, 1);
+
+        // Sort alphabetically by first name
+        students.sort(Comparator.comparing(s -> (s.getFirstName() + " " + s.getLastName())));
+
+        // ─── 2. Bulk-fetch attendance for the month ──────────────────
+        YearMonth ym = YearMonth.of(year, month);
+        LocalDate startDate = ym.atDay(1);
+        LocalDate endDate   = ym.atEndOfMonth();
+        int daysInMonth     = ym.lengthOfMonth();
+
+        List<Long> studentLongIds = students.stream()
+                .map(s -> Long.valueOf(s.getId()))
+                .collect(Collectors.toList());
+
+        // Map: studentId → (date → status)
+        Map<Long, Map<LocalDate, String>> attendanceMap = new HashMap<>();
+        if (!studentLongIds.isEmpty()) {
+            List<StudentAttendance> records = studentAttendanceRepository
+                    .findByStudentIdInAndAttendanceDateBetween(studentLongIds, startDate, endDate);
+            for (StudentAttendance rec : records) {
+                attendanceMap
+                        .computeIfAbsent(rec.getStudentId(), k -> new HashMap<>())
+                        .put(rec.getAttendanceDate(), rec.getStatus().name());
+            }
+        }
+
+        String className  = getName(classId.intValue());
+        String secName    = getName(sectionId.intValue());
+        String monthLabel = startDate.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH));
+
+        // Create Day Headers
+        List<MonthlyAttendanceGridResponse.DayHeader> dayHeaders = new ArrayList<>();
+        String[] dayAbbr = {"", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
+        for (int d = 1; d <= daysInMonth; d++) {
+            LocalDate date = ym.atDay(d);
+            int dow = date.getDayOfWeek().getValue();
+            dayHeaders.add(MonthlyAttendanceGridResponse.DayHeader.builder()
+                    .date(date.toString())
+                    .dayOfMonth(String.format("%02d", d))
+                    .dayName(dayAbbr[dow])
+                    .weekend(dow == 7) // Sunday
+                    .build());
+        }
+
+        // Create Student Rows
+        List<MonthlyAttendanceGridResponse.StudentRow> rows = new ArrayList<>();
+        for (Student student : students) {
+            Long studentId = Long.valueOf(student.getId());
+            Map<LocalDate, String> sAttendance = attendanceMap.getOrDefault(studentId, Collections.emptyMap());
+
+            int presentCount = 0;
+            int absentCount = 0;
+            int holidayCount = 0;
+            int lateCount = 0;
+            int halfDayCount = 0;
+
+            Map<Integer, String> dailyStatus = new HashMap<>();
+            
+            for (int d = 1; d <= daysInMonth; d++) {
+                LocalDate date = ym.atDay(d);
+                String status = sAttendance.get(date);
+                if (status == null) {
+                    dailyStatus.put(d, "-");
+                } else {
+                    switch (status) {
+                        case "PRESENT":
+                            presentCount++;
+                            dailyStatus.put(d, "P");
+                            break;
+                        case "ABSENT":
+                            absentCount++;
+                            dailyStatus.put(d, "A");
+                            break;
+                        case "HOLIDAY":
+                            holidayCount++;
+                            dailyStatus.put(d, "H");
+                            break;
+                        case "LATE":
+                            lateCount++;
+                            dailyStatus.put(d, "L");
+                            break;
+                        case "HALF_DAY":
+                            halfDayCount++;
+                            dailyStatus.put(d, "F");
+                            break;
+                        default:
+                            dailyStatus.put(d, status.substring(0, 1));
+                    }
+                }
+            }
+
+            int markedDays = presentCount + absentCount + holidayCount + lateCount + halfDayCount;
+            double pct = markedDays > 0 ? ((presentCount + lateCount + halfDayCount) * 100.0 / markedDays) : 0.0;
+
+            rows.add(MonthlyAttendanceGridResponse.StudentRow.builder()
+                    .studentId(studentId)
+                    .studentName(student.getFirstName() + " " + student.getLastName())
+                    .attendancePercentage(String.format("%.0f%%", pct))
+                    .presentCount(presentCount)
+                    .absentCount(absentCount)
+                    .holidayCount(holidayCount)
+                    .lateCount(lateCount)
+                    .halfDayCount(halfDayCount)
+                    .dailyStatus(dailyStatus)
+                    .build());
+        }
+
+        MonthlyAttendanceGridResponse response = MonthlyAttendanceGridResponse.builder()
+                .classSectionName(className + " - " + secName)
+                .monthLabel(monthLabel)
+                .month(month)
+                .year(year)
+                .dayHeaders(dayHeaders)
+                .rows(rows)
+                .build();
+
+        return StandardResponse.success(response, "Monthly attendance grid fetched successfully");
+    }
 }
+
 

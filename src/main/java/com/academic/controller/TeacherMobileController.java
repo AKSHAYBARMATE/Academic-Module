@@ -128,4 +128,26 @@ public class TeacherMobileController {
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(excel);
     }
-}
+
+    /**
+     * GET /api/v1/academic-module/teacher-mobile/getMonthlyAttendanceGrid
+     *
+     * Query params:
+     *   classId   – common-master ID of the class   (required)
+     *   sectionId – common-master ID of the section  (required)
+     *   month     – 1..12                            (required)
+     *   year      – e.g. 2026                        (required)
+     *
+     * Returns JSON structure representing the monthly student attendance grid.
+     */
+    @GetMapping("/getMonthlyAttendanceGrid")
+    public ResponseEntity<StandardResponse<?>> getMonthlyAttendanceGrid(
+            @RequestParam Long classId,
+            @RequestParam Long sectionId,
+            @RequestParam int month,
+            @RequestParam int year) {
+        return ResponseEntity.ok(
+                teacherMobileService.getMonthlyAttendanceGrid(classId, sectionId, month, year));
+    }
+}
+
