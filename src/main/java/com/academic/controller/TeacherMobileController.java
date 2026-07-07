@@ -8,6 +8,8 @@ import com.academic.response.StandardResponse;
 import com.academic.service.TeacherMobileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -96,4 +98,34 @@ public class TeacherMobileController {
         Long staffId = UserContext.getStaffId();
         return ResponseEntity.ok(teacherMobileService.getLeaveHistory(staffId));
     }
-}
+
+    /**
+     * GET /api/v1/academic-module/teacher-mobile/downloadAttendanceExcel
+     *
+     * Query params:
+     *   classId   – common-master ID of the class   (required)
+     *   sectionId – common-master ID of the section  (required)
+     *   month     – 1..12                            (required)
+     *   year      – e.g. 2026                        (required)
+     *
+     * Downloads a .xlsx Student Attendance Report with one row per student and
+     * one column per day of the month (P / A / H / -) plus summary columns.
+     */
+    @GetMapping("/downloadAttendanceExcel")
+    public ResponseEntity<byte[]> downloadAttendanceExcel(
+            @RequestParam Long classId,
+            @RequestParam Long sectionId,
+            @RequestParam int month,
+            @RequestParam int year) {
+
+        byte[] excel = teacherMobileService.generateAttendanceExcel(classId, sectionId, month, year);
+
+        String fileName = "attendance_" + year + "_" + String.format("%02d", month) + ".xlsx";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excel);
+    }
+}

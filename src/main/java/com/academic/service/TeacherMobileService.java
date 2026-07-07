@@ -31,4 +31,12 @@ public interface TeacherMobileService {
     StandardResponse<?> applyLeave(Long staffId, LeaveSubmissionRequest request);
 
     StandardResponse<?> getLeaveHistory(Long staffId);
+
+    /**
+     * Generates a monthly student-attendance Excel (.xlsx) report in the
+     * school-register format:
+     *   Rows  – one per student
+     *   Cols  – Student Name | % | P | L | A | H | F | day-1 … day-N
+     */
+    byte[] generateAttendanceExcel(Long classId, Long sectionId, int month, int year);
 }

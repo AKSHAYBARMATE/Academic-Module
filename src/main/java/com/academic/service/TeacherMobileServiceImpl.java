@@ -10,12 +10,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.*;
+
+import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -793,4 +797,299 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         }
         return session;
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    // ATTENDANCE EXCEL DOWNLOAD
+    // ══════════════════════════════════════════════════════════════════
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] generateAttendanceExcel(Long classId, Long sectionId, int month, int year) {
+
+        // ─── 1. Resolve students ───────────────────────────────────────
+        Session session = getActiveSession();
+
+        List<StudentPromotionMapper> promotions = studentPromotionMapperRepository
+                .findByToClassAndToSectionAndAcademicYear(
+                        classId.intValue(), sectionId.intValue(), session.getId());
+
+        List<Integer> studentIntIds = promotions.stream()
+                .map(StudentPromotionMapper::getStudentId)
+                .collect(Collectors.toList());
+
+        List<Student> students = studentIntIds.isEmpty()
+                ? Collections.emptyList()
+                : studentRepository.findByIdInAndStatus(studentIntIds, 1);
+
+        // Sort alphabetically by first name
+        students.sort(Comparator.comparing(s -> (s.getFirstName() + " " + s.getLastName())));
+
+        // ─── 2. Bulk-fetch attendance for the month ──────────────────
+        YearMonth ym = YearMonth.of(year, month);
+        LocalDate startDate = ym.atDay(1);
+        LocalDate endDate   = ym.atEndOfMonth();
+        int daysInMonth     = ym.lengthOfMonth();
+
+        List<Long> studentLongIds = students.stream()
+                .map(s -> Long.valueOf(s.getId()))
+                .collect(Collectors.toList());
+
+        // Map: studentId → (date → status)
+        Map<Long, Map<LocalDate, String>> attendanceMap = new HashMap<>();
+        if (!studentLongIds.isEmpty()) {
+            List<StudentAttendance> records = studentAttendanceRepository
+                    .findByStudentIdInAndAttendanceDateBetween(studentLongIds, startDate, endDate);
+            for (StudentAttendance rec : records) {
+                attendanceMap
+                        .computeIfAbsent(rec.getStudentId(), k -> new HashMap<>())
+                        .put(rec.getAttendanceDate(), rec.getStatus().name());
+            }
+        }
+
+        // ─── 3. Build Excel ─────────────────────────────────────────
+        String className  = getName(classId.intValue());
+        String secName    = getName(sectionId.intValue());
+        String monthLabel = startDate.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH));
+
+        XSSFWorkbook wb  = new XSSFWorkbook();
+        XSSFSheet    sheet = wb.createSheet("Attendance");
+
+        // ── Styles ──────────────────────────────────────────────────
+        XSSFFont titleFont = wb.createFont();
+        titleFont.setBold(true);
+        titleFont.setFontHeightInPoints((short) 14);
+        titleFont.setColor(IndexedColors.DARK_BLUE.getIndex());
+
+        XSSFFont boldFont = wb.createFont();
+        boldFont.setBold(true);
+        boldFont.setFontHeightInPoints((short) 10);
+
+        XSSFFont normalFont = wb.createFont();
+        normalFont.setFontHeightInPoints((short) 9);
+
+        XSSFCellStyle titleStyle = wb.createCellStyle();
+        titleStyle.setFont(titleFont);
+        titleStyle.setAlignment(HorizontalAlignment.CENTER);
+        titleStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        XSSFCellStyle subTitleStyle = wb.createCellStyle();
+        subTitleStyle.setFont(boldFont);
+        subTitleStyle.setAlignment(HorizontalAlignment.CENTER);
+        subTitleStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        subTitleStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        subTitleStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        setBorder(subTitleStyle);
+
+        XSSFCellStyle headerStyle = wb.createCellStyle();
+        headerStyle.setFont(boldFont);
+        headerStyle.setAlignment(HorizontalAlignment.CENTER);
+        headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        headerStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        XSSFFont whiteFont = wb.createFont();
+        whiteFont.setBold(true);
+        whiteFont.setColor(IndexedColors.WHITE.getIndex());
+        whiteFont.setFontHeightInPoints((short) 9);
+        headerStyle.setFont(whiteFont);
+        setBorder(headerStyle);
+
+        XSSFCellStyle dayHeaderStyle = wb.createCellStyle();
+        dayHeaderStyle.setFont(boldFont);
+        dayHeaderStyle.setAlignment(HorizontalAlignment.CENTER);
+        dayHeaderStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        dayHeaderStyle.setFillForegroundColor(IndexedColors.PALE_BLUE.getIndex());
+        dayHeaderStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        setBorder(dayHeaderStyle);
+
+        XSSFCellStyle dayHeaderWeekendStyle = wb.createCellStyle();
+        dayHeaderWeekendStyle.cloneStyleFrom(dayHeaderStyle);
+        dayHeaderWeekendStyle.setFillForegroundColor(IndexedColors.ROSE.getIndex());
+
+        XSSFCellStyle nameStyle = wb.createCellStyle();
+        nameStyle.setFont(normalFont);
+        nameStyle.setAlignment(HorizontalAlignment.LEFT);
+        nameStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        nameStyle.setWrapText(true);
+        setBorder(nameStyle);
+
+        XSSFCellStyle presentStyle = makeDataStyle(wb, IndexedColors.LIGHT_GREEN.getIndex());
+        XSSFCellStyle absentStyle  = makeDataStyle(wb, IndexedColors.ROSE.getIndex());
+        XSSFCellStyle holidayStyle = makeDataStyle(wb, IndexedColors.LIGHT_YELLOW.getIndex());
+        XSSFCellStyle dashStyle    = makeDataStyle(wb, IndexedColors.WHITE.getIndex());
+        XSSFCellStyle summaryStyle = makeDataStyle(wb, IndexedColors.GREY_25_PERCENT.getIndex());
+
+        int totalCols = 7 + daysInMonth; // name + % + P + L + A + H + F + days
+
+        // ── Row 0: Main title ────────────────────────────────────────
+        Row r0 = sheet.createRow(0);
+        r0.setHeightInPoints(22);
+        Cell titleCell = r0.createCell(0);
+        titleCell.setCellValue("Student Attendance Report – " + className + " " + secName + " | " + monthLabel);
+        titleCell.setCellStyle(titleStyle);
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, totalCols - 1));
+
+        // ── Row 1: legend ────────────────────────────────────────────
+        Row r1 = sheet.createRow(1);
+        r1.setHeightInPoints(14);
+        Cell legendCell = r1.createCell(0);
+        legendCell.setCellValue("Present: P    Absent: A    Holiday: H    Late: L    Half Day: F");
+        legendCell.setCellStyle(subTitleStyle);
+        sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, totalCols - 1));
+
+        // ── Row 2: sub-header row (day names) ─────────────────────
+        Row r2 = sheet.createRow(2);
+        r2.setHeightInPoints(28);
+
+        // Fixed header cells: Student/Date | % | P | L | A | H | F
+        String[] fixedHeaders = {"Student / Date", "%", "P", "L", "A", "H", "F"};
+        for (int i = 0; i < fixedHeaders.length; i++) {
+            Cell c = r2.createCell(i);
+            c.setCellValue(fixedHeaders[i]);
+            c.setCellStyle(headerStyle);
+        }
+
+        // ── Row 3: day numbers + day-of-week ─────────────────────
+        Row r3 = sheet.createRow(3);
+        r3.setHeightInPoints(28);
+
+        // Merge Student/Date header across row 2 & 3
+        for (int i = 0; i < 7; i++) {
+            Cell c = r3.createCell(i);
+            c.setCellValue("");
+            c.setCellStyle(headerStyle);
+        }
+        sheet.addMergedRegion(new CellRangeAddress(2, 3, 0, 0));
+
+        String[] dayAbbr = {"", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
+        for (int d = 1; d <= daysInMonth; d++) {
+            LocalDate date = ym.atDay(d);
+            int dow = date.getDayOfWeek().getValue(); // 1=Mon…7=Sun
+            boolean weekend = dow == 7; // Sunday
+
+            // Day number in row 2
+            Cell c2 = r2.createCell(6 + d);
+            c2.setCellValue(String.format("%02d", d));
+            c2.setCellStyle(weekend ? dayHeaderWeekendStyle : dayHeaderStyle);
+
+            // Day name in row 3
+            Cell c3 = r3.createCell(6 + d);
+            c3.setCellValue(dayAbbr[dow]);
+            c3.setCellStyle(weekend ? dayHeaderWeekendStyle : dayHeaderStyle);
+        }
+
+        // ── Data rows ────────────────────────────────────────────
+        int rowIdx = 4;
+        for (int si = 0; si < students.size(); si++) {
+            Student student = students.get(si);
+            Long studentId  = Long.valueOf(student.getId());
+            Map<LocalDate, String> sAttendance = attendanceMap.getOrDefault(studentId, Collections.emptyMap());
+
+            int presentCount = 0, absentCount = 0, holidayCount = 0;
+            for (Map.Entry<LocalDate, String> e : sAttendance.entrySet()) {
+                String status = e.getValue();
+                if ("PRESENT".equals(status))  presentCount++;
+                else if ("ABSENT".equals(status)) absentCount++;
+                else if ("HOLIDAY".equals(status)) holidayCount++;
+            }
+            int markedDays = presentCount + absentCount + holidayCount;
+            double pct = markedDays > 0 ? (presentCount * 100.0 / markedDays) : 0.0;
+
+            Row row = sheet.createRow(rowIdx++);
+            row.setHeightInPoints(30);
+
+            // Student name
+            String fullName = student.getFirstName() + " " + student.getLastName();
+            Cell nameCell = row.createCell(0);
+            nameCell.setCellValue(fullName);
+            nameCell.setCellStyle(nameStyle);
+
+            // Summary cells: % | P | L | A | H | F
+            Object[] summaryVals = {
+                    String.format("%.0f%%", pct),
+                    presentCount,
+                    0,           // Late – not tracked yet
+                    absentCount,
+                    holidayCount,
+                    0            // Half-day – not tracked yet
+            };
+            for (int i = 0; i < summaryVals.length; i++) {
+                Cell sc = row.createCell(1 + i);
+                Object v = summaryVals[i];
+                if (v instanceof Integer) sc.setCellValue((Integer) v);
+                else sc.setCellValue(v.toString());
+                sc.setCellStyle(summaryStyle);
+            }
+
+            // Daily cells
+            for (int d = 1; d <= daysInMonth; d++) {
+                LocalDate date = ym.atDay(d);
+                String status  = sAttendance.get(date);
+                Cell dc = row.createCell(6 + d);
+
+                if (status == null) {
+                    dc.setCellValue("-");
+                    dc.setCellStyle(dashStyle);
+                } else {
+                    switch (status) {
+                        case "PRESENT":
+                            dc.setCellValue("P");
+                            dc.setCellStyle(presentStyle);
+                            break;
+                        case "ABSENT":
+                            dc.setCellValue("A");
+                            dc.setCellStyle(absentStyle);
+                            break;
+                        case "HOLIDAY":
+                            dc.setCellValue("H");
+                            dc.setCellStyle(holidayStyle);
+                            break;
+                        default:
+                            dc.setCellValue(status.substring(0, 1));
+                            dc.setCellStyle(dashStyle);
+                    }
+                }
+            }
+        }
+
+        // ── Column widths ────────────────────────────────────────
+        sheet.setColumnWidth(0, 6000);   // Student name
+        for (int i = 1; i <= 6; i++) sheet.setColumnWidth(i, 1400);
+        for (int d = 1; d <= daysInMonth; d++) sheet.setColumnWidth(6 + d, 1200);
+
+        // ── Freeze header rows ───────────────────────────────────
+        sheet.createFreezePane(1, 4);
+
+        // ─── 4. Write to bytes ──────────────────────────────────
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            wb.write(out);
+            wb.close();
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate attendance Excel", e);
+        }
+    }
+
+    /** Thin border on all four sides */
+    private static void setBorder(CellStyle style) {
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+    }
+
+    /** Create a centered data cell style with the given background colour */
+    private static XSSFCellStyle makeDataStyle(XSSFWorkbook wb, short bgColor) {
+        XSSFFont font = wb.createFont();
+        font.setFontHeightInPoints((short) 9);
+        font.setBold(true);
+
+        XSSFCellStyle style = wb.createCellStyle();
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setFillForegroundColor(bgColor);
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        setBorder(style);
+        return style;
+    }
 }
+
