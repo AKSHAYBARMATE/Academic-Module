@@ -47,43 +47,97 @@ public class TimeTableServiceImpl implements TimeTableService {
     // ---------------------------------------------------------------------------------------------------
     @Override
     @Transactional
-    public TimeTableResponse create(TimeTableRequest request) {
+    public StandardResponse<TimeTableResponse> create(TimeTableRequest request) {
+
         log.info("[{}][{}] Creating timetable: {}",
-                LogContext.getRequestId(), LogContext.getLogId(), request.getTimetableName());
+                LogContext.getRequestId(),
+                LogContext.getLogId(),
+                request.getTimetableName());
 
-        // Check for duplicate name (unique for name + class + section)
-        boolean exists = timeTableRepository.existsByTimetableNameAndClassIdAndSectionIdAndIsDeletedFalse(
-                request.getTimetableName(), request.getClassId(), request.getSectionId());
+        try {
 
-        if (exists) {
-            throw new CustomException(
-                    "Timetable with the same name already exists",
-                    "DUPLICATE_RESOURCE",
-                    "Timetable name: " + request.getTimetableName()
+            // Check duplicate timetable name for the same class & section
+            boolean exists = timeTableRepository
+                    .existsByTimetableNameAndClassIdAndSectionIdAndIsDeletedFalse(
+                            request.getTimetableName(),
+                            request.getClassId(),
+                            request.getSectionId());
+
+            if (exists) {
+                return StandardResponse.error(
+                        "Timetable with the same name already exists.",
+                        "DUPLICATE_TIMETABLE",
+                        "timetableName",
+                        "Timetable '" + request.getTimetableName()
+                                + "' already exists for the selected class and section."
+                );
+            }
+
+            // Check if timetable already exists for the class & section
+            boolean existsByClass = timeTableRepository
+                    .existsByClassIdAndSectionIdAndIsDeletedFalse(
+                            request.getClassId(),
+                            request.getSectionId());
+
+            if (existsByClass) {
+                return StandardResponse.error(
+                        "Timetable already exists for the selected class and section.",
+                        "TIMETABLE_ALREADY_CREATED",
+                        "classId",
+                        "Only one timetable is allowed for a class and section."
+                );
+            }
+
+            // Create entity
+            TimeTable entity = TimeTable.builder()
+                    .timetableName(request.getTimetableName())
+                    .classId(request.getClassId())
+                    .sectionId(request.getSectionId())
+                    .daysCoveredId(request.getDaysCoveredId())
+                    .isDeleted(false)
+                    .build();
+
+            // Map slots
+            entity.setSlots(
+                    timeTableMapper.toEntityList(
+                            request.getSlots(),
+                            entity
+                    )
+            );
+
+            // Save
+            TimeTable saved = timeTableRepository.save(entity);
+
+            // Common master map
+            Map<Integer, String> commonMasterMap = commonMasterRepository.findAll()
+                    .stream()
+                    .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
+                    .collect(Collectors.toMap(
+                            CommonMaster::getId,
+                            CommonMaster::getCommonMasterKey
+                    ));
+
+            TimeTableResponse response =
+                    timeTableMapper.toResponse(saved, commonMasterMap);
+
+            return StandardResponse.success(
+                    response,
+                    "Timetable created successfully."
+            );
+
+        } catch (Exception ex) {
+
+            log.error("[{}][{}] Error while creating timetable",
+                    LogContext.getRequestId(),
+                    LogContext.getLogId(),
+                    ex);
+
+            return StandardResponse.error(
+                    "Failed to create timetable.",
+                    "INTERNAL_SERVER_ERROR",
+                    ex.getMessage()
             );
         }
-
-        // Convert request → entity
-        TimeTable entity = TimeTable.builder()
-                .timetableName(request.getTimetableName())
-                .classId(request.getClassId())
-                .sectionId(request.getSectionId())
-                .daysCoveredId(request.getDaysCoveredId())
-                .isDeleted(false)
-                .build();
-
-        // Convert slot DTOs → slot entities
-        entity.setSlots(timeTableMapper.toEntityList(request.getSlots(), entity));
-
-        // Save parent + slots
-        TimeTable saved = timeTableRepository.save(entity);
-
-        // Fetch common master map
-        Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
-                .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
-                .collect(Collectors.toMap(CommonMaster::getId, CommonMaster::getCommonMasterKey));
-
-        return timeTableMapper.toResponse(saved, commonMasterMap);
     }
 
     // ---------------------------------------------------------------------------------------------------

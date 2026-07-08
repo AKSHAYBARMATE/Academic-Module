@@ -41,4 +41,6 @@ public interface TimeTableRepository extends JpaRepository<TimeTable, Long> {
 
         boolean existsByTimetableNameAndClassIdAndSectionIdAndIsDeletedFalse(@NotBlank String timetableName,
                         @NotNull Long classId, Long sectionId);
+
+        boolean existsByClassIdAndSectionIdAndIsDeletedFalse(Long classId, Long sectionId);
 }

@@ -174,7 +174,7 @@ public class StandardResponse<T> {
      * @param errorDetails Additional error details
      * @return StandardResponse with success = false
      */
-    public static StandardResponse<Void> error(String message, String errorCode, String errorDetails) {
+    public static StandardResponse error(String message, String errorCode, String errorDetails) {
         return StandardResponse.<Void>builder()
                 .success(false)
                 .message(message)

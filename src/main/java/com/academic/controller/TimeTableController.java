@@ -30,8 +30,8 @@ public class TimeTableController {
     @PostMapping("/createTimetable")
     public ResponseEntity<StandardResponse<TimeTableResponse>> create(@Validated @RequestBody TimeTableRequest request) {
         log.info("[{}][{}] API - Create Timetable: {}", LogContext.getRequestId(), LogContext.getLogId(), request.getTimetableName());
-        TimeTableResponse response = service.create(request);
-        return ResponseEntity.ok(StandardResponse.success(response, "Timetable created successfully"));
+        StandardResponse<TimeTableResponse> response = service.create(request);
+        return ResponseEntity.ok(response);
     }
 
     /**

@@ -15,7 +15,7 @@ import java.util.Map;
 
 public interface TimeTableService {
 
-    TimeTableResponse create(TimeTableRequest request);
+    StandardResponse<TimeTableResponse> create(TimeTableRequest request);
 
     TimeTableResponse get(Long id);
 
