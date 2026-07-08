@@ -17,17 +17,21 @@ public interface TimeSlotSubjectMapperRepository extends JpaRepository<TimeSlotS
      * day + time window across all non-deleted timetables.
      * Used during timetable creation / update to prevent double-booking a teacher.
      */
-    @Query("SELECT s FROM TimeSlotSubjectMapper s " +
-           "JOIN s.timeTable t " +
-           "WHERE t.isDeleted = false " +
-           "  AND s.teacherId = :teacherId " +
-           "  AND s.day       = :day " +
-           "  AND s.startTime = :startTime " +
-           "  AND s.endTime   = :endTime")
+    @Query("""
+    SELECT s
+    FROM TimeSlotSubjectMapper s
+    JOIN s.timeTable t
+    WHERE t.isDeleted = false
+      AND s.teacherId = :teacherId
+      AND s.day = :day
+      AND s.startTime < :endTime
+      AND s.endTime > :startTime
+    """)
     List<TimeSlotSubjectMapper> findConflictingSlots(
-            @Param("teacherId")  Long    teacherId,
-            @Param("day")        Integer day,
-            @Param("startTime")  String  startTime,
-            @Param("endTime")    String  endTime
+            @Param("teacherId") Long teacherId,
+            @Param("day") Integer day,
+            @Param("startTime") String startTime,
+            @Param("endTime") String endTime
     );
+
 }
