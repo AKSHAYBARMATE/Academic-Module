@@ -106,14 +106,39 @@ public class TimeTableServiceImpl implements TimeTableService {
                                 cm -> cm.getData() != null ? cm.getData() : cm.getCommonMasterKey()
                         ));
 
+                String[] dayNames = {"", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+
                 for (TimeSlotDTO slot : request.getSlots()) {
 
-                    // Only validate slots where a teacher is explicitly assigned
-                    if (slot.getTeacherId() == null
-                            || slot.getDay() == null
-                            || slot.getStartTime() == null
-                            || slot.getEndTime() == null) {
+                    // Skip incomplete slot definitions (no time window) — nothing to validate
+                    if (slot.getStartTime() == null || slot.getEndTime() == null || slot.getDay() == null) {
                         continue;
+                    }
+
+                    // Teacher is mandatory for every fully-defined slot
+                    if (slot.getTeacherId() == null) {
+                        String dayLabel = (slot.getDay() >= 1 && slot.getDay() <= 7)
+                                ? dayNames[slot.getDay()]
+                                : "Day " + slot.getDay();
+
+                        String slotSubjectName = (slot.getSubjectName() != null && !slot.getSubjectName().isBlank())
+                                ? " for subject " + slot.getSubjectName()
+                                : "";
+
+                        String noTeacherMsg = String.format(
+                                "Please select a teacher for the slot %s - %s (%s)%s before saving.",
+                                slot.getStartTime(),
+                                slot.getEndTime(),
+                                dayLabel,
+                                slotSubjectName
+                        );
+
+                        return StandardResponse.error(
+                                noTeacherMsg,
+                                "TEACHER_NOT_ASSIGNED",
+                                "slots",
+                                noTeacherMsg
+                        );
                     }
 
                     List<TimeSlotSubjectMapper> conflicts = mapperRepository.findConflictingSlots(
