@@ -1,12 +1,14 @@
 package com.academic.service;
 
 import com.academic.entity.CommonMaster;
+import com.academic.entity.Subject;
 import com.academic.entity.TimeSlotSubjectMapper;
 import com.academic.entity.TimeTable;
 import com.academic.exception.CustomException;
 import com.academic.exception.ResourceNotFoundException;
 import com.academic.mapper.TimeTableMapper;
 import com.academic.repository.CommonMasterRepository;
+import com.academic.repository.SubjectRepository;
 import com.academic.repository.TimeSlotSubjectMapperRepository;
 import com.academic.repository.TimeTableRepository;
 import com.academic.request.TimeTableRequest;
@@ -37,6 +39,7 @@ public class TimeTableServiceImpl implements TimeTableService {
     private final TimeTableRepository timeTableRepository;
     private final TimeSlotSubjectMapperRepository mapperRepository;
     private final CommonMasterRepository commonMasterRepository;
+    private final SubjectRepository subjectRepository;
 
     @Autowired
     private TimeTableMapper timeTableMapper;
@@ -224,50 +227,55 @@ public class TimeTableServiceImpl implements TimeTableService {
         String className = entity.getClassId() != null ? commonMasterMap.get(entity.getClassId().intValue()) : "N/A";
         String sectionName = entity.getSectionId() != null ? commonMasterMap.get(entity.getSectionId().intValue()) : "N/A";
         String daysCovered = entity.getDaysCoveredId() != null ? commonMasterMap.get(entity.getDaysCoveredId().intValue()) : "N/A";
-        
+
         List<TimeSlotSubjectMapper> slots = entity.getSlots();
-        
+
         int maxDay = 6;
         for (TimeSlotSubjectMapper slot : slots) {
             if (slot.getDay() != null && slot.getDay() > maxDay) {
                 maxDay = slot.getDay();
             }
         }
-        
+
         String[] dayNames = {"", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
-        
+
         StringBuilder dayHeaders = new StringBuilder();
         for (int d = 1; d <= maxDay; d++) {
             dayHeaders.append("<th>").append(dayNames[d]).append("</th>");
         }
-        
+
         // Helper inner class for Row grouping and sorting
         class TimeSlotRow implements Comparable<TimeSlotRow> {
             private final String startTime;
             private final String endTime;
-            
+
             public TimeSlotRow(String startTime, String endTime) {
                 this.startTime = startTime;
                 this.endTime = endTime;
             }
-            
-            public String getStartTime() { return startTime; }
-            public String getEndTime() { return endTime; }
-            
+
+            public String getStartTime() {
+                return startTime;
+            }
+
+            public String getEndTime() {
+                return endTime;
+            }
+
             @Override
             public boolean equals(Object o) {
                 if (this == o) return true;
                 if (o == null || getClass() != o.getClass()) return false;
                 TimeSlotRow that = (TimeSlotRow) o;
                 return Objects.equals(parseTime(this.startTime), parseTime(that.startTime)) &&
-                       Objects.equals(parseTime(this.endTime), parseTime(that.endTime));
+                        Objects.equals(parseTime(this.endTime), parseTime(that.endTime));
             }
-            
+
             @Override
             public int hashCode() {
                 return Objects.hash(parseTime(this.startTime), parseTime(this.endTime));
             }
-            
+
             @Override
             public int compareTo(TimeSlotRow o) {
                 try {
@@ -275,7 +283,7 @@ public class TimeTableServiceImpl implements TimeTableService {
                     LocalTime otherStart = parseTime(o.startTime);
                     int cmp = thisStart.compareTo(otherStart);
                     if (cmp != 0) return cmp;
-                    
+
                     LocalTime thisEnd = parseTime(this.endTime);
                     LocalTime otherEnd = parseTime(o.endTime);
                     return thisEnd.compareTo(otherEnd);
@@ -283,7 +291,7 @@ public class TimeTableServiceImpl implements TimeTableService {
                     return this.startTime.compareTo(o.startTime);
                 }
             }
-            
+
             private LocalTime parseTime(String timeStr) {
                 if (timeStr == null || timeStr.trim().isEmpty()) return LocalTime.MIDNIGHT;
                 timeStr = timeStr.trim().toUpperCase().replaceAll("\\s+", " ");
@@ -291,7 +299,8 @@ public class TimeTableServiceImpl implements TimeTableService {
                 for (String format : formats) {
                     try {
                         return LocalTime.parse(timeStr, DateTimeFormatter.ofPattern(format, Locale.ENGLISH));
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 }
                 try {
                     return LocalTime.parse(timeStr);
@@ -300,7 +309,7 @@ public class TimeTableServiceImpl implements TimeTableService {
                 }
             }
         }
-        
+
         Map<TimeSlotRow, Map<Integer, TimeSlotSubjectMapper>> grid = new TreeMap<>();
         for (TimeSlotSubjectMapper slot : slots) {
             if (slot.getStartTime() == null || slot.getEndTime() == null || slot.getDay() == null) {
@@ -313,27 +322,26 @@ public class TimeTableServiceImpl implements TimeTableService {
                     .orElse(key);
             grid.computeIfAbsent(existingKey, k -> new HashMap<>()).put(slot.getDay(), slot);
         }
-        
+
         StringBuilder gridRows = new StringBuilder();
         for (TimeSlotRow r : grid.keySet()) {
             gridRows.append("<tr>");
-            
+
             // Format time slot display nicely (e.g. 09:00 AM - 10:00 AM)
             String formattedTime = formatTimeSlotStr(r.getStartTime(), r.getEndTime());
             gridRows.append("<td class=\"time-cell\">").append(formattedTime).append("</td>");
-            
+
             Map<Integer, TimeSlotSubjectMapper> dayMap = grid.get(r);
             for (int d = 1; d <= maxDay; d++) {
                 TimeSlotSubjectMapper slot = dayMap.get(d);
                 gridRows.append("<td>");
                 if (slot != null) {
-                    String subjectName = commonMasterMap.get(slot.getSubjectId().intValue());
-                    if (subjectName == null) {
-                        subjectName = "Unknown";
-                    }
+                    String subjectName = subjectRepository.findById(slot.getSubjectId())
+                            .map(Subject::getSubjectName)
+                            .orElse("Unknown");
                     String teacher = slot.getTeacherName() != null ? slot.getTeacherName() : "";
                     String room = slot.getRoom() != null ? slot.getRoom() : "";
-                    
+
                     gridRows.append("<div class=\"subject-name\">").append(escapeHtml(subjectName)).append("</div>");
                     if (!teacher.isEmpty()) {
                         gridRows.append("<div class=\"teacher-name\">").append(escapeHtml(teacher)).append("</div>");
@@ -346,17 +354,17 @@ public class TimeTableServiceImpl implements TimeTableService {
                 }
                 gridRows.append("</td>");
             }
-            
+
             gridRows.append("</tr>");
         }
-        
+
         String sessionText;
         try {
             sessionText = StudentMobileServiceImpl.getCurrentSession();
         } catch (Exception e) {
             sessionText = "2026-27";
         }
-        
+
         String html = Template.TIMETABLE_PDF_HTML;
         html = html.replace("${SESSION}", sessionText)
                 .replace("${TIMETABLE_NAME}", escapeHtml(entity.getTimetableName()))
@@ -365,7 +373,7 @@ public class TimeTableServiceImpl implements TimeTableService {
                 .replace("${PRINT_DATE}", LocalDate.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy")))
                 .replace("${DAY_HEADERS}", dayHeaders.toString())
                 .replace("${GRID_ROWS}", gridRows.toString());
-                
+
         try {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             PdfRendererBuilder builder = new PdfRendererBuilder();
@@ -378,11 +386,11 @@ public class TimeTableServiceImpl implements TimeTableService {
             throw new RuntimeException("PDF generation failed: " + e.getMessage(), e);
         }
     }
-    
+
     private String formatTimeSlotStr(String start, String end) {
         return formatSingleTime(start) + " - " + formatSingleTime(end);
     }
-    
+
     private String formatSingleTime(String timeStr) {
         if (timeStr == null || timeStr.trim().isEmpty()) return "";
         timeStr = timeStr.trim().toUpperCase().replaceAll("\\s+", " ");
@@ -392,19 +400,21 @@ public class TimeTableServiceImpl implements TimeTableService {
             try {
                 lt = LocalTime.parse(timeStr, DateTimeFormatter.ofPattern(format, Locale.ENGLISH));
                 break;
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         if (lt == null) {
             try {
                 lt = LocalTime.parse(timeStr);
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         if (lt != null) {
             return lt.format(DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH));
         }
         return timeStr;
     }
-    
+
     private String escapeHtml(String text) {
         if (text == null) return "";
         return text.replace("&", "&amp;")
