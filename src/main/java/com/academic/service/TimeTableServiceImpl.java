@@ -11,6 +11,7 @@ import com.academic.repository.CommonMasterRepository;
 import com.academic.repository.SubjectRepository;
 import com.academic.repository.TimeSlotSubjectMapperRepository;
 import com.academic.repository.TimeTableRepository;
+import com.academic.request.TimeSlotDTO;
 import com.academic.request.TimeTableRequest;
 import com.academic.response.LogContext;
 import com.academic.response.StandardResponse;
@@ -86,6 +87,87 @@ public class TimeTableServiceImpl implements TimeTableService {
                         "classId",
                         "Only one timetable is allowed for a class and section."
                 );
+            }
+
+            // ---------------------------------------------------------------
+            // Teacher conflict validation:
+            // A teacher must NOT be assigned to two timetable slots that share
+            // the same day AND time window (startTime + endTime), even across
+            // different timetables / classes / sections.
+            // ---------------------------------------------------------------
+            if (request.getSlots() != null) {
+
+                // Build a lazy map of commonMaster for the error message
+                Map<Integer, String> cmMap = commonMasterRepository.findAll()
+                        .stream()
+                        .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
+                        .collect(Collectors.toMap(
+                                CommonMaster::getId,
+                                cm -> cm.getData() != null ? cm.getData() : cm.getCommonMasterKey()
+                        ));
+
+                for (TimeSlotDTO slot : request.getSlots()) {
+
+                    // Only validate slots where a teacher is explicitly assigned
+                    if (slot.getTeacherId() == null
+                            || slot.getDay() == null
+                            || slot.getStartTime() == null
+                            || slot.getEndTime() == null) {
+                        continue;
+                    }
+
+                    List<TimeSlotSubjectMapper> conflicts = mapperRepository.findConflictingSlots(
+                            slot.getTeacherId(),
+                            slot.getDay(),
+                            slot.getStartTime(),
+                            slot.getEndTime()
+                    );
+
+                    if (!conflicts.isEmpty()) {
+
+                        TimeSlotSubjectMapper conflict = conflicts.get(0);
+
+                        // Resolve subject name for the conflicting slot
+                        String conflictSubject = subjectRepository
+                                .findById(conflict.getSubjectId())
+                                .map(s -> s.getSubjectName())
+                                .orElse("Unknown Subject");
+
+                        // Resolve class & section names for the conflicting timetable
+                        TimeTable conflictTT = conflict.getTimeTable();
+                        String conflictClass = conflictTT.getClassId() != null
+                                ? cmMap.getOrDefault(conflictTT.getClassId().intValue(), "Unknown Class")
+                                : "Unknown Class";
+                        String conflictSection = conflictTT.getSectionId() != null
+                                ? cmMap.getOrDefault(conflictTT.getSectionId().intValue(), "")
+                                : "";
+
+                        String sectionPart = conflictSection.isEmpty()
+                                ? ""
+                                : " section " + conflictSection;
+
+                        String teacherLabel = slot.getTeacherName() != null
+                                ? slot.getTeacherName()
+                                : "Teacher (id=" + slot.getTeacherId() + ")";
+
+                        String errorMsg = String.format(
+                                "%s is already assigned in the time slot of %s - %s for subject %s in class %s%s.",
+                                teacherLabel,
+                                conflict.getStartTime(),
+                                conflict.getEndTime(),
+                                conflictSubject,
+                                conflictClass,
+                                sectionPart
+                        );
+
+                        return StandardResponse.error(
+                                errorMsg,
+                                "TEACHER_SLOT_CONFLICT",
+                                "slots",
+                                errorMsg
+                        );
+                    }
+                }
             }
 
             // Create entity
