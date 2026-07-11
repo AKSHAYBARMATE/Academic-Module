@@ -340,7 +340,7 @@ public class TimeTableServiceImpl implements TimeTableService {
                 page, size, classId, section, search);
 
         Pageable pageable = PageRequest.of(
-                page != null && page > 0 ? page - 1 : 0,
+                page != null && page > 0 ? page  : 0,
                 size != null && size > 0 ? size : 10,
                 Sort.by(Sort.Direction.ASC, "id")
         );
