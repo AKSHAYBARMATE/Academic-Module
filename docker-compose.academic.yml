@@ -6,7 +6,7 @@ services:
     image: academic:latest
     container_name: academic
     ports:
-      - "8087:8087"
+      - "8087:8088"
     networks:
       - updated_orgadmin_rmscadminnetwork
       - dokploy-network
