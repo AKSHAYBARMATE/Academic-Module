@@ -9,6 +9,7 @@ services:
       - "8087:8087"
     networks:
       - updated_orgadmin_rmscadminnetwork
+      - dokploy-network
     environment:
       # Eureka Configuration
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://serviceregistry:8761/eureka
@@ -22,9 +23,9 @@ services:
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,eureka,shutdown
 
       # ✅ External MySQL DB Configuration
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/schoolerp?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_URL: jdbc:mysql://smartedu-erp-school-erp-0gieai:3306/schoolerp?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_DATASOURCE_PASSWORD: Helixion@2026
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
 
     restart: on-failure
@@ -32,3 +33,6 @@ services:
 networks:
   updated_orgadmin_rmscadminnetwork:
     external: true
+  dokploy-network:
+    external: true
+
