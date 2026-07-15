@@ -26,7 +26,6 @@ public class ProxyAssignmentRequest {
     @NotNull(message = "Proxy active date is required")
     private LocalDate proxyDate;
 
-    @NotNull(message = "Original teacher ID is required")
     private Long originalTeacherId;
 
     private String originalTeacherName;
