@@ -43,9 +43,6 @@ public class ProxyAssignment {
     private LocalDate proxyDate; // proxy active date
 
     @Column(nullable = false)
-    private Long originalTeacherId;
-
-    @Column(nullable = false)
     private String originalTeacherName;
 
     // subject context

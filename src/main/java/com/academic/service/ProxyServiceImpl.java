@@ -226,14 +226,9 @@ public class ProxyServiceImpl implements ProxyService {
                         "Duplicate assignment for slot " + request.getSlotId() + " on date " + request.getProxyDate());
             }
 
-            // 5. Resolve original teacher name
+            // 5. Resolve original teacher name & ID
+
             String originalTeacherName = request.getOriginalTeacherName();
-            if (originalTeacherName == null || originalTeacherName.isBlank()) {
-                Staff originalStaff = staffRepository.findById(request.getOriginalTeacherId())
-                        .orElseThrow(() -> new ResourceNotFoundException(
-                                "Original staff not found with ID: " + request.getOriginalTeacherId()));
-                originalTeacherName = originalStaff.getFirstName() + " " + originalStaff.getLastName();
-            }
 
             // 6. Resolve subject/class/section contexts
             Long subjectId = request.getSubjectId() != null ? request.getSubjectId() : slot.getSubjectId();
@@ -257,7 +252,6 @@ public class ProxyServiceImpl implements ProxyService {
                     .endTime(slot.getEndTime())
                     .dayOfWeek(request.getDayOfWeek())
                     .proxyDate(request.getProxyDate())
-                    .originalTeacherId(request.getOriginalTeacherId())
                     .originalTeacherName(originalTeacherName)
                     .subjectId(subjectId)
                     .subjectName(subjectName)
@@ -472,7 +466,6 @@ public class ProxyServiceImpl implements ProxyService {
                 .dayOfWeek(entity.getDayOfWeek())
                 .dayName(dayName)
                 .proxyDate(entity.getProxyDate())
-                .originalTeacherId(entity.getOriginalTeacherId())
                 .originalTeacherName(entity.getOriginalTeacherName())
                 .subjectId(entity.getSubjectId())
                 .subjectName(entity.getSubjectName())
