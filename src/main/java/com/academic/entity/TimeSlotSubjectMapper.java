@@ -37,7 +37,7 @@ public class TimeSlotSubjectMapper {
     @Column(nullable = false)
     private Long subjectId; // from common_master (commonMasterKey="SUBJECT")
 
-    @Column(nullable = false)
+    @Column
     private String teacherName;
 
     @Column

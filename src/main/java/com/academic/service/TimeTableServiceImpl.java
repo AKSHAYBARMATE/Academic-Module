@@ -115,30 +115,9 @@ public class TimeTableServiceImpl implements TimeTableService {
                         continue;
                     }
 
-                    // Teacher is mandatory for every fully-defined slot
+                    // Teacher is optional - skip conflict checks if not assigned
                     if (slot.getTeacherId() == null) {
-                        String dayLabel = (slot.getDay() >= 1 && slot.getDay() <= 7)
-                                ? dayNames[slot.getDay()]
-                                : "Day " + slot.getDay();
-
-                        String slotSubjectName = (slot.getSubjectName() != null && !slot.getSubjectName().isBlank())
-                                ? " for subject " + slot.getSubjectName()
-                                : "";
-
-                        String noTeacherMsg = String.format(
-                                "Please select a teacher for the slot %s - %s (%s)%s before saving.",
-                                slot.getStartTime(),
-                                slot.getEndTime(),
-                                dayLabel,
-                                slotSubjectName
-                        );
-
-                        return StandardResponse.error(
-                                noTeacherMsg,
-                                "TEACHER_NOT_ASSIGNED",
-                                "slots",
-                                noTeacherMsg
-                        );
+                        continue;
                     }
 
                     List<TimeSlotSubjectMapper> conflicts = mapperRepository.findConflictingSlots(
