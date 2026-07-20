@@ -258,6 +258,7 @@ public class ProxyServiceImpl implements ProxyService {
                     .classId(classId)
                     .sectionId(sectionId)
                     .remarks(request.getRemarks())
+                    .isClassTeacher(request.getIsClassTeacher())
                     .status("ACTIVE")
                     .isDeleted(false)
                     .build();

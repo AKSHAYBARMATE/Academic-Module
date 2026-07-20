@@ -60,6 +60,9 @@ public class ProxyAssignment {
     private String status = "ACTIVE"; // e.g., ACTIVE, INACTIVE
 
     @Builder.Default
+    private Boolean isClassTeacher = false;
+
+    @Builder.Default
     private Boolean isDeleted = false;
 
     @CreationTimestamp

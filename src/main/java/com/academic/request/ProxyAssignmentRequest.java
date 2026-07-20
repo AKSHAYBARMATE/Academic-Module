@@ -37,4 +37,5 @@ public class ProxyAssignmentRequest {
     private Long sectionId;
 
     private String remarks; // assignment remarks/notes
+    private Boolean isClassTeacher; // check if against class teacher
 }
