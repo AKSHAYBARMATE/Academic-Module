@@ -39,5 +39,5 @@ public interface ProxyAssignmentRepository extends JpaRepository<ProxyAssignment
     List<ProxyAssignment> findByTemplateSubstituteTeacherIdAndIsDeletedFalse(Long teacherId);
 
 
-    ProxyAssignment findByProxyDateAndTemplateSubstituteTeacherIdAndIsClassTeacher(Date date, Long staffId, boolean b);
+    ProxyAssignment findByProxyDateAndTemplateSubstituteTeacherIdAndIsClassTeacher(LocalDate date, Long staffId, boolean b);
 }
