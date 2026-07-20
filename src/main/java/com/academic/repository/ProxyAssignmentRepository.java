@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,4 +37,7 @@ public interface ProxyAssignmentRepository extends JpaRepository<ProxyAssignment
             Pageable pageable);
             
     List<ProxyAssignment> findByTemplateSubstituteTeacherIdAndIsDeletedFalse(Long teacherId);
+
+
+    ProxyAssignment findByProxyDateAndTemplateSubstituteTeacherIdAndIsClassTeacher(Date date, Long staffId, boolean b);
 }

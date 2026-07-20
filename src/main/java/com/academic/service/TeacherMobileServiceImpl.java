@@ -33,6 +33,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
     private final StudentAttendanceRepository studentAttendanceRepository;
     private final AcademicCalendarEventRepository eventRepository;
     private final ClassSectionRepository classSectionRepository;
+    private final ProxyAssignmentRepository proxyAssignmentRepository;
     private final CommonMasterRepository commonMasterRepository;
     private final StaffPunchLogRepository staffPunchLogRepository;
     private final SessionRepository sessionRepository;
@@ -224,22 +225,25 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
             if (staffId == null) {
                 return StandardResponse.error("Staff ID not found", "ID_MISSING", null);
             }
-
             // 1. Fetch the record from the teacherAssignment table first to get the class &
             // section of teacher
             ClassSection assignment = classSectionRepository
-                    .findByClassTeacherIdAndIsDeletedFalse(staffId)
-                    .orElseThrow(() -> new RuntimeException(
-                            "Teacher assignment not found for staff ID: " + staffId));
+                    .findByClassTeacherIdAndIsDeletedFalse(staffId).get();
+            ProxyAssignment proxyAssignment = proxyAssignmentRepository.findByProxyDateAndTemplateSubstituteTeacherIdAndIsClassTeacher(new Date(), staffId, true);
 
-            if (assignment.getClassId() == null || assignment.getSection() == null) {
-                return StandardResponse.error(
-                        "Teacher is not assigned to any specific class and section for attendance",
-                        "ASSIGNMENT_INCOMPLETE", null);
+            if (proxyAssignment != null) {
+                targetClassId = proxyAssignment.getClassId();
+                targetSectionId = proxyAssignment.getSectionId();
+            } else {
+                if (assignment.getClassId() == null || assignment.getSection() == null) {
+                    return StandardResponse.error(
+                            "Teacher is not assigned to any specific class and section for attendance",
+                            "ASSIGNMENT_INCOMPLETE", null);
+                }
+                targetClassId = assignment.getClassId().longValue();
+                targetSectionId = assignment.getSection().longValue();
             }
 
-            targetClassId = assignment.getClassId().longValue();
-            targetSectionId = assignment.getSection().longValue();
         }
 
         // 2. Fetch students for that section for that day
@@ -247,7 +251,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         Session session = sessionRepository.findBySession(sessionText);
         if (session == null) {
             session = sessionRepository.findByIsActiveTrue().orElseThrow(() -> new RuntimeException("Session " + sessionText
-                            + " not found and no active session fallback"));
+                    + " not found and no active session fallback"));
         }
 
         List<StudentPromotionMapper> activePromotions = studentPromotionMapperRepository
@@ -341,7 +345,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         // ── 2. Bulk-fetch all attendance for the month ─────────────────────────────
         java.time.YearMonth yearMonth = java.time.YearMonth.of(year, month);
         LocalDate startDate = yearMonth.atDay(1);
-        LocalDate endDate   = yearMonth.atEndOfMonth();
+        LocalDate endDate = yearMonth.atEndOfMonth();
 
         List<StudentAttendance> monthAttendances = studentAttendanceRepository
                 .findByStudentIdInAndAttendanceDateBetween(studentLongIds, startDate, endDate);
@@ -359,11 +363,11 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         List<MonthlyAttendanceCalendarResponse.DailyRecord> dailyRecords = new ArrayList<>();
 
         long monthTotalPresent = 0;
-        long monthTotalAbsent  = 0;
-        int  workingDays       = 0;
+        long monthTotalAbsent = 0;
+        int workingDays = 0;
 
-        java.time.format.DateTimeFormatter dayFmt  = java.time.format.DateTimeFormatter.ofPattern("EEE").withLocale(java.util.Locale.ENGLISH);
-        java.time.format.DateTimeFormatter dateFmt  = java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+        java.time.format.DateTimeFormatter dayFmt = java.time.format.DateTimeFormatter.ofPattern("EEE").withLocale(java.util.Locale.ENGLISH);
+        java.time.format.DateTimeFormatter dateFmt = java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 
         for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
             LocalDate date = yearMonth.atDay(day);
@@ -372,7 +376,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
             // Build present / absent student lists for this day
             List<MonthlyAttendanceCalendarResponse.StudentRecord> presentList = new ArrayList<>();
-            List<MonthlyAttendanceCalendarResponse.StudentRecord> absentList  = new ArrayList<>();
+            List<MonthlyAttendanceCalendarResponse.StudentRecord> absentList = new ArrayList<>();
 
             for (StudentAttendance att : dayRecords) {
                 Student stu = studentMap.get(att.getStudentId());
@@ -393,21 +397,21 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
             }
 
             int presentCount = presentList.size();
-            int absentCount  = absentList.size();
-            int notMarked    = totalStudents - dayRecords.size();
+            int absentCount = absentList.size();
+            int notMarked = totalStudents - dayRecords.size();
             boolean hasRecord = !dayRecords.isEmpty();
 
             Double pct = null;
             String tag = "NO_RECORD";
             if (hasRecord && totalStudents > 0) {
                 pct = (presentCount * 100.0) / totalStudents;
-                if (pct > 80)       tag = "HIGH";
+                if (pct > 80) tag = "HIGH";
                 else if (pct >= 60) tag = "MEDIUM";
-                else                tag = "LOW";
+                else tag = "LOW";
 
                 workingDays++;
                 monthTotalPresent += presentCount;
-                monthTotalAbsent  += absentCount;
+                monthTotalAbsent += absentCount;
             }
 
             dailyRecords.add(MonthlyAttendanceCalendarResponse.DailyRecord.builder()
@@ -443,10 +447,10 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                         .build();
 
         // ── 5. Class/section names ─────────────────────────────────────────────────
-        String className  = getName(classId.intValue());
-        String secName    = getName(sectionId.intValue());
-        String csName     = (className != null ? className : "Unknown")
-                          + "-" + (secName != null ? secName : "Unknown");
+        String className = getName(classId.intValue());
+        String secName = getName(sectionId.intValue());
+        String csName = (className != null ? className : "Unknown")
+                + "-" + (secName != null ? secName : "Unknown");
 
         java.time.format.DateTimeFormatter monthLabelFmt =
                 java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale.ENGLISH);
@@ -535,7 +539,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
     }
 
     @Override
-    public StandardResponse<?> getStudentListForMarks( Integer examTypeId, Long subjectId) {
+    public StandardResponse<?> getStudentListForMarks(Integer examTypeId, Long subjectId) {
         Session session = getActiveSession();
 
         Long staffId = UserContext.getStaffId();
@@ -837,8 +841,8 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         // ─── 2. Bulk-fetch attendance for the month ──────────────────
         YearMonth ym = YearMonth.of(year, month);
         LocalDate startDate = ym.atDay(1);
-        LocalDate endDate   = ym.atEndOfMonth();
-        int daysInMonth     = ym.lengthOfMonth();
+        LocalDate endDate = ym.atEndOfMonth();
+        int daysInMonth = ym.lengthOfMonth();
 
         List<Long> studentLongIds = students.stream()
                 .map(s -> Long.valueOf(s.getId()))
@@ -857,12 +861,12 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         }
 
         // ─── 3. Build Excel ─────────────────────────────────────────
-        String className  = getName(classId.intValue());
-        String secName    = getName(sectionId.intValue());
+        String className = getName(classId.intValue());
+        String secName = getName(sectionId.intValue());
         String monthLabel = startDate.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH));
 
-        XSSFWorkbook wb  = new XSSFWorkbook();
-        XSSFSheet    sheet = wb.createSheet("Attendance");
+        XSSFWorkbook wb = new XSSFWorkbook();
+        XSSFSheet sheet = wb.createSheet("Attendance");
 
         // ── Styles ──────────────────────────────────────────────────
         XSSFFont titleFont = wb.createFont();
@@ -923,9 +927,9 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         setBorder(nameStyle);
 
         XSSFCellStyle presentStyle = makeDataStyle(wb, IndexedColors.LIGHT_GREEN.getIndex());
-        XSSFCellStyle absentStyle  = makeDataStyle(wb, IndexedColors.ROSE.getIndex());
+        XSSFCellStyle absentStyle = makeDataStyle(wb, IndexedColors.ROSE.getIndex());
         XSSFCellStyle holidayStyle = makeDataStyle(wb, IndexedColors.LIGHT_YELLOW.getIndex());
-        XSSFCellStyle dashStyle    = makeDataStyle(wb, IndexedColors.WHITE.getIndex());
+        XSSFCellStyle dashStyle = makeDataStyle(wb, IndexedColors.WHITE.getIndex());
         XSSFCellStyle summaryStyle = makeDataStyle(wb, IndexedColors.GREY_25_PERCENT.getIndex());
 
         int totalCols = 7 + daysInMonth; // name + % + P + L + A + H + F + days
@@ -991,13 +995,13 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         int rowIdx = 4;
         for (int si = 0; si < students.size(); si++) {
             Student student = students.get(si);
-            Long studentId  = Long.valueOf(student.getId());
+            Long studentId = Long.valueOf(student.getId());
             Map<LocalDate, String> sAttendance = attendanceMap.getOrDefault(studentId, Collections.emptyMap());
 
             int presentCount = 0, absentCount = 0, holidayCount = 0;
             for (Map.Entry<LocalDate, String> e : sAttendance.entrySet()) {
                 String status = e.getValue();
-                if ("PRESENT".equals(status))  presentCount++;
+                if ("PRESENT".equals(status)) presentCount++;
                 else if ("ABSENT".equals(status)) absentCount++;
                 else if ("HOLIDAY".equals(status)) holidayCount++;
             }
@@ -1033,7 +1037,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
             // Daily cells
             for (int d = 1; d <= daysInMonth; d++) {
                 LocalDate date = ym.atDay(d);
-                String status  = sAttendance.get(date);
+                String status = sAttendance.get(date);
                 Cell dc = row.createCell(6 + d);
 
                 if (status == null) {
@@ -1079,7 +1083,9 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         }
     }
 
-    /** Thin border on all four sides */
+    /**
+     * Thin border on all four sides
+     */
     private static void setBorder(CellStyle style) {
         style.setBorderTop(BorderStyle.THIN);
         style.setBorderBottom(BorderStyle.THIN);
@@ -1087,7 +1093,9 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         style.setBorderRight(BorderStyle.THIN);
     }
 
-    /** Create a centered data cell style with the given background colour */
+    /**
+     * Create a centered data cell style with the given background colour
+     */
     private static XSSFCellStyle makeDataStyle(XSSFWorkbook wb, short bgColor) {
         XSSFFont font = wb.createFont();
         font.setFontHeightInPoints((short) 9);
@@ -1127,8 +1135,8 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         // ─── 2. Bulk-fetch attendance for the month ──────────────────
         YearMonth ym = YearMonth.of(year, month);
         LocalDate startDate = ym.atDay(1);
-        LocalDate endDate   = ym.atEndOfMonth();
-        int daysInMonth     = ym.lengthOfMonth();
+        LocalDate endDate = ym.atEndOfMonth();
+        int daysInMonth = ym.lengthOfMonth();
 
         List<Long> studentLongIds = students.stream()
                 .map(s -> Long.valueOf(s.getId()))
@@ -1146,8 +1154,8 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
             }
         }
 
-        String className  = getName(classId.intValue());
-        String secName    = getName(sectionId.intValue());
+        String className = getName(classId.intValue());
+        String secName = getName(sectionId.intValue());
         String monthLabel = startDate.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH));
 
         // Create Day Headers
@@ -1177,7 +1185,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
             int halfDayCount = 0;
 
             Map<Integer, String> dailyStatus = new HashMap<>();
-            
+
             for (int d = 1; d <= daysInMonth; d++) {
                 LocalDate date = ym.atDay(d);
                 String status = sAttendance.get(date);
