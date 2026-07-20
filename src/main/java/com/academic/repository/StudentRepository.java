@@ -13,5 +13,5 @@ public interface StudentRepository extends JpaRepository<Student, Integer>, JpaS
 
     Optional<Student> findByIdAndIsDeletedFalse(Integer id);
 
-    List<Student> findByIdInAndStatus(List<Integer> studentIds, Integer status);
+    List<Student> findByIdInAndStatusAndIsDeletedFalse(List<Integer> studentIds, Integer status);
 }

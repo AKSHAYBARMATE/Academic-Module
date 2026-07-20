@@ -264,7 +264,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
         List<Student> initialStudents = new ArrayList<>();
         if (!studentIds.isEmpty()) {
-            initialStudents = studentRepository.findByIdInAndStatus(studentIds, 1);
+            initialStudents = studentRepository.findByIdInAndStatusAndIsDeletedFalse(studentIds, 1);
             // Just sorting them by ID or Name could be good, but we just use the fetched
             // list
         }
@@ -555,7 +555,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         List<Integer> studentIds = activePromotions.stream().map(StudentPromotionMapper::getStudentId)
                 .collect(Collectors.toList());
 
-        List<Student> students = studentRepository.findByIdInAndStatus(studentIds, 1);
+        List<Student> students = studentRepository.findByIdInAndStatusAndIsDeletedFalse(studentIds, 1);
 
         Optional<ExamSubjectConfig> configOpt = examSubjectConfigRepository
                 .findBySession_IdAndExamType_IdAndClassId_IdAndSubject_IdAndIsDeleteFalse(
@@ -833,7 +833,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
         List<Student> students = studentIntIds.isEmpty()
                 ? Collections.emptyList()
-                : studentRepository.findByIdInAndStatus(studentIntIds, 1);
+                : studentRepository.findByIdInAndStatusAndIsDeletedFalse(studentIntIds, 1);
 
         // Sort alphabetically by first name
         students.sort(Comparator.comparing(s -> (s.getFirstName() + " " + s.getLastName())));
@@ -1127,7 +1127,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
         List<Student> students = studentIntIds.isEmpty()
                 ? Collections.emptyList()
-                : studentRepository.findByIdInAndStatus(studentIntIds, 1);
+                : studentRepository.findByIdInAndStatusAndIsDeletedFalse(studentIntIds, 1);
 
         // Sort alphabetically by first name
         students.sort(Comparator.comparing(s -> (s.getFirstName() + " " + s.getLastName())));
