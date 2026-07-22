@@ -8,6 +8,8 @@ import java.util.List;
 @Builder
 public class TeacherAttendanceListResponse {
     private String classSectionName;
+    private Long classId;
+    private Long sectionId;
     private String date;
     private List<StudentAttendanceDto> students;
     private AttendanceSummary summary;

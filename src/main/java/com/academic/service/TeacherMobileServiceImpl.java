@@ -290,6 +290,8 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
         return StandardResponse.success(TeacherAttendanceListResponse.builder()
                 .classSectionName(classSectionName).date(date.toString()).students(dtoList)
+                .classId(targetClassId)
+                .sectionId(targetSectionId)
                 .summary(TeacherAttendanceListResponse.AttendanceSummary.builder().total(dtoList.size())
                         .present((int) p).absent((int) a).build())
                 .build(), "Attendance list fetched");
