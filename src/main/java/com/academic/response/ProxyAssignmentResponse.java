@@ -26,6 +26,7 @@ public class ProxyAssignmentResponse {
     private Long timetableId;
     private String timetableName;
     private Long slotId;
+    private Boolean isClassTeacher;
     private String startTime;
     private String endTime;
     private Integer dayOfWeek;

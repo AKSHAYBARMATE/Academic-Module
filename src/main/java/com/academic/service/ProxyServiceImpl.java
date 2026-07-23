@@ -460,6 +460,7 @@ public class ProxyServiceImpl implements ProxyService {
                 .substituteTeacherId(template != null ? template.getSubstituteTeacherId() : null)
                 .substituteTeacherName(template != null ? template.getSubstituteTeacherName() : null)
                 .timetableId(entity.getTimetableId())
+                .isClassTeacher(entity.getIsClassTeacher())
                 .timetableName(timetable != null ? timetable.getTimetableName() : null)
                 .slotId(entity.getSlotId())
                 .startTime(entity.getStartTime())
