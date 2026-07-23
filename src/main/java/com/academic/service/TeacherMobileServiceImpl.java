@@ -229,7 +229,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
             // section of teacher
             ClassSection assignment = classSectionRepository
                     .findByClassTeacherIdAndIsDeletedFalse(staffId).get();
-            ProxyAssignment proxyAssignment = proxyAssignmentRepository.findByProxyDateAndTemplateSubstituteTeacherIdAndIsClassTeacher(date, staffId, true);
+            ProxyAssignment proxyAssignment = proxyAssignmentRepository.findByProxyDateAndTemplateSubstituteTeacherIdAndIsClassTeacherAndIsDeletedFalse(date, staffId, true);
 
             if (proxyAssignment != null) {
                 targetClassId = proxyAssignment.getClassId();
