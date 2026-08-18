@@ -42,6 +42,6 @@ public class StudentAttendance {
     private LocalDateTime updatedAt;
 
     public enum AttendanceStatus {
-        PRESENT, ABSENT, HOLIDAY, LATE, HALF_DAY
+        PRESENT, ABSENT, HOLIDAY, LATE, HALF_DAY, NOT_MARKED
     }
 }
