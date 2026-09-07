@@ -1,6 +1,6 @@
 package com.academic.service;
 
-import com.academic.config.UserContext;
+import com.academic.config.LoginUser;
 import com.academic.dto.mobile.*;
 import com.academic.entity.*;
 import com.academic.repository.*;
@@ -29,6 +29,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
     private final TeacherAssignmentRepository teacherAssignmentRepository;
     private final TimeSlotSubjectMapperRepository slotMapperRepository;
     private final SubjectRepository subjectRepository;
+    private final LoginUser loginUser;
     private final StudentRepository studentRepository;
     private final StudentAttendanceRepository studentAttendanceRepository;
     private final AcademicCalendarEventRepository eventRepository;
@@ -544,7 +545,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
     public StandardResponse<?> getStudentListForMarks(Integer examTypeId, Long subjectId) {
         Session session = getActiveSession();
 
-        Long staffId = UserContext.getStaffId();
+        Long staffId = loginUser.getStaffId();
 
         TeacherAssignment assignment = teacherAssignmentRepository
                 .findByEmployeeIdAndIsDeletedFalse(staffId.toString())

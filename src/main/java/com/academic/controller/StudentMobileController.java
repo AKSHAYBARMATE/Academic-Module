@@ -1,9 +1,10 @@
 package com.academic.controller;
 
-import com.academic.config.UserContext;
+import com.academic.config.LoginUser;
 import com.academic.response.StandardResponse;
 import com.academic.service.StudentMobileService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,9 +18,11 @@ public class StudentMobileController {
 
     private final StudentMobileService studentMobileService;
 
+    @Autowired
+    LoginUser loginUser;
     @GetMapping("/dashboard")
     public ResponseEntity<StandardResponse<?>> getDashboard() {
-        Long studentId = UserContext.getStudentId();
+        Long studentId = loginUser.getStudentId();
         if (studentId == null) {
             return ResponseEntity.badRequest()
                     .body(StandardResponse.error("Student ID not found for this user", "ID_NOT_FOUND", null));
@@ -36,7 +39,7 @@ public class StudentMobileController {
         if (studId != null) {
             studentId = studId;
         } else {
-            studentId = UserContext.getStudentId();
+            studentId = loginUser.getStudentId();
         }
         if (studentId == null) {
             return ResponseEntity.badRequest()
@@ -48,7 +51,7 @@ public class StudentMobileController {
     @GetMapping("/timetable")
     public ResponseEntity<StandardResponse<?>> getTimetable(
             @RequestParam Integer dayOfWeek) {
-        Long studentId = UserContext.getStudentId();
+        Long studentId = loginUser.getStudentId();
         if (studentId == null) {
             return ResponseEntity.badRequest()
                     .body(StandardResponse.error("Student ID not found for this user", "ID_NOT_FOUND", null));
@@ -62,7 +65,7 @@ public class StudentMobileController {
         if (studId != null) {
             studentId = studId;
         } else {
-            studentId = UserContext.getStudentId();
+            studentId = loginUser.getStudentId();
         }
         if (studentId == null) {
             return ResponseEntity.badRequest()
@@ -73,7 +76,7 @@ public class StudentMobileController {
 
     @GetMapping("/fees")
     public ResponseEntity<StandardResponse<?>> getFees() {
-        Long studentId = UserContext.getStudentId();
+        Long studentId = loginUser.getStudentId();
         if (studentId == null) {
             return ResponseEntity.badRequest()
                     .body(StandardResponse.error("Student ID not found for this user", "ID_NOT_FOUND", null));
@@ -83,7 +86,7 @@ public class StudentMobileController {
 
     @GetMapping("/exam-schedule")
     public ResponseEntity<StandardResponse<?>> getExamSchedule() {
-        Long studentId = UserContext.getStudentId();
+        Long studentId = loginUser.getStudentId();
         if (studentId == null) {
             return ResponseEntity.badRequest()
                     .body(StandardResponse.error("Student ID not found for this user", "ID_NOT_FOUND", null));
@@ -93,7 +96,7 @@ public class StudentMobileController {
 
     @GetMapping("/academic-calendar")
     public ResponseEntity<StandardResponse<?>> getAcademicCalendar() {
-        Long studentId = UserContext.getStudentId();
+        Long studentId = loginUser.getStudentId();
         if (studentId == null) {
             return ResponseEntity.badRequest()
                     .body(StandardResponse.error("Student ID not found for this user", "ID_NOT_FOUND", null));

@@ -1,6 +1,6 @@
 package com.academic.controller;
 
-import com.academic.config.UserContext;
+import com.academic.config.LoginUser;
 import com.academic.dto.mobile.AttendanceSubmissionRequest;
 import com.academic.dto.mobile.EnterMarksRequest;
 import com.academic.dto.mobile.LeaveSubmissionRequest;
@@ -21,10 +21,11 @@ import java.time.LocalDate;
 public class TeacherMobileController {
 
     private final TeacherMobileService teacherMobileService;
+    private final LoginUser loginUser;
 
     @GetMapping("/getteacherDashboard")
     public ResponseEntity<StandardResponse<?>> getDashboard() {
-        Long staffId = UserContext.getStaffId();
+        Long staffId = loginUser.getStaffId();
         if (staffId == null) {
             return ResponseEntity.badRequest()
                     .body(StandardResponse.error("Staff ID not found for this user", "ID_NOT_FOUND", null));
@@ -38,7 +39,7 @@ public class TeacherMobileController {
             @RequestParam(required = false) Long classId,
             @RequestParam(required = false) Long sectionId) {
         // If classId and sectionId are both provided, staffId is not required
-        Long staffId = (classId != null && sectionId != null) ? null : UserContext.getStaffId();
+        Long staffId = (classId != null && sectionId != null) ? null : loginUser.getStaffId();
         return ResponseEntity.ok(teacherMobileService.getAttendanceList(staffId, date, classId, sectionId));
     }
 
@@ -70,7 +71,7 @@ public class TeacherMobileController {
 
     @GetMapping("/getExamSchedule")
     public ResponseEntity<StandardResponse<?>> getExamSchedule() {
-        Long staffId = UserContext.getStaffId();
+        Long staffId = loginUser.getStaffId();
         return ResponseEntity.ok(teacherMobileService.getExamSchedule(staffId));
     }
 
@@ -89,13 +90,13 @@ public class TeacherMobileController {
 
     @PostMapping("/applyLeave")
     public ResponseEntity<StandardResponse<?>> applyLeave(@RequestBody LeaveSubmissionRequest request) {
-        Long staffId = UserContext.getStaffId();
+        Long staffId = loginUser.getStaffId();
         return ResponseEntity.ok(teacherMobileService.applyLeave(staffId, request));
     }
 
     @GetMapping("/getLeaveHistory")
     public ResponseEntity<StandardResponse<?>> getLeaveHistory() {
-        Long staffId = UserContext.getStaffId();
+        Long staffId = loginUser.getStaffId();
         return ResponseEntity.ok(teacherMobileService.getLeaveHistory(staffId));
     }
 
@@ -150,4 +151,4 @@ public class TeacherMobileController {
                 teacherMobileService.getMonthlyAttendanceGrid(classId, sectionId, month, year));
     }
 }
-
+
