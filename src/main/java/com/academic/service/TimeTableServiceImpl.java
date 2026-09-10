@@ -1,6 +1,7 @@
 package com.academic.service;
 
 import com.academic.entity.CommonMaster;
+import com.academic.entity.Staff;
 import com.academic.entity.Subject;
 import com.academic.entity.TimeSlotSubjectMapper;
 import com.academic.entity.TimeTable;
@@ -8,6 +9,7 @@ import com.academic.exception.CustomException;
 import com.academic.exception.ResourceNotFoundException;
 import com.academic.mapper.TimeTableMapper;
 import com.academic.repository.CommonMasterRepository;
+import com.academic.repository.StaffRepository;
 import com.academic.repository.SubjectRepository;
 import com.academic.repository.TimeSlotSubjectMapperRepository;
 import com.academic.repository.TimeTableRepository;
@@ -41,6 +43,7 @@ public class TimeTableServiceImpl implements TimeTableService {
     private final TimeSlotSubjectMapperRepository mapperRepository;
     private final CommonMasterRepository commonMasterRepository;
     private final SubjectRepository subjectRepository;
+    private final StaffRepository staffRepository;
 
     @Autowired
     private TimeTableMapper timeTableMapper;
@@ -553,6 +556,179 @@ public class TimeTableServiceImpl implements TimeTableService {
             return lt.format(DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH));
         }
         return timeStr;
+    }
+
+    // ===========================================================================================
+    // TEACHER WEEKLY TIMETABLE PDF
+    // ===========================================================================================
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] generateTeacherTimetablePdf(Long staffId) {
+        log.info("[{}][{}] Generating Teacher Timetable PDF for staffId={}",
+                LogContext.getRequestId(), LogContext.getLogId(), staffId);
+
+        // ── 1. Fetch Staff details ──────────────────────────────────────────────
+        Staff staff = staffRepository.findById(staffId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff not found with id: " + staffId));
+
+        String teacherName = (staff.getFirstName() + " " + staff.getLastName()).trim();
+        String staffCode   = staff.getStaffCode() != null ? staff.getStaffCode() : "N/A";
+        String department  = (staff.getDepartment() != null && staff.getDepartment().getName() != null)
+                ? staff.getDepartment().getName() : "N/A";
+
+        // ── 2. Fetch all slots assigned to this teacher ─────────────────────────
+        List<TimeSlotSubjectMapper> slots = mapperRepository.findByTeacherId(staffId);
+
+        // ── 3. Build CommonMaster lookup map ────────────────────────────────────
+        Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
+                .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
+                .collect(Collectors.toMap(
+                        CommonMaster::getId,
+                        cm -> cm.getData() != null ? cm.getData() : cm.getCommonMasterKey()
+                ));
+
+        // ── 4. Determine day range (max day across all slots; default Mon-Sat=6) ─
+        int maxDay = 6;
+        for (TimeSlotSubjectMapper slot : slots) {
+            if (slot.getDay() != null && slot.getDay() > maxDay) {
+                maxDay = slot.getDay();
+            }
+        }
+
+        // ── 5. Build day-header HTML ─────────────────────────────────────────────
+        String[] dayNames = {"", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+        StringBuilder dayHeaders = new StringBuilder();
+        for (int d = 1; d <= maxDay; d++) {
+            dayHeaders.append("<th>").append(dayNames[d]).append("</th>");
+        }
+
+        // ── 6. Build time-slot row grid (sorted by start time) ───────────────────
+        //       Key  : (startTime, endTime) pair
+        //       Value: Map<dayNumber, slot>
+        class TimeSlotRow implements Comparable<TimeSlotRow> {
+            final String startTime;
+            final String endTime;
+
+            TimeSlotRow(String s, String e) { this.startTime = s; this.endTime = e; }
+
+            private LocalTime parse(String t) {
+                if (t == null || t.isBlank()) return LocalTime.MIDNIGHT;
+                t = t.trim().toUpperCase().replaceAll("\\s+", " ");
+                for (String fmt : new String[]{"hh:mm a", "h:mm a", "HH:mm", "H:mm", "HH:mm:ss", "hh:mm:ssa"}) {
+                    try { return LocalTime.parse(t, DateTimeFormatter.ofPattern(fmt, Locale.ENGLISH)); }
+                    catch (Exception ignored) {}
+                }
+                try { return LocalTime.parse(t); } catch (Exception ignored) { return LocalTime.MIDNIGHT; }
+            }
+
+            @Override public int compareTo(TimeSlotRow o) {
+                int c = parse(startTime).compareTo(parse(o.startTime));
+                return c != 0 ? c : parse(endTime).compareTo(parse(o.endTime));
+            }
+            @Override public boolean equals(Object o) {
+                if (!(o instanceof TimeSlotRow)) return false;
+                TimeSlotRow r = (TimeSlotRow) o;
+                return parse(startTime).equals(parse(r.startTime)) && parse(endTime).equals(parse(r.endTime));
+            }
+            @Override public int hashCode() { return Objects.hash(parse(startTime), parse(endTime)); }
+        }
+
+        Map<TimeSlotRow, Map<Integer, TimeSlotSubjectMapper>> grid = new TreeMap<>();
+        for (TimeSlotSubjectMapper slot : slots) {
+            if (slot.getStartTime() == null || slot.getEndTime() == null || slot.getDay() == null) continue;
+            TimeSlotRow key = new TimeSlotRow(slot.getStartTime(), slot.getEndTime());
+            TimeSlotRow canonical = grid.keySet().stream().filter(k -> k.equals(key)).findFirst().orElse(key);
+            grid.computeIfAbsent(canonical, k -> new HashMap<>()).put(slot.getDay(), slot);
+        }
+
+        // ── 7. Build grid HTML rows ──────────────────────────────────────────────
+        int totalPeriods = 0;
+        Set<Integer> activeDays = new HashSet<>();
+
+        StringBuilder gridRows = new StringBuilder();
+        for (TimeSlotRow r : grid.keySet()) {
+            gridRows.append("<tr>");
+
+            // Time column
+            String formattedTime = formatTimeSlotStr(r.startTime, r.endTime);
+            gridRows.append("<td class=\"time-cell\">").append(formattedTime).append("</td>");
+
+            Map<Integer, TimeSlotSubjectMapper> dayMap = grid.get(r);
+            for (int d = 1; d <= maxDay; d++) {
+                TimeSlotSubjectMapper slot = dayMap.get(d);
+                gridRows.append("<td>");
+                if (slot != null) {
+                    totalPeriods++;
+                    activeDays.add(d);
+
+                    // Subject name
+                    String subjectName = subjectRepository.findById(slot.getSubjectId())
+                            .map(Subject::getSubjectName).orElse("Unknown");
+
+                    // Class & Section label from the parent timetable
+                    String classLabel = "N/A";
+                    if (slot.getTimeTable() != null) {
+                        String className   = commonMasterMap.getOrDefault(
+                                slot.getTimeTable().getClassId() != null ? slot.getTimeTable().getClassId().intValue() : -1,
+                                "?");
+                        String sectionName = commonMasterMap.getOrDefault(
+                                slot.getTimeTable().getSectionId() != null ? slot.getTimeTable().getSectionId().intValue() : -1,
+                                "?");
+                        classLabel = className + " - " + sectionName;
+                    }
+
+                    String room = slot.getRoom() != null && !slot.getRoom().isBlank() ? slot.getRoom() : "";
+
+                    gridRows.append("<div class=\"subject-name\">").append(escapeHtml(subjectName)).append("</div>");
+                    gridRows.append("<div class=\"class-badge\">").append(escapeHtml(classLabel)).append("</div>");
+                    if (!room.isEmpty()) {
+                        gridRows.append("<br/><div class=\"room-badge\">").append(escapeHtml(room)).append("</div>");
+                    }
+                } else {
+                    gridRows.append("<span class=\"empty-cell\">&#8722;</span>");
+                }
+                gridRows.append("</td>");
+            }
+            gridRows.append("</tr>");
+        }
+
+        // ── 8. Compute summary numbers ───────────────────────────────────────────
+        int workingDays = activeDays.size();
+        int totalSlotCells = grid.size() * maxDay;   // max possible periods in the grid
+        int freePeriods    = totalSlotCells - totalPeriods;
+
+        // ── 9. Session label ─────────────────────────────────────────────────────
+        String sessionText;
+        try { sessionText = StudentMobileServiceImpl.getCurrentSession(); }
+        catch (Exception e) { sessionText = "2026-27"; }
+
+        // ── 10. Fill template placeholders ──────────────────────────────────────
+        String html = Template.TEACHER_TIMETABLE_PDF_HTML
+                .replace("${SESSION}",       escapeHtml(sessionText))
+                .replace("${TEACHER_NAME}",  escapeHtml(teacherName))
+                .replace("${TEACHER_CODE}",  escapeHtml(staffCode))
+                .replace("${DEPARTMENT}",    escapeHtml(department))
+                .replace("${PRINT_DATE}",    LocalDate.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy")))
+                .replace("${DAY_HEADERS}",   dayHeaders.toString())
+                .replace("${GRID_ROWS}",     gridRows.toString())
+                .replace("${TOTAL_PERIODS}", String.valueOf(totalPeriods))
+                .replace("${WORKING_DAYS}",  String.valueOf(workingDays))
+                .replace("${FREE_PERIODS}",  String.valueOf(freePeriods));
+
+        // ── 11. Render PDF ───────────────────────────────────────────────────────
+        try {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            PdfRendererBuilder builder = new PdfRendererBuilder();
+            builder.withHtmlContent(html, "");
+            builder.toStream(output);
+            builder.run();
+            return output.toByteArray();
+        } catch (Exception e) {
+            log.error("[{}][{}] Failed to generate teacher timetable PDF for staffId={}",
+                    LogContext.getRequestId(), LogContext.getLogId(), staffId, e);
+            throw new RuntimeException("Teacher timetable PDF generation failed: " + e.getMessage(), e);
+        }
     }
 
     private String escapeHtml(String text) {

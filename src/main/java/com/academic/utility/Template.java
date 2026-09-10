@@ -621,4 +621,278 @@ public class Template {
             </body>
             </html>
             """;
-}
+
+    public static final String TEACHER_TIMETABLE_PDF_HTML = """
+            <html xmlns="http://www.w3.org/1999/xhtml">
+            <head>
+            <meta charset="UTF-8"/>
+            <style>
+                @page {
+                    size: A4 landscape;
+                    margin: 1cm;
+                }
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body {
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 10px;
+                    color: #1e293b;
+                    background: #fff;
+                }
+                .container {
+                    width: 100%;
+                    padding: 0;
+                }
+                /* ── Header ── */
+                .school-header {
+                    text-align: center;
+                    margin-bottom: 6px;
+                    border-bottom: 3px solid #0f172a;
+                    padding-bottom: 8px;
+                }
+                .school-title {
+                    font-size: 22px;
+                    font-weight: 900;
+                    color: #0f172a;
+                    letter-spacing: 2px;
+                    text-transform: uppercase;
+                }
+                .banner-title {
+                    font-size: 12px;
+                    font-weight: bold;
+                    color: #1e40af;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    margin-top: 2px;
+                }
+                /* ── Teacher info strip ── */
+                .meta-strip {
+                    display: table;
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 6px 0;
+                    background-color: #f1f5f9;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 4px;
+                }
+                .meta-strip td {
+                    padding: 5px 10px;
+                    font-size: 10px;
+                    border: none;
+                    vertical-align: middle;
+                }
+                .meta-label {
+                    color: #64748b;
+                    font-weight: normal;
+                    white-space: nowrap;
+                    width: 90px;
+                }
+                .meta-value {
+                    font-weight: bold;
+                    color: #0f172a;
+                    text-transform: uppercase;
+                }
+                .divider-cell {
+                    width: 20px;
+                    color: #94a3b8;
+                    text-align: center;
+                }
+                /* ── Main timetable grid ── */
+                .timetable-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                    margin-top: 8px;
+                }
+                .timetable-table th {
+                    background-color: #0f172a;
+                    color: #ffffff;
+                    font-weight: bold;
+                    padding: 7px 4px;
+                    font-size: 9px;
+                    text-transform: uppercase;
+                    border: 1px solid #1e293b;
+                    text-align: center;
+                    letter-spacing: 0.5px;
+                }
+                .timetable-table th.time-header {
+                    background-color: #1e3a8a;
+                    width: 13%;
+                }
+                .timetable-table td {
+                    border: 1px solid #cbd5e1;
+                    padding: 5px 3px;
+                    text-align: center;
+                    vertical-align: middle;
+                    font-size: 9px;
+                    height: 56px;
+                }
+                .timetable-table tr:nth-child(even) td {
+                    background-color: #f8fafc;
+                }
+                .timetable-table tr:nth-child(odd) td {
+                    background-color: #ffffff;
+                }
+                .time-cell {
+                    font-weight: bold;
+                    background-color: #e2e8f0 !important;
+                    color: #0f172a;
+                    font-size: 9px;
+                    line-height: 1.4;
+                }
+                /* Cell content blocks */
+                .subject-name {
+                    font-weight: bold;
+                    color: #1e3a8a;
+                    font-size: 9px;
+                    margin-bottom: 2px;
+                    text-transform: uppercase;
+                }
+                .class-badge {
+                    display: inline-block;
+                    background-color: #dbeafe;
+                    color: #1e40af;
+                    font-size: 8px;
+                    font-weight: bold;
+                    padding: 1px 5px;
+                    border-radius: 3px;
+                    border: 1px solid #93c5fd;
+                    margin-bottom: 2px;
+                }
+                .room-badge {
+                    display: inline-block;
+                    background-color: #f0fdf4;
+                    color: #166534;
+                    font-size: 7px;
+                    font-weight: bold;
+                    padding: 1px 4px;
+                    border-radius: 3px;
+                    border: 1px solid #86efac;
+                }
+                .empty-cell {
+                    color: #cbd5e1;
+                    font-size: 14px;
+                    font-weight: 300;
+                }
+                /* ── Summary row ── */
+                .summary-bar {
+                    margin-top: 8px;
+                    background-color: #f1f5f9;
+                    border: 1px solid #e2e8f0;
+                    padding: 5px 10px;
+                    font-size: 9px;
+                    color: #475569;
+                    display: table;
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                .summary-bar td {
+                    padding: 3px 8px;
+                    border: none;
+                    font-size: 9px;
+                }
+                .summary-bar .count-val {
+                    font-weight: bold;
+                    color: #1e3a8a;
+                    font-size: 11px;
+                }
+                /* ── Footer signature ── */
+                .footer-table {
+                    width: 100%;
+                    margin-top: 20px;
+                    border-collapse: collapse;
+                }
+                .footer-table td {
+                    border: none;
+                    font-size: 9px;
+                    color: #475569;
+                    padding: 0 5px;
+                }
+                .sig-line {
+                    border-top: 1px solid #94a3b8;
+                    width: 140px;
+                    margin-top: 30px;
+                    padding-top: 4px;
+                    font-weight: bold;
+                    font-size: 9px;
+                    color: #374151;
+                }
+                .sig-line-left  { margin-left: 0; }
+                .sig-line-right { margin-left: auto; }
+                .sig-line-center { margin: 30px auto 0; }
+            </style>
+            </head>
+            <body>
+            <div class="container">
+
+                <!-- School Header -->
+                <div class="school-header">
+                    <div class="school-title">PROGRESSIVE PUBLIC SCHOOL</div>
+                    <div class="banner-title">Teacher Weekly Timetable &#8212; Session ${SESSION}</div>
+                </div>
+
+                <!-- Teacher Info Strip -->
+                <table class="meta-strip">
+                    <tr>
+                        <td class="meta-label">Teacher Name</td>
+                        <td style="width:8px; color:#94a3b8;">:</td>
+                        <td class="meta-value" style="width:30%;">${TEACHER_NAME}</td>
+                        <td class="divider-cell">|</td>
+                        <td class="meta-label">Staff Code</td>
+                        <td style="width:8px; color:#94a3b8;">:</td>
+                        <td class="meta-value" style="width:20%;">${TEACHER_CODE}</td>
+                        <td class="divider-cell">|</td>
+                        <td class="meta-label">Department</td>
+                        <td style="width:8px; color:#94a3b8;">:</td>
+                        <td class="meta-value" style="width:20%;">${DEPARTMENT}</td>
+                        <td class="divider-cell">|</td>
+                        <td class="meta-label">Print Date</td>
+                        <td style="width:8px; color:#94a3b8;">:</td>
+                        <td class="meta-value">${PRINT_DATE}</td>
+                    </tr>
+                </table>
+
+                <!-- Timetable Grid -->
+                <table class="timetable-table">
+                    <thead>
+                        <tr>
+                            <th class="time-header">TIME SLOT</th>
+                            ${DAY_HEADERS}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${GRID_ROWS}
+                    </tbody>
+                </table>
+
+                <!-- Summary Bar -->
+                <table class="summary-bar">
+                    <tr>
+                        <td>Total Periods/Week: <span class="count-val">${TOTAL_PERIODS}</span></td>
+                        <td style="width:30px; text-align:center; color:#cbd5e1;">|</td>
+                        <td>Working Days: <span class="count-val">${WORKING_DAYS}</span></td>
+                        <td style="width:30px; text-align:center; color:#cbd5e1;">|</td>
+                        <td>Free Periods: <span class="count-val">${FREE_PERIODS}</span></td>
+                    </tr>
+                </table>
+
+                <!-- Signature Footer -->
+                <table class="footer-table">
+                    <tr>
+                        <td align="left" style="width:33%;">
+                            <div class="sig-line sig-line-left">Teacher Signature</div>
+                        </td>
+                        <td align="center" style="width:34%;">
+                            <div class="sig-line sig-line-center">School Stamp</div>
+                        </td>
+                        <td align="right" style="width:33%;">
+                            <div class="sig-line sig-line-right">Principal</div>
+                        </td>
+                    </tr>
+                </table>
+
+            </div>
+            </body>
+            </html>
+            """;
+}
+

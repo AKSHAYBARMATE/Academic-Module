@@ -23,6 +23,10 @@ public class ExamSubjectConfigResponse {
     private String subjectCode;
     private String subjectName;
 
+    private Integer theoryMarks;
+    private Integer practicalMarks;
+    private Integer internalMarks;
+
     private List<ComponentConfigResponse> components;
 
     private List<CoScholasticConfigResponse> coScholasticActivities;

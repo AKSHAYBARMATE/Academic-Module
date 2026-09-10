@@ -114,6 +114,26 @@ public class TimeTableController {
                 .body(pdf);
     }
 
+    /**
+     * Download the weekly timetable PDF for a specific teacher / staff member.
+     * <p>
+     * The PDF shows every period assigned to the teacher across all classes,
+     * organised as a Mon–Sat grid with Subject, Class-Section and Room info.
+     *
+     * @param staffId ID of the teacher / staff member
+     */
+    @GetMapping("/downloadTeacherTimetablePdf/{staffId}")
+    public ResponseEntity<byte[]> downloadTeacherTimetablePdf(@PathVariable Long staffId) {
+        log.info("[{}][{}] API - Download Teacher Timetable PDF: staffId={}",
+                LogContext.getRequestId(), LogContext.getLogId(), staffId);
+        byte[] pdf = service.generateTeacherTimetablePdf(staffId);
+        String fileName = "teacher_timetable_" + staffId + ".pdf";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
+
     // =========================================================================
     // PROXY TEMPLATES APIs
     // =========================================================================
