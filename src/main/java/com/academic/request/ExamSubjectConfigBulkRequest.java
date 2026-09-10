@@ -9,7 +9,6 @@ public class ExamSubjectConfigBulkRequest {
     private Integer sessionId;
     private Integer examTypeId;
     private Integer classId;
-    /** Multiple subjects in one save */
     private List<SubjectMarksRequest> subjects;
 
     private List<CoScholasticUpdateRequest> coScholasticActivities;

@@ -38,6 +38,12 @@ public class ExamSubjectConfig {
     @JoinColumn(name = "subject_id", nullable = false)
     private Subject subject;
 
+    private Integer theoryMarks;
+
+    private Integer practicalMarks;
+
+    private Integer internalMarks;
+
     @Builder.Default
     private Boolean isDelete = false;
 

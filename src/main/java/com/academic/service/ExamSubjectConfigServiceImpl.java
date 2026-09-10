@@ -134,6 +134,9 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
                         .examType(examType)
                         .classId(classMaster)
                         .subject(subject)
+                        .theoryMarks(s.getTheoryMarks())
+                        .practicalMarks(s.getPracticalMarks())
+                        .internalMarks(s.getInternalMarks())
                         .createdAt(LocalDateTime.now())
                         .build();
 
@@ -319,6 +322,16 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
 
                 config.getComponents().addAll(components);
 
+                if (s.getTheoryMarks() != null) {
+                    config.setTheoryMarks(s.getTheoryMarks());
+                }
+                if (s.getPracticalMarks() != null) {
+                    config.setPracticalMarks(s.getPracticalMarks());
+                }
+                if (s.getInternalMarks() != null) {
+                    config.setInternalMarks(s.getInternalMarks());
+                }
+
                 repository.save(config);
 
                 responses.add(map(config));
@@ -411,6 +424,9 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
                     .subjectId(Long.valueOf(c.getSubject() == null ? null : c.getSubject().getId()))
                     .subjectCode(c.getSubject() == null ? null : c.getSubject().getSubjectCode())
                     .subjectName(c.getSubject() == null ? null : c.getSubject().getSubjectName())
+                    .theoryMarks(c.getTheoryMarks())
+                    .practicalMarks(c.getPracticalMarks())
+                    .internalMarks(c.getInternalMarks())
                     .components(components)
                     .build();
         }
