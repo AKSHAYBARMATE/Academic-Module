@@ -8,6 +8,7 @@ import com.academic.response.LogContext;
 import com.academic.response.ProxyAssignmentResponse;
 import com.academic.response.ProxyTemplateResponse;
 import com.academic.response.StandardResponse;
+import com.academic.response.TeacherTimetableResponse;
 import com.academic.response.TimeTableResponse;
 import com.academic.service.ProxyService;
 import com.academic.service.TimeTableService;
@@ -132,6 +133,19 @@ public class TimeTableController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdf);
+    }
+
+    /**
+     * Get the weekly timetable for a specific teacher in JSON format for UI display.
+     *
+     * @param staffId ID of the teacher / staff member
+     */
+    @GetMapping("/getTeacherTimetable/{staffId}")
+    public ResponseEntity<StandardResponse<TeacherTimetableResponse>> getTeacherTimetable(@PathVariable Long staffId) {
+        log.info("[{}][{}] API - Get Teacher Timetable JSON: staffId={}",
+                LogContext.getRequestId(), LogContext.getLogId(), staffId);
+        TeacherTimetableResponse response = service.getTeacherTimetable(staffId);
+        return ResponseEntity.ok(StandardResponse.success(response, "Teacher timetable fetched successfully"));
     }
 
     // =========================================================================

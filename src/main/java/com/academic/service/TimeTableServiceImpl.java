@@ -17,6 +17,8 @@ import com.academic.request.TimeSlotDTO;
 import com.academic.request.TimeTableRequest;
 import com.academic.response.LogContext;
 import com.academic.response.StandardResponse;
+import com.academic.response.TeacherTimetableResponse;
+import com.academic.response.TeacherTimetableResponse.TeacherSlotDTO;
 import com.academic.response.TimeTableResponse;
 import com.academic.utility.Template;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
@@ -559,8 +561,121 @@ public class TimeTableServiceImpl implements TimeTableService {
     }
 
     // ===========================================================================================
-    // TEACHER WEEKLY TIMETABLE PDF
+    // TEACHER WEEKLY TIMETABLE (JSON & PDF)
     // ===========================================================================================
+
+    private String formatTeacherName(Staff staff) {
+        if (staff == null) return "Unknown";
+        String first = staff.getFirstName() != null ? staff.getFirstName().trim() : "";
+        String last = staff.getLastName() != null ? staff.getLastName().trim() : "";
+        String full = (first + " " + last).trim();
+        return full.isEmpty() ? "Teacher" : full;
+    }
+
+    private String resolveSubjectName(Long subjectId) {
+        if (subjectId == null) return "Unknown";
+        Optional<Subject> subOpt = subjectRepository.findById(subjectId);
+        if (subOpt.isPresent() && subOpt.get().getSubjectName() != null && !subOpt.get().getSubjectName().isBlank()) {
+            return subOpt.get().getSubjectName();
+        }
+        return commonMasterRepository.findById(subjectId.intValue())
+                .map(cm -> cm.getData() != null && !cm.getData().isBlank() ? cm.getData() : cm.getCommonMasterKey())
+                .orElse("Unknown");
+    }
+
+    private String resolveClassName(Long classId, Map<Integer, String> cmMap) {
+        if (classId == null) return "N/A";
+        return cmMap.getOrDefault(classId.intValue(), "Class " + classId);
+    }
+
+    private String resolveSectionName(Long sectionId, Map<Integer, String> cmMap) {
+        if (sectionId == null) return "";
+        return cmMap.getOrDefault(sectionId.intValue(), "");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TeacherTimetableResponse getTeacherTimetable(Long staffId) {
+        log.info("[{}][{}] Fetching Teacher Timetable JSON for staffId={}",
+                LogContext.getRequestId(), LogContext.getLogId(), staffId);
+
+        Staff staff = staffRepository.findById(staffId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff not found with id: " + staffId));
+
+        String teacherName = formatTeacherName(staff);
+        String staffCode = staff.getStaffCode() != null ? staff.getStaffCode() : "N/A";
+        String department = (staff.getDepartment() != null && staff.getDepartment().getName() != null)
+                ? staff.getDepartment().getName() : "N/A";
+
+        // Query only active slots belonging to non-deleted timetables
+        List<TimeSlotSubjectMapper> activeSlots = mapperRepository.findActiveSlotsByTeacherId(staffId);
+
+        // Build CommonMaster lookup map
+        Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
+                .collect(Collectors.toMap(
+                        CommonMaster::getId,
+                        cm -> cm.getData() != null && !cm.getData().isBlank() ? cm.getData() : cm.getCommonMasterKey(),
+                        (existing, replacement) -> existing
+                ));
+
+        String[] dayNames = {"", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+
+        List<TeacherSlotDTO> slotDTOList = new ArrayList<>();
+        Map<String, List<TeacherSlotDTO>> scheduleByDay = new LinkedHashMap<>();
+        for (int i = 1; i <= 7; i++) {
+            scheduleByDay.put(dayNames[i], new ArrayList<>());
+        }
+
+        Set<Integer> activeDays = new HashSet<>();
+
+        for (TimeSlotSubjectMapper slot : activeSlots) {
+            TimeTable tt = slot.getTimeTable();
+            if (tt == null || Boolean.TRUE.equals(tt.getIsDeleted())) {
+                continue;
+            }
+
+            int dayNum = slot.getDay() != null ? slot.getDay() : 1;
+            String dayName = (dayNum >= 1 && dayNum <= 7) ? dayNames[dayNum] : "Day " + dayNum;
+            activeDays.add(dayNum);
+
+            String subjectName = resolveSubjectName(slot.getSubjectId());
+            String className = resolveClassName(tt.getClassId(), commonMasterMap);
+            String sectionName = resolveSectionName(tt.getSectionId(), commonMasterMap);
+            String classSection = sectionName.isBlank() ? className : className + " - " + sectionName;
+
+            TeacherSlotDTO dto = TeacherSlotDTO.builder()
+                    .slotId(slot.getId())
+                    .day(dayNum)
+                    .dayName(dayName)
+                    .startTime(formatSingleTime(slot.getStartTime()))
+                    .endTime(formatSingleTime(slot.getEndTime()))
+                    .subjectId(slot.getSubjectId())
+                    .subjectName(subjectName)
+                    .classId(tt.getClassId())
+                    .className(className)
+                    .sectionId(tt.getSectionId())
+                    .sectionName(sectionName)
+                    .classSection(classSection)
+                    .room(slot.getRoom() != null ? slot.getRoom() : "")
+                    .timetableId(tt.getId())
+                    .timetableName(tt.getTimetableName())
+                    .build();
+
+            slotDTOList.add(dto);
+            scheduleByDay.computeIfAbsent(dayName, k -> new ArrayList<>()).add(dto);
+        }
+
+        return TeacherTimetableResponse.builder()
+                .teacherId(staffId)
+                .teacherName(teacherName)
+                .staffCode(staffCode)
+                .department(department)
+                .totalPeriods(slotDTOList.size())
+                .workingDays(activeDays.size())
+                .slots(slotDTOList)
+                .scheduleByDay(scheduleByDay)
+                .build();
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -572,20 +687,26 @@ public class TimeTableServiceImpl implements TimeTableService {
         Staff staff = staffRepository.findById(staffId)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff not found with id: " + staffId));
 
-        String teacherName = (staff.getFirstName() + " " + staff.getLastName()).trim();
+        String teacherName = formatTeacherName(staff);
         String staffCode   = staff.getStaffCode() != null ? staff.getStaffCode() : "N/A";
         String department  = (staff.getDepartment() != null && staff.getDepartment().getName() != null)
                 ? staff.getDepartment().getName() : "N/A";
 
-        // ── 2. Fetch all slots assigned to this teacher ─────────────────────────
-        List<TimeSlotSubjectMapper> slots = mapperRepository.findByTeacherId(staffId);
+        // ── 2. Fetch only active slots from non-deleted timetables ──────────────
+        List<TimeSlotSubjectMapper> rawSlots = mapperRepository.findActiveSlotsByTeacherId(staffId);
+        List<TimeSlotSubjectMapper> slots = new ArrayList<>();
+        for (TimeSlotSubjectMapper s : rawSlots) {
+            if (s.getTimeTable() != null && !Boolean.TRUE.equals(s.getTimeTable().getIsDeleted())) {
+                slots.add(s);
+            }
+        }
 
         // ── 3. Build CommonMaster lookup map ────────────────────────────────────
         Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
-                .filter(cm -> Boolean.TRUE.equals(cm.getStatus()))
                 .collect(Collectors.toMap(
                         CommonMaster::getId,
-                        cm -> cm.getData() != null ? cm.getData() : cm.getCommonMasterKey()
+                        cm -> cm.getData() != null && !cm.getData().isBlank() ? cm.getData() : cm.getCommonMasterKey(),
+                        (existing, replacement) -> existing
                 ));
 
         // ── 4. Determine day range (max day across all slots; default Mon-Sat=6) ─
@@ -604,8 +725,6 @@ public class TimeTableServiceImpl implements TimeTableService {
         }
 
         // ── 6. Build time-slot row grid (sorted by start time) ───────────────────
-        //       Key  : (startTime, endTime) pair
-        //       Value: Map<dayNumber, slot>
         class TimeSlotRow implements Comparable<TimeSlotRow> {
             final String startTime;
             final String endTime;
@@ -663,19 +782,15 @@ public class TimeTableServiceImpl implements TimeTableService {
                     activeDays.add(d);
 
                     // Subject name
-                    String subjectName = subjectRepository.findById(slot.getSubjectId())
-                            .map(Subject::getSubjectName).orElse("Unknown");
+                    String subjectName = resolveSubjectName(slot.getSubjectId());
 
-                    // Class & Section label from the parent timetable
+                    // Class & Section label
                     String classLabel = "N/A";
                     if (slot.getTimeTable() != null) {
-                        String className   = commonMasterMap.getOrDefault(
-                                slot.getTimeTable().getClassId() != null ? slot.getTimeTable().getClassId().intValue() : -1,
-                                "?");
-                        String sectionName = commonMasterMap.getOrDefault(
-                                slot.getTimeTable().getSectionId() != null ? slot.getTimeTable().getSectionId().intValue() : -1,
-                                "?");
-                        classLabel = className + " - " + sectionName;
+                        TimeTable tt = slot.getTimeTable();
+                        String className = resolveClassName(tt.getClassId(), commonMasterMap);
+                        String sectionName = resolveSectionName(tt.getSectionId(), commonMasterMap);
+                        classLabel = sectionName.isBlank() ? className : className + " - " + sectionName;
                     }
 
                     String room = slot.getRoom() != null && !slot.getRoom().isBlank() ? slot.getRoom() : "";
@@ -695,7 +810,7 @@ public class TimeTableServiceImpl implements TimeTableService {
 
         // ── 8. Compute summary numbers ───────────────────────────────────────────
         int workingDays = activeDays.size();
-        int totalSlotCells = grid.size() * maxDay;   // max possible periods in the grid
+        int totalSlotCells = grid.size() * maxDay;
         int freePeriods    = totalSlotCells - totalPeriods;
 
         // ── 9. Session label ─────────────────────────────────────────────────────
