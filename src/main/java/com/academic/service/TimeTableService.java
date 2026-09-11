@@ -27,6 +27,8 @@ public interface TimeTableService {
 
     byte[] generateTeacherTimetablePdf(Long staffId);
 
+    com.academic.response.TeacherTimetableResponse getTeacherTimetable(Long staffId);
+
 
     @Transactional(readOnly = true)
     StandardResponse<Map<String, Object>> listAll(
