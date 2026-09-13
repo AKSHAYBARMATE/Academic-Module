@@ -23,7 +23,13 @@ public class Subject {
     @Column(nullable = false)
     private String subjectName;
 
-    private String department;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "degree_id")
+    private Degree degree;
 
     private String program; // e.g. "B.Tech (CSE)", "BCA", "MBA"
 
@@ -91,5 +97,25 @@ public class Subject {
 
     public void setName(String name) {
         this.subjectName = name;
+    }
+
+    public String getDepartmentName() {
+        return this.department != null ? this.department.getName() : null;
+    }
+
+    public String getDegreeCode() {
+        return this.degree != null ? this.degree.getCode() : null;
+    }
+
+    public String getDegreeName() {
+        return this.degree != null ? this.degree.getName() : null;
+    }
+
+    public Integer getDepartmentId() {
+        return this.department != null ? this.department.getId() : null;
+    }
+
+    public Integer getDegreeId() {
+        return this.degree != null ? this.degree.getId() : null;
     }
 }

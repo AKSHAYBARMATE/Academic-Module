@@ -18,7 +18,14 @@ public class SubjectRequest {
     private String name;
     private String subjectName;
 
+    // Foreign Keys
+    private Integer degreeId;
+    private Integer departmentId;
+
+    // Backward-compatibility and convenience string values
+    private String degree;
     private String department;
+
     private String program;
     private String semester;
     private Integer credits;

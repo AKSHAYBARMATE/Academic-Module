@@ -1,5 +1,7 @@
 package com.academic.controller;
 
+import com.academic.entity.Department;
+import com.academic.repository.DepartmentRepository;
 import com.academic.request.SubjectRequest;
 import com.academic.response.StandardResponse;
 import com.academic.response.SubjectResponse;
@@ -20,15 +22,18 @@ import java.util.List;
 public class SubjectController {
 
     private final SubjectService service;
+    private final DepartmentRepository departmentRepository;
 
     /**
      * Create a new Subject / Course record
      */
     @PostMapping("/createSubject")
     public ResponseEntity<StandardResponse<SubjectResponse>> create(@RequestBody SubjectRequest request) {
-        log.info("API call: POST /createSubject - code: {}, name: {}",
+        log.info("API call: POST /createSubject - code: {}, name: {}, degreeId: {}, deptId: {}",
                 request != null ? request.getResolvedCode() : null,
-                request != null ? request.getResolvedName() : null);
+                request != null ? request.getResolvedName() : null,
+                request != null ? request.getDegreeId() : null,
+                request != null ? request.getDepartmentId() : null);
         SubjectResponse response = service.create(request);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -103,6 +108,40 @@ public class SubjectController {
     }
 
     /**
+     * Fetch subjects under a specific Degree ID
+     */
+    @GetMapping("/getSubjectsByDegree/{degreeId}")
+    public ResponseEntity<StandardResponse<List<SubjectResponse>>> getSubjectsByDegree(
+            @PathVariable Integer degreeId
+    ) {
+        log.info("API call: GET /getSubjectsByDegree/{}", degreeId);
+        List<SubjectResponse> response = service.getByDegree(degreeId);
+        return ResponseEntity.ok(StandardResponse.success(response, "Subjects for degree fetched successfully"));
+    }
+
+    /**
+     * Fetch subjects under a specific Department ID
+     */
+    @GetMapping("/getSubjectsByDepartmentId/{departmentId}")
+    public ResponseEntity<StandardResponse<List<SubjectResponse>>> getSubjectsByDepartmentId(
+            @PathVariable Integer departmentId
+    ) {
+        log.info("API call: GET /getSubjectsByDepartmentId/{}", departmentId);
+        List<SubjectResponse> response = service.getByDepartmentId(departmentId);
+        return ResponseEntity.ok(StandardResponse.success(response, "Subjects for departmentId fetched successfully"));
+    }
+
+    /**
+     * Fetch all departments available in academic module
+     */
+    @GetMapping("/getAllDepartments")
+    public ResponseEntity<StandardResponse<List<Department>>> getAllDepartments() {
+        log.info("API call: GET /getAllDepartments");
+        List<Department> departments = departmentRepository.findAllByOrderByNameAsc();
+        return ResponseEntity.ok(StandardResponse.success(departments, "Departments fetched successfully"));
+    }
+
+    /**
      * Fetch paginated and filtered list of Subjects / Courses
      */
     @GetMapping("/getAllSubjects")
@@ -110,6 +149,8 @@ public class SubjectController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer departmentId,
+            @RequestParam(required = false) Integer degreeId,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) String program,
             @RequestParam(required = false) String semester,
@@ -118,10 +159,10 @@ public class SubjectController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Integer credits
     ) {
-        log.info("API call: GET /getAllSubjects - page: {}, size: {}, search: {}, dept: {}, prog: {}, sem: {}, year: {}, type: {}, status: {}",
-                page, size, search, department, program, semester, academicYear, type, status);
+        log.info("API call: GET /getAllSubjects - page: {}, size: {}, search: {}, deptId: {}, degreeId: {}, dept: {}, prog: {}, sem: {}, year: {}, type: {}, status: {}",
+                page, size, search, departmentId, degreeId, department, program, semester, academicYear, type, status);
         Page<SubjectResponse> response = service.getAll(
-                page, size, search, department, program, semester, academicYear, type, status, credits
+                page, size, search, departmentId, degreeId, department, program, semester, academicYear, type, status, credits
         );
         return ResponseEntity.ok(StandardResponse.success(response, "Subjects fetched successfully"));
     }

@@ -1,9 +1,13 @@
 package com.academic.service;
 
+import com.academic.entity.Degree;
+import com.academic.entity.Department;
 import com.academic.entity.Subject;
 import com.academic.exception.CustomException;
 import com.academic.exception.ResourceNotFoundException;
 import com.academic.mapper.SubjectMapper;
+import com.academic.repository.DegreeRepository;
+import com.academic.repository.DepartmentRepository;
 import com.academic.repository.SubjectRepository;
 import com.academic.request.SubjectRequest;
 import com.academic.response.SubjectResponse;
@@ -16,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +28,8 @@ import java.util.List;
 public class SubjectServiceImpl implements SubjectService {
 
     private final SubjectRepository repository;
+    private final DegreeRepository degreeRepository;
+    private final DepartmentRepository departmentRepository;
 
     @Override
     @Transactional
@@ -41,7 +48,10 @@ public class SubjectServiceImpl implements SubjectService {
             );
         }
 
-        Subject entity = SubjectMapper.toEntity(request);
+        Degree degree = resolveDegree(request);
+        Department department = resolveDepartment(request);
+
+        Subject entity = SubjectMapper.toEntity(request, degree, department);
         Subject saved = repository.save(entity);
 
         log.info("Subject created successfully with id: {} and code: {}", saved.getId(), saved.getSubjectCode());
@@ -76,7 +86,10 @@ public class SubjectServiceImpl implements SubjectService {
             );
         }
 
-        SubjectMapper.updateEntity(existing, request);
+        Degree degree = resolveDegree(request);
+        Department department = resolveDepartment(request);
+
+        SubjectMapper.updateEntity(existing, request, degree, department);
         Subject updated = repository.save(existing);
 
         log.info("Subject updated successfully with id: {} and code: {}", updated.getId(), updated.getSubjectCode());
@@ -148,7 +161,29 @@ public class SubjectServiceImpl implements SubjectService {
         if (department == null || department.isBlank()) {
             throw new CustomException("Department is required", "REQUIRED_FIELD", "department cannot be empty");
         }
-        List<Subject> list = repository.findByDepartmentIgnoreCaseAndIsDeletedFalseOrderBySubjectCodeAsc(department.trim());
+        List<Subject> list = repository.findByDepartment_NameIgnoreCaseAndIsDeletedFalseOrderBySubjectCodeAsc(department.trim());
+        return SubjectMapper.toResponseList(list);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SubjectResponse> getByDegree(Integer degreeId) {
+        log.info("Fetching Subjects by degreeId: {}", degreeId);
+        if (degreeId == null || degreeId <= 0) {
+            throw new CustomException("Valid Degree ID is required", "INVALID_ID", "degreeId must be positive");
+        }
+        List<Subject> list = repository.findByDegree_IdAndIsDeletedFalseOrderBySubjectCodeAsc(degreeId);
+        return SubjectMapper.toResponseList(list);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SubjectResponse> getByDepartmentId(Integer departmentId) {
+        log.info("Fetching Subjects by departmentId: {}", departmentId);
+        if (departmentId == null || departmentId <= 0) {
+            throw new CustomException("Valid Department ID is required", "INVALID_ID", "departmentId must be positive");
+        }
+        List<Subject> list = repository.findByDepartment_IdAndIsDeletedFalseOrderBySubjectCodeAsc(departmentId);
         return SubjectMapper.toResponseList(list);
     }
 
@@ -158,6 +193,8 @@ public class SubjectServiceImpl implements SubjectService {
             int page,
             int size,
             String search,
+            Integer departmentId,
+            Integer degreeId,
             String department,
             String program,
             String semester,
@@ -166,8 +203,8 @@ public class SubjectServiceImpl implements SubjectService {
             String status,
             Integer credits
     ) {
-        log.info("Fetching paginated Subjects - page: {}, size: {}, search: {}, dept: {}, program: {}, sem: {}, type: {}, status: {}",
-                page, size, search, department, program, semester, type, status);
+        log.info("Fetching paginated Subjects - page: {}, size: {}, search: {}, deptId: {}, degreeId: {}, dept: {}, program: {}, sem: {}, type: {}, status: {}",
+                page, size, search, departmentId, degreeId, department, program, semester, type, status);
 
         if (page < 0) page = 0;
         if (size <= 0 || size > 200) size = 10;
@@ -183,9 +220,46 @@ public class SubjectServiceImpl implements SubjectService {
         String cleanStatus = (status != null && !status.trim().isBlank() && !status.equalsIgnoreCase("all")) ? status.trim() : null;
 
         Page<Subject> pageResult = repository.searchAndFilter(
-                cleanSearch, cleanDept, cleanProgram, cleanSem, cleanYear, cleanType, cleanStatus, credits, pageable
+                cleanSearch, departmentId, degreeId, cleanDept, cleanProgram, cleanSem, cleanYear, cleanType, cleanStatus, credits, pageable
         );
         return pageResult.map(SubjectMapper::toResponse);
+    }
+
+    private Degree resolveDegree(SubjectRequest request) {
+        if (request == null) return null;
+
+        if (request.getDegreeId() != null && request.getDegreeId() > 0) {
+            return degreeRepository.findByIdAndIsDeletedFalse(request.getDegreeId()).orElse(null);
+        }
+        if (request.getDegree() != null && !request.getDegree().trim().isBlank()) {
+            return degreeRepository.findByCodeIgnoreCaseAndIsDeletedFalse(request.getDegree().trim())
+                    .orElse(null);
+        }
+        if (request.getProgram() != null && !request.getProgram().trim().isBlank()) {
+            // Check if degree code can be matched from program (e.g. "B.Tech (CSE)" -> "B.Tech")
+            String prog = request.getProgram().trim();
+            Optional<Degree> direct = degreeRepository.findByCodeIgnoreCaseAndIsDeletedFalse(prog);
+            if (direct.isPresent()) return direct.get();
+            if (prog.contains(" ")) {
+                String potentialCode = prog.split(" ")[0].trim();
+                return degreeRepository.findByCodeIgnoreCaseAndIsDeletedFalse(potentialCode).orElse(null);
+            }
+        }
+        return null;
+    }
+
+    private Department resolveDepartment(SubjectRequest request) {
+        if (request == null) return null;
+
+        if (request.getDepartmentId() != null && request.getDepartmentId() > 0) {
+            return departmentRepository.findById(request.getDepartmentId()).orElse(null);
+        }
+        if (request.getDepartment() != null && !request.getDepartment().trim().isBlank()) {
+            String deptStr = request.getDepartment().trim();
+            return departmentRepository.findByNameIgnoreCase(deptStr)
+                    .orElseGet(() -> departmentRepository.findByCodeIgnoreCase(deptStr).orElse(null));
+        }
+        return null;
     }
 
     private void validateRequest(SubjectRequest request, boolean isUpdate, Long existingId) {

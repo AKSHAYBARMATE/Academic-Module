@@ -21,7 +21,17 @@ public class SubjectResponse {
     private String name;
     private String subjectName;
 
-    private String department;
+    // Degree Foreign Key & Details
+    private Integer degreeId;
+    private String degreeCode;
+    private String degreeName;
+
+    // Department Foreign Key & Details
+    private Integer departmentId;
+    private String departmentName;
+    private String departmentCode;
+    private String department; // Alias for backward compatibility
+
     private String program;
     private String semester;
     private Integer credits;

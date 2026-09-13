@@ -1,5 +1,7 @@
 package com.academic.mapper;
 
+import com.academic.entity.Degree;
+import com.academic.entity.Department;
 import com.academic.entity.Subject;
 import com.academic.request.SubjectRequest;
 import com.academic.response.SubjectResponse;
@@ -11,7 +13,7 @@ import java.util.stream.Collectors;
 
 public class SubjectMapper {
 
-    public static Subject toEntity(SubjectRequest request) {
+    public static Subject toEntity(SubjectRequest request, Degree degree, Department department) {
         if (request == null) return null;
 
         String resolvedCode = request.getResolvedCode();
@@ -39,7 +41,8 @@ public class SubjectMapper {
         return Subject.builder()
                 .subjectCode(resolvedCode)
                 .subjectName(resolvedName)
-                .department(request.getDepartment() != null ? request.getDepartment().trim() : null)
+                .degree(degree)
+                .department(department)
                 .program(request.getProgram() != null ? request.getProgram().trim() : null)
                 .semester(request.getSemester() != null ? request.getSemester().trim() : null)
                 .credits(request.getCredits() != null ? request.getCredits() : 4)
@@ -54,7 +57,11 @@ public class SubjectMapper {
                 .build();
     }
 
-    public static void updateEntity(Subject entity, SubjectRequest request) {
+    public static Subject toEntity(SubjectRequest request) {
+        return toEntity(request, null, null);
+    }
+
+    public static void updateEntity(Subject entity, SubjectRequest request, Degree degree, Department department) {
         if (entity == null || request == null) return;
 
         String resolvedCode = request.getResolvedCode();
@@ -67,9 +74,13 @@ public class SubjectMapper {
             entity.setSubjectName(resolvedName);
         }
 
-        if (request.getDepartment() != null) {
-            entity.setDepartment(request.getDepartment().trim());
+        if (degree != null) {
+            entity.setDegree(degree);
         }
+        if (department != null) {
+            entity.setDepartment(department);
+        }
+
         if (request.getProgram() != null) {
             entity.setProgram(request.getProgram().trim());
         }
@@ -118,6 +129,10 @@ public class SubjectMapper {
         }
     }
 
+    public static void updateEntity(Subject entity, SubjectRequest request) {
+        updateEntity(entity, request, null, null);
+    }
+
     public static SubjectResponse toResponse(Subject entity) {
         if (entity == null) return null;
 
@@ -131,13 +146,27 @@ public class SubjectMapper {
             facultyList.add(entity.getFaculty().trim());
         }
 
+        Integer degreeId = entity.getDegree() != null ? entity.getDegree().getId() : null;
+        String degreeCode = entity.getDegree() != null ? entity.getDegree().getCode() : null;
+        String degreeName = entity.getDegree() != null ? entity.getDegree().getName() : null;
+
+        Integer deptId = entity.getDepartment() != null ? entity.getDepartment().getId() : null;
+        String deptName = entity.getDepartment() != null ? entity.getDepartment().getName() : null;
+        String deptCode = entity.getDepartment() != null ? entity.getDepartment().getCode() : null;
+
         return SubjectResponse.builder()
                 .id(entity.getId())
                 .code(entity.getSubjectCode())
                 .subjectCode(entity.getSubjectCode())
                 .name(entity.getSubjectName())
                 .subjectName(entity.getSubjectName())
-                .department(entity.getDepartment())
+                .degreeId(degreeId)
+                .degreeCode(degreeCode)
+                .degreeName(degreeName)
+                .departmentId(deptId)
+                .departmentName(deptName)
+                .departmentCode(deptCode)
+                .department(deptName) // Alias for backward compatibility
                 .program(entity.getProgram())
                 .semester(entity.getSemester())
                 .credits(entity.getCredits())

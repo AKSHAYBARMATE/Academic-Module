@@ -32,17 +32,28 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
 
     List<Subject> findByProgramIgnoreCaseAndIsDeletedFalseOrderBySubjectCodeAsc(String program);
 
-    List<Subject> findByDepartmentIgnoreCaseAndIsDeletedFalseOrderBySubjectCodeAsc(String department);
+    List<Subject> findByDepartment_NameIgnoreCaseAndIsDeletedFalseOrderBySubjectCodeAsc(String departmentName);
+
+    default List<Subject> findByDepartmentIgnoreCaseAndIsDeletedFalseOrderBySubjectCodeAsc(String department) {
+        return findByDepartment_NameIgnoreCaseAndIsDeletedFalseOrderBySubjectCodeAsc(department);
+    }
+
+    List<Subject> findByDepartment_IdAndIsDeletedFalseOrderBySubjectCodeAsc(Integer departmentId);
+
+    List<Subject> findByDegree_IdAndIsDeletedFalseOrderBySubjectCodeAsc(Integer degreeId);
 
     @Query("SELECT s FROM Subject s " +
             "WHERE s.isDeleted = false " +
             "AND (:search IS NULL OR LOWER(s.subjectCode) LIKE LOWER(CONCAT('%', :search, '%')) " +
             "     OR LOWER(s.subjectName) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "     OR LOWER(s.department) LIKE LOWER(CONCAT('%', :search, '%')) " +
+            "     OR (s.department IS NOT NULL AND LOWER(s.department.name) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "     OR (s.degree IS NOT NULL AND (LOWER(s.degree.code) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(s.degree.name) LIKE LOWER(CONCAT('%', :search, '%')))) " +
             "     OR LOWER(s.program) LIKE LOWER(CONCAT('%', :search, '%')) " +
             "     OR LOWER(s.faculty) LIKE LOWER(CONCAT('%', :search, '%')) " +
             "     OR LOWER(s.faculties) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-            "AND (:department IS NULL OR LOWER(s.department) = LOWER(:department)) " +
+            "AND (:departmentId IS NULL OR (s.department IS NOT NULL AND s.department.id = :departmentId)) " +
+            "AND (:degreeId IS NULL OR (s.degree IS NOT NULL AND s.degree.id = :degreeId)) " +
+            "AND (:department IS NULL OR (s.department IS NOT NULL AND LOWER(s.department.name) = LOWER(:department))) " +
             "AND (:program IS NULL OR LOWER(s.program) = LOWER(:program)) " +
             "AND (:semester IS NULL OR LOWER(s.semester) = LOWER(:semester)) " +
             "AND (:academicYear IS NULL OR LOWER(s.academicYear) = LOWER(:academicYear)) " +
@@ -51,6 +62,8 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
             "AND (:credits IS NULL OR s.credits = :credits)")
     Page<Subject> searchAndFilter(
             @Param("search") String search,
+            @Param("departmentId") Integer departmentId,
+            @Param("degreeId") Integer degreeId,
             @Param("department") String department,
             @Param("program") String program,
             @Param("semester") String semester,

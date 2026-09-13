@@ -34,7 +34,26 @@ public interface SubjectService {
 
     List<SubjectResponse> getByDepartment(String department);
 
+    List<SubjectResponse> getByDegree(Integer degreeId);
+
+    List<SubjectResponse> getByDepartmentId(Integer departmentId);
+
     Page<SubjectResponse> getAll(
+            int page,
+            int size,
+            String search,
+            Integer departmentId,
+            Integer degreeId,
+            String department,
+            String program,
+            String semester,
+            String academicYear,
+            String type,
+            String status,
+            Integer credits
+    );
+
+    default Page<SubjectResponse> getAll(
             int page,
             int size,
             String search,
@@ -45,9 +64,11 @@ public interface SubjectService {
             String type,
             String status,
             Integer credits
-    );
+    ) {
+        return getAll(page, size, search, null, null, department, program, semester, academicYear, type, status, credits);
+    }
 
     default Page<SubjectResponse> getAll(int page, int size, String search, String type, String status, Integer credits) {
-        return getAll(page, size, search, null, null, null, null, type, status, credits);
+        return getAll(page, size, search, null, null, null, null, null, null, type, status, credits);
     }
 }
