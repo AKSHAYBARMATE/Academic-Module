@@ -1,7 +1,5 @@
 package com.academic.controller;
 
-import com.academic.entity.Department;
-import com.academic.repository.DepartmentRepository;
 import com.academic.request.SubjectRequest;
 import com.academic.response.StandardResponse;
 import com.academic.response.SubjectResponse;
@@ -22,18 +20,15 @@ import java.util.List;
 public class SubjectController {
 
     private final SubjectService service;
-    private final DepartmentRepository departmentRepository;
 
     /**
-     * Create a new Subject / Course record
+     * Create a new School Subject record
      */
     @PostMapping("/createSubject")
     public ResponseEntity<StandardResponse<SubjectResponse>> create(@RequestBody SubjectRequest request) {
-        log.info("API call: POST /createSubject - code: {}, name: {}, degreeId: {}, deptId: {}",
+        log.info("API call: POST /createSubject - code: {}, name: {}",
                 request != null ? request.getResolvedCode() : null,
-                request != null ? request.getResolvedName() : null,
-                request != null ? request.getDegreeId() : null,
-                request != null ? request.getDepartmentId() : null);
+                request != null ? request.getResolvedName() : null);
         SubjectResponse response = service.create(request);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -41,11 +36,11 @@ public class SubjectController {
     }
 
     /**
-     * Update an existing Subject / Course record by ID
+     * Update an existing School Subject record by ID
      */
     @PutMapping("/updateSubject/{id}")
     public ResponseEntity<StandardResponse<SubjectResponse>> update(
-            @PathVariable Long id,
+            @PathVariable Integer id,
             @RequestBody SubjectRequest request
     ) {
         log.info("API call: PUT /updateSubject/{} - payload: {}", id, request);
@@ -54,115 +49,52 @@ public class SubjectController {
     }
 
     /**
-     * Soft delete a Subject / Course record by ID
+     * Soft delete a School Subject record by ID
      */
     @DeleteMapping("/deleteSubject/{id}")
-    public ResponseEntity<StandardResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<StandardResponse<Void>> delete(@PathVariable Integer id) {
         log.warn("API call: DELETE /deleteSubject/{}", id);
         service.delete(id);
         return ResponseEntity.ok(StandardResponse.success("Subject deleted successfully"));
     }
 
     /**
-     * Fetch Subject / Course details by ID
+     * Get a single School Subject record by ID
      */
     @GetMapping("/getSubjectById/{id}")
-    public ResponseEntity<StandardResponse<SubjectResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<StandardResponse<SubjectResponse>> getById(@PathVariable Integer id) {
         log.info("API call: GET /getSubjectById/{}", id);
         SubjectResponse response = service.getById(id);
         return ResponseEntity.ok(StandardResponse.success(response, "Subject fetched successfully"));
     }
 
     /**
-     * Fetch all active subjects for dropdown selectors
+     * List all active School Subjects
      */
-    @GetMapping("/getActiveSubjects")
-    public ResponseEntity<StandardResponse<List<SubjectResponse>>> getActiveSubjects() {
-        log.info("API call: GET /getActiveSubjects");
+    @GetMapping("/active")
+    public ResponseEntity<StandardResponse<List<SubjectResponse>>> getActive() {
+        log.info("API call: GET /active");
         List<SubjectResponse> response = service.getAllActive();
         return ResponseEntity.ok(StandardResponse.success(response, "Active subjects fetched successfully"));
     }
 
     /**
-     * Fetch subjects mapped under a specific Program (e.g. "B.Tech (CSE)")
-     */
-    @GetMapping("/getSubjectsByProgram/{program}")
-    public ResponseEntity<StandardResponse<List<SubjectResponse>>> getSubjectsByProgram(
-            @PathVariable String program
-    ) {
-        log.info("API call: GET /getSubjectsByProgram/{}", program);
-        List<SubjectResponse> response = service.getByProgram(program);
-        return ResponseEntity.ok(StandardResponse.success(response, "Subjects for program fetched successfully"));
-    }
-
-    /**
-     * Fetch subjects under a specific Department
-     */
-    @GetMapping("/getSubjectsByDepartment/{department}")
-    public ResponseEntity<StandardResponse<List<SubjectResponse>>> getSubjectsByDepartment(
-            @PathVariable String department
-    ) {
-        log.info("API call: GET /getSubjectsByDepartment/{}", department);
-        List<SubjectResponse> response = service.getByDepartment(department);
-        return ResponseEntity.ok(StandardResponse.success(response, "Subjects for department fetched successfully"));
-    }
-
-    /**
-     * Fetch subjects under a specific Degree ID
-     */
-    @GetMapping("/getSubjectsByDegree/{degreeId}")
-    public ResponseEntity<StandardResponse<List<SubjectResponse>>> getSubjectsByDegree(
-            @PathVariable Integer degreeId
-    ) {
-        log.info("API call: GET /getSubjectsByDegree/{}", degreeId);
-        List<SubjectResponse> response = service.getByDegree(degreeId);
-        return ResponseEntity.ok(StandardResponse.success(response, "Subjects for degree fetched successfully"));
-    }
-
-    /**
-     * Fetch subjects under a specific Department ID
-     */
-    @GetMapping("/getSubjectsByDepartmentId/{departmentId}")
-    public ResponseEntity<StandardResponse<List<SubjectResponse>>> getSubjectsByDepartmentId(
-            @PathVariable Integer departmentId
-    ) {
-        log.info("API call: GET /getSubjectsByDepartmentId/{}", departmentId);
-        List<SubjectResponse> response = service.getByDepartmentId(departmentId);
-        return ResponseEntity.ok(StandardResponse.success(response, "Subjects for departmentId fetched successfully"));
-    }
-
-    /**
-     * Fetch all departments available in academic module
-     */
-    @GetMapping("/getAllDepartments")
-    public ResponseEntity<StandardResponse<List<Department>>> getAllDepartments() {
-        log.info("API call: GET /getAllDepartments");
-        List<Department> departments = departmentRepository.findAllByOrderByNameAsc();
-        return ResponseEntity.ok(StandardResponse.success(departments, "Departments fetched successfully"));
-    }
-
-    /**
-     * Fetch paginated and filtered list of Subjects / Courses
+     * Filtered & paginated query across all School Subjects
      */
     @GetMapping("/getAllSubjects")
     public ResponseEntity<StandardResponse<Page<SubjectResponse>>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) Integer departmentId,
-            @RequestParam(required = false) Integer degreeId,
             @RequestParam(required = false) String department,
-            @RequestParam(required = false) String program,
-            @RequestParam(required = false) String semester,
-            @RequestParam(required = false) String academicYear,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Integer credits
     ) {
-        log.info("API call: GET /getAllSubjects - page: {}, size: {}, search: {}, deptId: {}, degreeId: {}, dept: {}, prog: {}, sem: {}, year: {}, type: {}, status: {}",
-                page, size, search, departmentId, degreeId, department, program, semester, academicYear, type, status);
+        log.info("API call: GET /getAllSubjects - page: {}, size: {}, search: {}, dept: {}, type: {}, status: {}",
+                page, size, search, department, type, status);
         Page<SubjectResponse> response = service.getAll(
-                page, size, search, departmentId, degreeId, department, program, semester, academicYear, type, status, credits
+                page, size, search, department, type, status, credits
         );
         return ResponseEntity.ok(StandardResponse.success(response, "Subjects fetched successfully"));
     }

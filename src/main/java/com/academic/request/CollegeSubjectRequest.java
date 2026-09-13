@@ -2,14 +2,13 @@ package com.academic.request;
 
 import lombok.*;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SubjectRequest {
-
-    // Supports both 'id' and 'subjectId'
-    private Integer id;
+public class CollegeSubjectRequest {
 
     // Supports both 'code' and 'subjectCode'
     private String code;
@@ -19,10 +18,23 @@ public class SubjectRequest {
     private String name;
     private String subjectName;
 
+    // Foreign Keys
+    private Integer degreeId;
+    private Integer departmentId;
+
+    // Convenience string values
+    private String degree;
     private String department;
 
+    private String program;
+    private String semester;
     private Integer credits;
     private String type; // Theory, Practical, Elective, Core
+    private Integer hrsPerWeek;
+    private String faculty;
+    private List<String> faculties;
+    private String academicYear;
+    private String description;
     private String status;
 
     public String getResolvedCode() {
@@ -43,9 +55,5 @@ public class SubjectRequest {
             return this.subjectName.trim();
         }
         return null;
-    }
-
-    public String getResolvedDepartment() {
-        return this.department != null && !this.department.trim().isBlank() ? this.department.trim() : null;
     }
 }

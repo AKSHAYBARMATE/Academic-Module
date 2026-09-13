@@ -10,65 +10,40 @@ public interface SubjectService {
 
     SubjectResponse create(SubjectRequest request);
 
-    SubjectResponse update(Long id, SubjectRequest request);
+    SubjectResponse update(Integer id, SubjectRequest request);
 
-    default SubjectResponse update(Integer id, SubjectRequest request) {
-        return update(id != null ? id.longValue() : null, request);
-    }
+    void delete(Integer id);
 
-    void delete(Long id);
-
-    default void delete(Integer id) {
-        delete(id != null ? id.longValue() : null);
-    }
-
-    SubjectResponse getById(Long id);
-
-    default SubjectResponse getById(Integer id) {
-        return getById(id != null ? id.longValue() : null);
-    }
+    SubjectResponse getById(Integer id);
 
     List<SubjectResponse> getAllActive();
 
-    List<SubjectResponse> getByProgram(String program);
-
     List<SubjectResponse> getByDepartment(String department);
-
-    List<SubjectResponse> getByDegree(Integer degreeId);
-
-    List<SubjectResponse> getByDepartmentId(Integer departmentId);
 
     Page<SubjectResponse> getAll(
             int page,
             int size,
             String search,
-            Integer departmentId,
-            Integer degreeId,
             String department,
-            String program,
-            String semester,
-            String academicYear,
             String type,
             String status,
             Integer credits
     );
 
-    default Page<SubjectResponse> getAll(
-            int page,
-            int size,
-            String search,
-            String department,
-            String program,
-            String semester,
-            String academicYear,
-            String type,
-            String status,
-            Integer credits
-    ) {
-        return getAll(page, size, search, null, null, department, program, semester, academicYear, type, status, credits);
+    // Overloads for legacy callers passing Long
+    default SubjectResponse update(Long id, SubjectRequest request) {
+        return update(id != null ? id.intValue() : null, request);
+    }
+
+    default void delete(Long id) {
+        delete(id != null ? id.intValue() : null);
+    }
+
+    default SubjectResponse getById(Long id) {
+        return getById(id != null ? id.intValue() : null);
     }
 
     default Page<SubjectResponse> getAll(int page, int size, String search, String type, String status, Integer credits) {
-        return getAll(page, size, search, null, null, null, null, null, null, type, status, credits);
+        return getAll(page, size, search, null, type, status, credits);
     }
 }

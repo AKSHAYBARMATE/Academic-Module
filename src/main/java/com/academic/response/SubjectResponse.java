@@ -3,7 +3,6 @@ package com.academic.response;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @Builder
@@ -11,7 +10,7 @@ import java.util.List;
 @AllArgsConstructor
 public class SubjectResponse {
 
-    private Long id;
+    private Integer id;
 
     // Both code and subjectCode provided for full compatibility
     private String code;
@@ -21,28 +20,17 @@ public class SubjectResponse {
     private String name;
     private String subjectName;
 
-    // Degree Foreign Key & Details
-    private Integer degreeId;
-    private String degreeCode;
-    private String degreeName;
-
-    // Department Foreign Key & Details
-    private Integer departmentId;
+    private String department;
     private String departmentName;
-    private String departmentCode;
-    private String department; // Alias for backward compatibility
 
-    private String program;
-    private String semester;
     private Integer credits;
-    private String type; // Theory, Practical, Elective
-    private Integer hrsPerWeek;
-    private String faculty;
-    private List<String> faculties;
-    private String academicYear;
-    private String description;
+    private String type; // Theory, Practical, Elective, Core
     private String status;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    public Long getIdAsLong() {
+        return this.id != null ? this.id.longValue() : null;
+    }
 }
