@@ -10,15 +10,23 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-public interface SubjectRepository extends JpaRepository<Subject, Integer> {
+public interface SubjectRepository extends JpaRepository<Subject, Long> {
 
-    Optional<Subject> findByIdAndIsDeletedFalse(Integer id);
+    Optional<Subject> findByIdAndIsDeletedFalse(Long id);
+
+    default Optional<Subject> findByIdAndIsDeletedFalse(Integer id) {
+        return id != null ? findByIdAndIsDeletedFalse(id.longValue()) : Optional.empty();
+    }
 
     boolean existsBySubjectCodeAndIsDeletedFalse(String subjectCode);
 
     boolean existsBySubjectCodeIgnoreCaseAndIsDeletedFalse(String subjectCode);
 
-    boolean existsBySubjectCodeIgnoreCaseAndIdNotAndIsDeletedFalse(String subjectCode, Integer id);
+    boolean existsBySubjectCodeIgnoreCaseAndIdNotAndIsDeletedFalse(String subjectCode, Long id);
+
+    default boolean existsBySubjectCodeIgnoreCaseAndIdNotAndIsDeletedFalse(String subjectCode, Integer id) {
+        return existsBySubjectCodeIgnoreCaseAndIdNotAndIsDeletedFalse(subjectCode, id != null ? id.longValue() : null);
+    }
 
     List<Subject> findByIsDeletedFalseAndStatusOrderBySubjectCodeAsc(String status);
 

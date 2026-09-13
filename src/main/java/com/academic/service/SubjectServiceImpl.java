@@ -50,7 +50,7 @@ public class SubjectServiceImpl implements SubjectService {
 
     @Override
     @Transactional
-    public SubjectResponse update(Integer id, SubjectRequest request) {
+    public SubjectResponse update(Long id, SubjectRequest request) {
         log.info("Request received to update Subject with id: {}", id);
 
         if (id == null || id <= 0) {
@@ -85,7 +85,7 @@ public class SubjectServiceImpl implements SubjectService {
 
     @Override
     @Transactional
-    public void delete(Integer id) {
+    public void delete(Long id) {
         log.warn("Request received to soft delete Subject with id: {}", id);
 
         if (id == null || id <= 0) {
@@ -106,7 +106,7 @@ public class SubjectServiceImpl implements SubjectService {
 
     @Override
     @Transactional(readOnly = true)
-    public SubjectResponse getById(Integer id) {
+    public SubjectResponse getById(Long id) {
         log.info("Fetching Subject by id: {}", id);
 
         if (id == null || id <= 0) {
@@ -188,7 +188,7 @@ public class SubjectServiceImpl implements SubjectService {
         return pageResult.map(SubjectMapper::toResponse);
     }
 
-    private void validateRequest(SubjectRequest request, boolean isUpdate, Integer existingId) {
+    private void validateRequest(SubjectRequest request, boolean isUpdate, Long existingId) {
         if (request == null) {
             log.warn("Validation failed: SubjectRequest body is null");
             throw new CustomException("Request body cannot be null", "INVALID_REQUEST", "Please provide a valid subject payload");

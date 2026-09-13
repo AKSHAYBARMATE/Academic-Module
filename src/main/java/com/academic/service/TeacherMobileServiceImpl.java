@@ -523,7 +523,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
             return TeacherExamScheduleResponse.ExamSlotDto.builder()
                     .date(dateStr)
-                    .subjectId(config.getSubject().getId())
+                    .subjectId(config.getSubject() != null && config.getSubject().getId() != null ? config.getSubject().getId().intValue() : null)
                     .subjectName(subName)
                     .subjectCode(subCode)
                     .timeRange(timeRange)

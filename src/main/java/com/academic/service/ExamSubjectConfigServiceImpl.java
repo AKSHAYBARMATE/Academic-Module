@@ -115,7 +115,7 @@ public class ExamSubjectConfigServiceImpl implements ExamSubjectConfigService {
                         .findBySession_IdAndExamType_IdAndSubject_IdAndClassId_IdAndIsDeleteFalse(
                                 session.getId(),
                                 examType.getId(),
-                                subject.getId(),
+                                subject.getId() != null ? subject.getId().intValue() : null,
                                 classMaster.getId())
                         .isPresent();
 

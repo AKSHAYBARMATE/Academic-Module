@@ -11,7 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 public class SubjectResponse {
 
-    private Integer id;
+    private Long id;
 
     // Both code and subjectCode provided for full compatibility
     private String code;

@@ -10,11 +10,23 @@ public interface SubjectService {
 
     SubjectResponse create(SubjectRequest request);
 
-    SubjectResponse update(Integer id, SubjectRequest request);
+    SubjectResponse update(Long id, SubjectRequest request);
 
-    void delete(Integer id);
+    default SubjectResponse update(Integer id, SubjectRequest request) {
+        return update(id != null ? id.longValue() : null, request);
+    }
 
-    SubjectResponse getById(Integer id);
+    void delete(Long id);
+
+    default void delete(Integer id) {
+        delete(id != null ? id.longValue() : null);
+    }
+
+    SubjectResponse getById(Long id);
+
+    default SubjectResponse getById(Integer id) {
+        return getById(id != null ? id.longValue() : null);
+    }
 
     List<SubjectResponse> getAllActive();
 
@@ -34,19 +46,6 @@ public interface SubjectService {
             String status,
             Integer credits
     );
-
-    // Overloads for legacy compatibility
-    default SubjectResponse update(Long id, SubjectRequest request) {
-        return update(id != null ? Math.toIntExact(id) : null, request);
-    }
-
-    default void delete(Long id) {
-        delete(id != null ? Math.toIntExact(id) : null);
-    }
-
-    default SubjectResponse getById(Long id) {
-        return getById(id != null ? Math.toIntExact(id) : null);
-    }
 
     default Page<SubjectResponse> getAll(int page, int size, String search, String type, String status, Integer credits) {
         return getAll(page, size, search, null, null, null, null, type, status, credits);

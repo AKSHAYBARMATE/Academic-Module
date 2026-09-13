@@ -40,7 +40,7 @@ public class SubjectController {
      */
     @PutMapping("/updateSubject/{id}")
     public ResponseEntity<StandardResponse<SubjectResponse>> update(
-            @PathVariable Integer id,
+            @PathVariable Long id,
             @RequestBody SubjectRequest request
     ) {
         log.info("API call: PUT /updateSubject/{} - payload: {}", id, request);
@@ -52,7 +52,7 @@ public class SubjectController {
      * Soft delete a Subject / Course record by ID
      */
     @DeleteMapping("/deleteSubject/{id}")
-    public ResponseEntity<StandardResponse<Void>> delete(@PathVariable Integer id) {
+    public ResponseEntity<StandardResponse<Void>> delete(@PathVariable Long id) {
         log.warn("API call: DELETE /deleteSubject/{}", id);
         service.delete(id);
         return ResponseEntity.ok(StandardResponse.success("Subject deleted successfully"));
@@ -62,7 +62,7 @@ public class SubjectController {
      * Fetch Subject / Course details by ID
      */
     @GetMapping("/getSubjectById/{id}")
-    public ResponseEntity<StandardResponse<SubjectResponse>> getById(@PathVariable Integer id) {
+    public ResponseEntity<StandardResponse<SubjectResponse>> getById(@PathVariable Long id) {
         log.info("API call: GET /getSubjectById/{}", id);
         SubjectResponse response = service.getById(id);
         return ResponseEntity.ok(StandardResponse.success(response, "Subject fetched successfully"));
