@@ -1,19 +1,54 @@
 package com.academic.service;
 
-
 import com.academic.request.SubjectRequest;
 import com.academic.response.SubjectResponse;
 import org.springframework.data.domain.Page;
+
+import java.util.List;
 
 public interface SubjectService {
 
     SubjectResponse create(SubjectRequest request);
 
-    SubjectResponse update(Long id, SubjectRequest request);
+    SubjectResponse update(Integer id, SubjectRequest request);
 
-    void delete(Long id);
+    void delete(Integer id);
 
-    SubjectResponse getById(Long id);
+    SubjectResponse getById(Integer id);
 
-    Page<SubjectResponse> getAll(int page, int size, String search, String type, String status, Integer credits);
+    List<SubjectResponse> getAllActive();
+
+    List<SubjectResponse> getByProgram(String program);
+
+    List<SubjectResponse> getByDepartment(String department);
+
+    Page<SubjectResponse> getAll(
+            int page,
+            int size,
+            String search,
+            String department,
+            String program,
+            String semester,
+            String academicYear,
+            String type,
+            String status,
+            Integer credits
+    );
+
+    // Overloads for legacy compatibility
+    default SubjectResponse update(Long id, SubjectRequest request) {
+        return update(id != null ? Math.toIntExact(id) : null, request);
+    }
+
+    default void delete(Long id) {
+        delete(id != null ? Math.toIntExact(id) : null);
+    }
+
+    default SubjectResponse getById(Long id) {
+        return getById(id != null ? Math.toIntExact(id) : null);
+    }
+
+    default Page<SubjectResponse> getAll(int page, int size, String search, String type, String status, Integer credits) {
+        return getAll(page, size, search, null, null, null, null, type, status, credits);
+    }
 }
