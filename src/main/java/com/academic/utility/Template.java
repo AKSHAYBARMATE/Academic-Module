@@ -768,6 +768,17 @@ public class Template {
                     border-radius: 3px;
                     border: 1px solid #86efac;
                 }
+                .free-cell {
+                    display: inline-block;
+                    background-color: #fef3c7;
+                    color: #92400e;
+                    font-size: 8px;
+                    font-weight: bold;
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    border: 1px solid #fde68a;
+                    letter-spacing: 0.5px;
+                }
                 .empty-cell {
                     color: #cbd5e1;
                     font-size: 14px;

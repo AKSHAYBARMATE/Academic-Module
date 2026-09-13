@@ -28,6 +28,21 @@ public interface TimeSlotSubjectMapperRepository extends JpaRepository<TimeSlotS
     List<TimeSlotSubjectMapper> findActiveSlotsByTeacherId(@Param("teacherId") Long teacherId);
 
     /**
+     * Fetch all active slots across all non-deleted timetables in the school.
+     */
+    @Query("""
+    SELECT s
+    FROM TimeSlotSubjectMapper s
+    JOIN FETCH s.timeTable t
+    WHERE t.isDeleted = false
+      AND (s.active IS NULL OR s.active = true)
+      AND s.startTime IS NOT NULL
+      AND s.endTime IS NOT NULL
+    ORDER BY s.day ASC, s.startTime ASC
+    """)
+    List<TimeSlotSubjectMapper> findAllActiveSchoolSlots();
+
+    /**
      * Find existing slot assignments for a teacher that conflict with the given
      * day + time window across all non-deleted timetables.
      * Used during timetable creation / update to prevent double-booking a teacher.
