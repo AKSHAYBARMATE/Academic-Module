@@ -20,8 +20,13 @@ public class TeacherTimetableResponse {
     private String department;
     private Integer totalPeriods;
     private Integer workingDays;
+    private Integer totalSchoolPeriods;
+    private Integer freePeriods;
     private List<TeacherSlotDTO> slots;
+    private List<TeacherSlotDTO> freeSlots;
     private Map<String, List<TeacherSlotDTO>> scheduleByDay;
+    private Map<String, List<TeacherSlotDTO>> freeScheduleByDay;
+    private Map<String, List<TeacherSlotDTO>> fullWeeklyGrid;
 
     @Data
     @Builder
@@ -43,5 +48,7 @@ public class TeacherTimetableResponse {
         private String room;
         private Long timetableId;
         private String timetableName;
+        private Boolean isFree;       // true if free period, false if assigned
+        private String status;        // "ASSIGNED" or "FREE"
     }
 }

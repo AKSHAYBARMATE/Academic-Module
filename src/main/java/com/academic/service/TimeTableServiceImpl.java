@@ -389,72 +389,6 @@ public class TimeTableServiceImpl implements TimeTableService {
             dayHeaders.append("<th>").append(dayNames[d]).append("</th>");
         }
 
-        // Helper inner class for Row grouping and sorting
-        class TimeSlotRow implements Comparable<TimeSlotRow> {
-            private final String startTime;
-            private final String endTime;
-
-            public TimeSlotRow(String startTime, String endTime) {
-                this.startTime = startTime;
-                this.endTime = endTime;
-            }
-
-            public String getStartTime() {
-                return startTime;
-            }
-
-            public String getEndTime() {
-                return endTime;
-            }
-
-            @Override
-            public boolean equals(Object o) {
-                if (this == o) return true;
-                if (o == null || getClass() != o.getClass()) return false;
-                TimeSlotRow that = (TimeSlotRow) o;
-                return Objects.equals(parseTime(this.startTime), parseTime(that.startTime)) &&
-                        Objects.equals(parseTime(this.endTime), parseTime(that.endTime));
-            }
-
-            @Override
-            public int hashCode() {
-                return Objects.hash(parseTime(this.startTime), parseTime(this.endTime));
-            }
-
-            @Override
-            public int compareTo(TimeSlotRow o) {
-                try {
-                    LocalTime thisStart = parseTime(this.startTime);
-                    LocalTime otherStart = parseTime(o.startTime);
-                    int cmp = thisStart.compareTo(otherStart);
-                    if (cmp != 0) return cmp;
-
-                    LocalTime thisEnd = parseTime(this.endTime);
-                    LocalTime otherEnd = parseTime(o.endTime);
-                    return thisEnd.compareTo(otherEnd);
-                } catch (Exception e) {
-                    return this.startTime.compareTo(o.startTime);
-                }
-            }
-
-            private LocalTime parseTime(String timeStr) {
-                if (timeStr == null || timeStr.trim().isEmpty()) return LocalTime.MIDNIGHT;
-                timeStr = timeStr.trim().toUpperCase().replaceAll("\\s+", " ");
-                String[] formats = {"hh:mm a", "h:mm a", "HH:mm", "H:mm", "HH:mm:ss", "hh:mm:ssa"};
-                for (String format : formats) {
-                    try {
-                        return LocalTime.parse(timeStr, DateTimeFormatter.ofPattern(format, Locale.ENGLISH));
-                    } catch (Exception ignored) {
-                    }
-                }
-                try {
-                    return LocalTime.parse(timeStr);
-                } catch (Exception e) {
-                    return LocalTime.MIDNIGHT;
-                }
-            }
-        }
-
         Map<TimeSlotRow, Map<Integer, TimeSlotSubjectMapper>> grid = new TreeMap<>();
         for (TimeSlotSubjectMapper slot : slots) {
             if (slot.getStartTime() == null || slot.getEndTime() == null || slot.getDay() == null) {
@@ -607,8 +541,20 @@ public class TimeTableServiceImpl implements TimeTableService {
         String department = (staff.getDepartment() != null && staff.getDepartment().getName() != null)
                 ? staff.getDepartment().getName() : "N/A";
 
-        // Query only active slots belonging to non-deleted timetables
-        List<TimeSlotSubjectMapper> activeSlots = mapperRepository.findActiveSlotsByTeacherId(staffId);
+        // Query only active slots belonging to non-deleted timetables for this teacher
+        List<TimeSlotSubjectMapper> rawSlots = mapperRepository.findActiveSlotsByTeacherId(staffId);
+        List<TimeSlotSubjectMapper> activeSlots = new ArrayList<>();
+        for (TimeSlotSubjectMapper s : rawSlots) {
+            if (s.getTimeTable() != null && !Boolean.TRUE.equals(s.getTimeTable().getIsDeleted())) {
+                activeSlots.add(s);
+            }
+        }
+
+        // Fetch all distinct period rows that exist across active timetables in the school
+        List<TimeSlotRow> schoolRows = getDistinctSchoolTimeSlotRows(activeSlots);
+
+        // Determine working days (default Mon-Sat = 6)
+        int maxDay = determineMaxDay(schoolRows, activeSlots);
 
         // Build CommonMaster lookup map
         Map<Integer, String> commonMasterMap = commonMasterRepository.findAll().stream()
@@ -620,60 +566,108 @@ public class TimeTableServiceImpl implements TimeTableService {
 
         String[] dayNames = {"", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
 
-        List<TeacherSlotDTO> slotDTOList = new ArrayList<>();
-        Map<String, List<TeacherSlotDTO>> scheduleByDay = new LinkedHashMap<>();
-        for (int i = 1; i <= 7; i++) {
-            scheduleByDay.put(dayNames[i], new ArrayList<>());
-        }
-
-        Set<Integer> activeDays = new HashSet<>();
-
+        // Map teacher slots by Day -> Row
+        Map<Integer, Map<TimeSlotRow, TimeSlotSubjectMapper>> teacherSlotsByDay = new HashMap<>();
         for (TimeSlotSubjectMapper slot : activeSlots) {
-            TimeTable tt = slot.getTimeTable();
-            if (tt == null || Boolean.TRUE.equals(tt.getIsDeleted())) {
-                continue;
-            }
-
-            int dayNum = slot.getDay() != null ? slot.getDay() : 1;
-            String dayName = (dayNum >= 1 && dayNum <= 7) ? dayNames[dayNum] : "Day " + dayNum;
-            activeDays.add(dayNum);
-
-            String subjectName = resolveSubjectName(slot.getSubjectId());
-            String className = resolveClassName(tt.getClassId(), commonMasterMap);
-            String sectionName = resolveSectionName(tt.getSectionId(), commonMasterMap);
-            String classSection = sectionName.isBlank() ? className : className + " - " + sectionName;
-
-            TeacherSlotDTO dto = TeacherSlotDTO.builder()
-                    .slotId(slot.getId())
-                    .day(dayNum)
-                    .dayName(dayName)
-                    .startTime(formatSingleTime(slot.getStartTime()))
-                    .endTime(formatSingleTime(slot.getEndTime()))
-                    .subjectId(slot.getSubjectId())
-                    .subjectName(subjectName)
-                    .classId(tt.getClassId())
-                    .className(className)
-                    .sectionId(tt.getSectionId())
-                    .sectionName(sectionName)
-                    .classSection(classSection)
-                    .room(slot.getRoom() != null ? slot.getRoom() : "")
-                    .timetableId(tt.getId())
-                    .timetableName(tt.getTimetableName())
-                    .build();
-
-            slotDTOList.add(dto);
-            scheduleByDay.computeIfAbsent(dayName, k -> new ArrayList<>()).add(dto);
+            if (slot.getDay() == null || slot.getStartTime() == null || slot.getEndTime() == null) continue;
+            TimeSlotRow slotRow = new TimeSlotRow(slot.getStartTime(), slot.getEndTime());
+            TimeSlotRow canonicalRow = schoolRows.stream().filter(r -> r.equals(slotRow)).findFirst().orElse(slotRow);
+            teacherSlotsByDay.computeIfAbsent(slot.getDay(), d -> new HashMap<>()).put(canonicalRow, slot);
         }
+
+        List<TeacherSlotDTO> assignedSlots = new ArrayList<>();
+        List<TeacherSlotDTO> freeSlots = new ArrayList<>();
+        Map<String, List<TeacherSlotDTO>> scheduleByDay = new LinkedHashMap<>();
+        Map<String, List<TeacherSlotDTO>> freeScheduleByDay = new LinkedHashMap<>();
+        Map<String, List<TeacherSlotDTO>> fullWeeklyGrid = new LinkedHashMap<>();
+
+        for (int i = 1; i <= maxDay; i++) {
+            scheduleByDay.put(dayNames[i], new ArrayList<>());
+            freeScheduleByDay.put(dayNames[i], new ArrayList<>());
+            fullWeeklyGrid.put(dayNames[i], new ArrayList<>());
+        }
+
+        for (int d = 1; d <= maxDay; d++) {
+            String dayName = dayNames[d];
+            for (TimeSlotRow r : schoolRows) {
+                TimeSlotSubjectMapper slot = teacherSlotsByDay.getOrDefault(d, Collections.emptyMap()).get(r);
+                if (slot != null) {
+                    TimeTable tt = slot.getTimeTable();
+                    String subjectName = resolveSubjectName(slot.getSubjectId());
+                    String className = tt != null ? resolveClassName(tt.getClassId(), commonMasterMap) : "N/A";
+                    String sectionName = tt != null ? resolveSectionName(tt.getSectionId(), commonMasterMap) : "";
+                    String classSection = sectionName.isBlank() ? className : className + " - " + sectionName;
+
+                    TeacherSlotDTO dto = TeacherSlotDTO.builder()
+                            .slotId(slot.getId())
+                            .day(d)
+                            .dayName(dayName)
+                            .startTime(formatSingleTime(r.getStartTime()))
+                            .endTime(formatSingleTime(r.getEndTime()))
+                            .subjectId(slot.getSubjectId())
+                            .subjectName(subjectName)
+                            .classId(tt != null ? tt.getClassId() : null)
+                            .className(className)
+                            .sectionId(tt != null ? tt.getSectionId() : null)
+                            .sectionName(sectionName)
+                            .classSection(classSection)
+                            .room(slot.getRoom() != null ? slot.getRoom() : "")
+                            .timetableId(tt != null ? tt.getId() : null)
+                            .timetableName(tt != null ? tt.getTimetableName() : null)
+                            .isFree(false)
+                            .status("ASSIGNED")
+                            .build();
+
+                    assignedSlots.add(dto);
+                    scheduleByDay.get(dayName).add(dto);
+                    fullWeeklyGrid.get(dayName).add(dto);
+                } else {
+                    TeacherSlotDTO freeDto = TeacherSlotDTO.builder()
+                            .slotId(null)
+                            .day(d)
+                            .dayName(dayName)
+                            .startTime(formatSingleTime(r.getStartTime()))
+                            .endTime(formatSingleTime(r.getEndTime()))
+                            .subjectId(null)
+                            .subjectName("FREE")
+                            .classId(null)
+                            .className(null)
+                            .sectionId(null)
+                            .sectionName(null)
+                            .classSection("Free Period")
+                            .room("")
+                            .timetableId(null)
+                            .timetableName(null)
+                            .isFree(true)
+                            .status("FREE")
+                            .build();
+
+                    freeSlots.add(freeDto);
+                    freeScheduleByDay.get(dayName).add(freeDto);
+                    fullWeeklyGrid.get(dayName).add(freeDto);
+                }
+            }
+        }
+
+        int totalPeriods = assignedSlots.size();
+        int workingDays = maxDay;
+        int totalSchoolPeriods = schoolRows.size() * maxDay;
+        int freePeriods = Math.max(0, totalSchoolPeriods - totalPeriods);
 
         return TeacherTimetableResponse.builder()
                 .teacherId(staffId)
                 .teacherName(teacherName)
                 .staffCode(staffCode)
                 .department(department)
-                .totalPeriods(slotDTOList.size())
-                .workingDays(activeDays.size())
-                .slots(slotDTOList)
+                .totalPeriods(totalPeriods)
+                .workingDays(workingDays)
+                .totalSchoolPeriods(totalSchoolPeriods)
+                .freePeriods(freePeriods)
+                .slots(assignedSlots)
+                .freeSlots(freeSlots)
                 .scheduleByDay(scheduleByDay)
+                .freeScheduleByDay(freeScheduleByDay)
+                .fullWeeklyGrid(fullWeeklyGrid)
                 .build();
     }
 
@@ -709,13 +703,9 @@ public class TimeTableServiceImpl implements TimeTableService {
                         (existing, replacement) -> existing
                 ));
 
-        // ── 4. Determine day range (max day across all slots; default Mon-Sat=6) ─
-        int maxDay = 6;
-        for (TimeSlotSubjectMapper slot : slots) {
-            if (slot.getDay() != null && slot.getDay() > maxDay) {
-                maxDay = slot.getDay();
-            }
-        }
+        // ── 4. Determine school-wide period rows & max day ──────────────────────
+        List<TimeSlotRow> schoolRows = getDistinctSchoolTimeSlotRows(slots);
+        int maxDay = determineMaxDay(schoolRows, slots);
 
         // ── 5. Build day-header HTML ─────────────────────────────────────────────
         String[] dayNames = {"", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
@@ -724,62 +714,31 @@ public class TimeTableServiceImpl implements TimeTableService {
             dayHeaders.append("<th>").append(dayNames[d]).append("</th>");
         }
 
-        // ── 6. Build time-slot row grid (sorted by start time) ───────────────────
-        class TimeSlotRow implements Comparable<TimeSlotRow> {
-            final String startTime;
-            final String endTime;
-
-            TimeSlotRow(String s, String e) { this.startTime = s; this.endTime = e; }
-
-            private LocalTime parse(String t) {
-                if (t == null || t.isBlank()) return LocalTime.MIDNIGHT;
-                t = t.trim().toUpperCase().replaceAll("\\s+", " ");
-                for (String fmt : new String[]{"hh:mm a", "h:mm a", "HH:mm", "H:mm", "HH:mm:ss", "hh:mm:ssa"}) {
-                    try { return LocalTime.parse(t, DateTimeFormatter.ofPattern(fmt, Locale.ENGLISH)); }
-                    catch (Exception ignored) {}
-                }
-                try { return LocalTime.parse(t); } catch (Exception ignored) { return LocalTime.MIDNIGHT; }
-            }
-
-            @Override public int compareTo(TimeSlotRow o) {
-                int c = parse(startTime).compareTo(parse(o.startTime));
-                return c != 0 ? c : parse(endTime).compareTo(parse(o.endTime));
-            }
-            @Override public boolean equals(Object o) {
-                if (!(o instanceof TimeSlotRow)) return false;
-                TimeSlotRow r = (TimeSlotRow) o;
-                return parse(startTime).equals(parse(r.startTime)) && parse(endTime).equals(parse(r.endTime));
-            }
-            @Override public int hashCode() { return Objects.hash(parse(startTime), parse(endTime)); }
-        }
-
-        Map<TimeSlotRow, Map<Integer, TimeSlotSubjectMapper>> grid = new TreeMap<>();
+        // ── 6. Map teacher slots by Day -> Row ──────────────────────────────────
+        Map<Integer, Map<TimeSlotRow, TimeSlotSubjectMapper>> teacherSlotsByDay = new HashMap<>();
         for (TimeSlotSubjectMapper slot : slots) {
-            if (slot.getStartTime() == null || slot.getEndTime() == null || slot.getDay() == null) continue;
-            TimeSlotRow key = new TimeSlotRow(slot.getStartTime(), slot.getEndTime());
-            TimeSlotRow canonical = grid.keySet().stream().filter(k -> k.equals(key)).findFirst().orElse(key);
-            grid.computeIfAbsent(canonical, k -> new HashMap<>()).put(slot.getDay(), slot);
+            if (slot.getDay() == null || slot.getStartTime() == null || slot.getEndTime() == null) continue;
+            TimeSlotRow slotRow = new TimeSlotRow(slot.getStartTime(), slot.getEndTime());
+            TimeSlotRow canonicalRow = schoolRows.stream().filter(r -> r.equals(slotRow)).findFirst().orElse(slotRow);
+            teacherSlotsByDay.computeIfAbsent(slot.getDay(), d -> new HashMap<>()).put(canonicalRow, slot);
         }
 
         // ── 7. Build grid HTML rows ──────────────────────────────────────────────
         int totalPeriods = 0;
-        Set<Integer> activeDays = new HashSet<>();
 
         StringBuilder gridRows = new StringBuilder();
-        for (TimeSlotRow r : grid.keySet()) {
+        for (TimeSlotRow r : schoolRows) {
             gridRows.append("<tr>");
 
             // Time column
-            String formattedTime = formatTimeSlotStr(r.startTime, r.endTime);
+            String formattedTime = formatTimeSlotStr(r.getStartTime(), r.getEndTime());
             gridRows.append("<td class=\"time-cell\">").append(formattedTime).append("</td>");
 
-            Map<Integer, TimeSlotSubjectMapper> dayMap = grid.get(r);
             for (int d = 1; d <= maxDay; d++) {
-                TimeSlotSubjectMapper slot = dayMap.get(d);
+                TimeSlotSubjectMapper slot = teacherSlotsByDay.getOrDefault(d, Collections.emptyMap()).get(r);
                 gridRows.append("<td>");
                 if (slot != null) {
                     totalPeriods++;
-                    activeDays.add(d);
 
                     // Subject name
                     String subjectName = resolveSubjectName(slot.getSubjectId());
@@ -801,7 +760,7 @@ public class TimeTableServiceImpl implements TimeTableService {
                         gridRows.append("<br/><div class=\"room-badge\">").append(escapeHtml(room)).append("</div>");
                     }
                 } else {
-                    gridRows.append("<span class=\"empty-cell\">&#8722;</span>");
+                    gridRows.append("<div class=\"free-cell\">FREE</div>");
                 }
                 gridRows.append("</td>");
             }
@@ -809,9 +768,9 @@ public class TimeTableServiceImpl implements TimeTableService {
         }
 
         // ── 8. Compute summary numbers ───────────────────────────────────────────
-        int workingDays = activeDays.size();
-        int totalSlotCells = grid.size() * maxDay;
-        int freePeriods    = totalSlotCells - totalPeriods;
+        int workingDays = maxDay;
+        int totalSlotCells = schoolRows.size() * maxDay;
+        int freePeriods    = Math.max(0, totalSlotCells - totalPeriods);
 
         // ── 9. Session label ─────────────────────────────────────────────────────
         String sessionText;
@@ -846,6 +805,61 @@ public class TimeTableServiceImpl implements TimeTableService {
         }
     }
 
+    /**
+     * Helper to retrieve all distinct time slot periods across the school
+     * (active timetables + teacher's slots), chronologically sorted.
+     */
+    private List<TimeSlotRow> getDistinctSchoolTimeSlotRows(List<TimeSlotSubjectMapper> teacherSlots) {
+        Set<TimeSlotRow> rowSet = new TreeSet<>();
+
+        try {
+            List<TimeSlotSubjectMapper> allSchoolSlots = mapperRepository.findAllActiveSchoolSlots();
+            for (TimeSlotSubjectMapper s : allSchoolSlots) {
+                if (s.getStartTime() != null && !s.getStartTime().isBlank() &&
+                        s.getEndTime() != null && !s.getEndTime().isBlank()) {
+                    rowSet.add(new TimeSlotRow(s.getStartTime(), s.getEndTime()));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch all school slots from mapperRepository: {}", e.getMessage());
+        }
+
+        if (teacherSlots != null) {
+            for (TimeSlotSubjectMapper s : teacherSlots) {
+                if (s.getStartTime() != null && !s.getStartTime().isBlank() &&
+                        s.getEndTime() != null && !s.getEndTime().isBlank()) {
+                    rowSet.add(new TimeSlotRow(s.getStartTime(), s.getEndTime()));
+                }
+            }
+        }
+
+        return new ArrayList<>(rowSet);
+    }
+
+    /**
+     * Helper to determine max working days (default Mon-Sat = 6, or 7 if Sunday has slots).
+     */
+    private int determineMaxDay(List<TimeSlotRow> schoolRows, List<TimeSlotSubjectMapper> teacherSlots) {
+        int maxDay = 6;
+        try {
+            List<TimeSlotSubjectMapper> allSchoolSlots = mapperRepository.findAllActiveSchoolSlots();
+            for (TimeSlotSubjectMapper s : allSchoolSlots) {
+                if (s.getDay() != null && s.getDay() > maxDay) {
+                    maxDay = s.getDay();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        if (teacherSlots != null) {
+            for (TimeSlotSubjectMapper s : teacherSlots) {
+                if (s.getDay() != null && s.getDay() > maxDay) {
+                    maxDay = s.getDay();
+                }
+            }
+        }
+        return maxDay;
+    }
+
     private String escapeHtml(String text) {
         if (text == null) return "";
         return text.replace("&", "&amp;")
@@ -853,6 +867,74 @@ public class TimeTableServiceImpl implements TimeTableService {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
+    }
+
+    /**
+     * Shared helper class for time-slot row grouping, sorting and equality.
+     */
+    private static class TimeSlotRow implements Comparable<TimeSlotRow> {
+        private final String startTime;
+        private final String endTime;
+
+        public TimeSlotRow(String startTime, String endTime) {
+            this.startTime = startTime != null ? startTime.trim() : "";
+            this.endTime = endTime != null ? endTime.trim() : "";
+        }
+
+        public String getStartTime() {
+            return startTime;
+        }
+
+        public String getEndTime() {
+            return endTime;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            TimeSlotRow that = (TimeSlotRow) o;
+            return Objects.equals(parseTime(this.startTime), parseTime(that.startTime)) &&
+                    Objects.equals(parseTime(this.endTime), parseTime(that.endTime));
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(parseTime(this.startTime), parseTime(this.endTime));
+        }
+
+        @Override
+        public int compareTo(TimeSlotRow o) {
+            try {
+                LocalTime thisStart = parseTime(this.startTime);
+                LocalTime otherStart = parseTime(o.startTime);
+                int cmp = thisStart.compareTo(otherStart);
+                if (cmp != 0) return cmp;
+
+                LocalTime thisEnd = parseTime(this.endTime);
+                LocalTime otherEnd = parseTime(o.endTime);
+                return thisEnd.compareTo(otherEnd);
+            } catch (Exception e) {
+                return this.startTime.compareTo(o.startTime);
+            }
+        }
+
+        public static LocalTime parseTime(String timeStr) {
+            if (timeStr == null || timeStr.trim().isEmpty()) return LocalTime.MIDNIGHT;
+            timeStr = timeStr.trim().toUpperCase().replaceAll("\\s+", " ");
+            String[] formats = {"hh:mm a", "h:mm a", "HH:mm", "H:mm", "HH:mm:ss", "hh:mm:ssa"};
+            for (String format : formats) {
+                try {
+                    return LocalTime.parse(timeStr, DateTimeFormatter.ofPattern(format, Locale.ENGLISH));
+                } catch (Exception ignored) {
+                }
+            }
+            try {
+                return LocalTime.parse(timeStr);
+            } catch (Exception e) {
+                return LocalTime.MIDNIGHT;
+            }
+        }
     }
 }
 
