@@ -104,13 +104,15 @@ public class CollegeDashboardResponse {
     public static class DashboardMilestoneItem {
         private Long id;
         private String title;
-        private String date;       // e.g. "Oct 20"
-        private String range;      // e.g. "Oct 20 – Oct 25"
-        private String fullDate;   // e.g. "2025-10-20"
-        private String type;       // Examination, Holiday, Submission, Academic, Activity
-        private String scope;      // e.g. "Semester 3" or targetProgram
-        private String badgeClass; // css class or category styling
-        private String dateBg;     // css background styling
-        private String status;     // Scheduled, Active, Completed
+        private String date;          // e.g. "Oct 20"
+        private String range;         // e.g. "Oct 20 – Oct 25"
+        private String fullDate;      // e.g. "2025-10-20"
+        private String type;          // Examination, Holiday, Submission, Academic, Activity
+        private String scope;         // e.g. "Semester 3" or targetProgram
+        private String targetProgram; // e.g. "CO"
+        private String programName;   // e.g. "Computer Engineering"
+        private String badgeClass;    // css class or category styling
+        private String dateBg;        // css background styling
+        private String status;        // Scheduled, Active, Completed
     }
 }

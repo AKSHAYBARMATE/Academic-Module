@@ -233,10 +233,17 @@ public class CollegeDashboardServiceImpl implements CollegeDashboardService {
                 .syllabusCoveredLabel("On Track For Exams")
                 .build();
 
+        Map<String, String> programNameMap = new HashMap<>();
+        for (Program p : programs) {
+            if (p.getCode() != null && p.getName() != null) {
+                programNameMap.put(p.getCode().trim().toLowerCase(), p.getName().trim());
+            }
+        }
+
         // 6. Upcoming Milestone items for widget (take up to 4 items)
         List<CollegeDashboardResponse.DashboardMilestoneItem> milestoneItems = upcomingList.stream()
                 .limit(4)
-                .map(this::mapToMilestoneItem)
+                .map(e -> this.mapToMilestoneItem(e, programNameMap))
                 .collect(Collectors.toList());
 
         return CollegeDashboardResponse.builder()
@@ -251,7 +258,8 @@ public class CollegeDashboardServiceImpl implements CollegeDashboardService {
                 .build();
     }
 
-    private CollegeDashboardResponse.DashboardMilestoneItem mapToMilestoneItem(CollegeCalendarEvent event) {
+    private CollegeDashboardResponse.DashboardMilestoneItem mapToMilestoneItem(
+            CollegeCalendarEvent event, Map<String, String> programNameMap) {
         String displayDate = event.getStartDate();
         String rangeStr = event.getStartDate();
 
@@ -295,9 +303,31 @@ public class CollegeDashboardServiceImpl implements CollegeDashboardService {
                 break;
         }
 
-        String scope = (event.getSemester() != null && !event.getSemester().equalsIgnoreCase("All Semesters"))
-                ? event.getSemester()
-                : (event.getTargetProgram() != null ? event.getTargetProgram() : "All Semesters");
+        String targetProgram = event.getTargetProgram();
+        String resolvedProgramName = null;
+        if (targetProgram != null && !targetProgram.trim().isEmpty()
+                && !targetProgram.equalsIgnoreCase("All Programs")
+                && !targetProgram.equalsIgnoreCase("All Freshers")) {
+            resolvedProgramName = programNameMap.get(targetProgram.trim().toLowerCase());
+        }
+
+        String fullProgramDisplay = resolvedProgramName != null
+                ? resolvedProgramName + " (" + targetProgram + ")"
+                : targetProgram;
+
+        String scope;
+        boolean hasSemester = event.getSemester() != null && !event.getSemester().equalsIgnoreCase("All Semesters");
+        boolean hasProg = fullProgramDisplay != null && !fullProgramDisplay.equalsIgnoreCase("All Programs");
+
+        if (hasSemester && hasProg) {
+            scope = event.getSemester() + " • " + fullProgramDisplay;
+        } else if (hasProg) {
+            scope = fullProgramDisplay;
+        } else if (hasSemester) {
+            scope = event.getSemester();
+        } else {
+            scope = "All Semesters";
+        }
 
         return CollegeDashboardResponse.DashboardMilestoneItem.builder()
                 .id(event.getId())
@@ -307,6 +337,8 @@ public class CollegeDashboardServiceImpl implements CollegeDashboardService {
                 .fullDate(event.getStartDate())
                 .type(type)
                 .scope(scope)
+                .targetProgram(targetProgram)
+                .programName(resolvedProgramName != null ? resolvedProgramName : targetProgram)
                 .badgeClass(badgeClass)
                 .dateBg(dateBg)
                 .status(event.getStatus())
