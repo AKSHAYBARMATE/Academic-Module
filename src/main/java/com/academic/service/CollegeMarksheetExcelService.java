@@ -302,6 +302,13 @@ public class CollegeMarksheetExcelService {
                 }
                 if (admissionNo.isEmpty()) {
                     errors.add(new ExcelValidationError(displayRowNum, "ADMISSION_NO", admissionNo, "Admission No cannot be empty"));
+                } else if (!studentDbMap.containsKey(admissionNo.toLowerCase())) {
+                    errors.add(new ExcelValidationError(
+                            displayRowNum,
+                            "ADMISSION_NO",
+                            admissionNo,
+                            "Student with Admission No '" + admissionNo + "' is not present in the database. Marksheet cannot be processed."
+                    ));
                 }
                 if (studentName.isEmpty()) {
                     errors.add(new ExcelValidationError(displayRowNum, "STUDENT_NAME", studentName, "Student Name cannot be empty"));
