@@ -455,11 +455,24 @@ public class CollegeMarksheetExcelService {
                     String finalFatherName = matchedStudent != null ? matchedStudent.getFatherName() : null;
                     String finalMotherName = matchedStudent != null ? matchedStudent.getMotherName() : null;
 
+                    Degree studentDegree = resolvedDegree;
+                    if (studentDegree == null && matchedStudent != null && matchedStudent.getDegree() != null) {
+                        studentDegree = degreeRepository.findByIdAndIsDeletedFalse(matchedStudent.getDegree()).orElse(null);
+                    }
+
+                    Program studentProgram = resolvedProgram;
+                    if (studentProgram == null && matchedStudent != null && matchedStudent.getBranch() != null) {
+                        studentProgram = programRepository.findByIdAndIsDeletedFalse(matchedStudent.getBranch()).orElse(null);
+                    }
+
+                    final Degree finalStudentDegree = studentDegree;
+                    final Program finalStudentProgram = studentProgram;
+
                     StudentAggregateData studentData = studentMap.computeIfAbsent(prn, k -> new StudentAggregateData(
                             matchedStudentId, admissionNo, prn, admissionNo, studentName,
                             finalFatherName, finalMotherName,
-                            resolvedDegree,
-                            resolvedProgram,
+                            finalStudentDegree,
+                            finalStudentProgram,
                             semester, academicYear, examSession
                     ));
 
@@ -568,7 +581,10 @@ public class CollegeMarksheetExcelService {
                 .universityPrn(data.universityPrn)
                 .collegeRollNo(data.collegeRollNo != null ? data.collegeRollNo : data.admissionNo)
                 .degree(data.degree)
+                .degreeCode(data.degree != null ? data.degree.getCode() : null)
                 .program(data.program)
+                .programCode(data.program != null ? data.program.getCode() : null)
+                .programName(data.program != null ? data.program.getName() : null)
                 .semester(data.semester)
                 .academicYear(data.academicYear)
                 .examSession(data.examSession)

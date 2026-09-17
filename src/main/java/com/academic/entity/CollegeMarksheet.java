@@ -42,9 +42,18 @@ public class CollegeMarksheet {
     @JoinColumn(name = "degree_id")
     private Degree degree;
 
+    @Column(name = "degree_code")
+    private String degreeCode;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "program_id")
     private Program program;
+
+    @Column(name = "program_code")
+    private String programCode;
+
+    @Column(name = "program_name")
+    private String programName;
 
     private String departmentName;
 
@@ -88,7 +97,10 @@ public class CollegeMarksheet {
     }
 
     public String getDegreeCode() {
-        return degree != null ? degree.getCode() : null;
+        if (degree != null && degree.getCode() != null) {
+            return degree.getCode();
+        }
+        return degreeCode;
     }
 
     public Integer getProgramId() {
@@ -96,15 +108,28 @@ public class CollegeMarksheet {
     }
 
     public String getProgramCode() {
-        return program != null ? program.getCode() : null;
+        if (program != null && program.getCode() != null) {
+            return program.getCode();
+        }
+        return programCode;
     }
 
     public String getProgramName() {
-        return program != null ? program.getName() : null;
+        if (program != null && program.getName() != null) {
+            return program.getName();
+        }
+        return programName;
     }
 
     @PrePersist
     public void prePersist() {
+        if (degree != null && (degreeCode == null || degreeCode.isBlank())) {
+            degreeCode = degree.getCode();
+        }
+        if (program != null) {
+            if (programCode == null || programCode.isBlank()) programCode = program.getCode();
+            if (programName == null || programName.isBlank()) programName = program.getName();
+        }
         if (createdAt == null) createdAt = LocalDateTime.now();
         if (updatedAt == null) updatedAt = LocalDateTime.now();
         if (published == null) published = true;
@@ -114,6 +139,13 @@ public class CollegeMarksheet {
 
     @PreUpdate
     public void preUpdate() {
+        if (degree != null && (degreeCode == null || degreeCode.isBlank())) {
+            degreeCode = degree.getCode();
+        }
+        if (program != null) {
+            if (programCode == null || programCode.isBlank()) programCode = program.getCode();
+            if (programName == null || programName.isBlank()) programName = program.getName();
+        }
         updatedAt = LocalDateTime.now();
     }
 }

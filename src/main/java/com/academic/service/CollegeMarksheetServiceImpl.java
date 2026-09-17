@@ -7,8 +7,12 @@ import com.academic.dto.GazetteUploadResponse;
 import com.academic.entity.CollegeMarksheet;
 import com.academic.entity.CollegeMarksheetSubject;
 import com.academic.entity.Student;
+import com.academic.entity.Degree;
+import com.academic.entity.Program;
 import com.academic.exception.ResourceNotFoundException;
 import com.academic.repository.CollegeMarksheetRepository;
+import com.academic.repository.DegreeRepository;
+import com.academic.repository.ProgramRepository;
 import com.academic.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +34,8 @@ public class CollegeMarksheetServiceImpl implements CollegeMarksheetService {
     private final CollegeMarksheetRepository repository;
     private final CollegeMarksheetExcelService excelService;
     private final StudentRepository studentRepository;
+    private final DegreeRepository degreeRepository;
+    private final ProgramRepository programRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -264,6 +270,12 @@ public class CollegeMarksheetServiceImpl implements CollegeMarksheetService {
                 ms.setStudentId(s.getId().longValue());
                 if (ms.getFatherName() == null) ms.setFatherName(s.getFatherName());
                 if (ms.getMotherName() == null) ms.setMotherName(s.getMotherName());
+                if (ms.getDegree() == null && s.getDegree() != null) {
+                    degreeRepository.findByIdAndIsDeletedFalse(s.getDegree()).ifPresent(ms::setDegree);
+                }
+                if (ms.getProgram() == null && s.getBranch() != null) {
+                    programRepository.findByIdAndIsDeletedFalse(s.getBranch()).ifPresent(ms::setProgram);
+                }
                 repository.save(ms);
                 linked++;
             }
@@ -301,6 +313,58 @@ public class CollegeMarksheetServiceImpl implements CollegeMarksheetService {
             ).collect(Collectors.toList());
         }
 
+        Integer degreeId = entity.getDegreeId();
+        String degreeCode = entity.getDegreeCode();
+        Integer programId = entity.getProgramId();
+        String programCode = entity.getProgramCode();
+        String programName = entity.getProgramName();
+
+        // Robust self-healing / Fallback from student record if null
+        if (degreeId == null || programId == null || degreeCode == null || programCode == null) {
+            Student s = null;
+            if (entity.getStudentId() != null) {
+                s = studentRepository.findByIdAndIsDeletedFalse(entity.getStudentId().intValue()).orElse(null);
+            }
+            if (s == null && entity.getAdmissionNo() != null && !entity.getAdmissionNo().trim().isEmpty()) {
+                s = studentRepository.findByAdmissionNoAndIsDeletedFalse(entity.getAdmissionNo().trim()).orElse(null);
+            }
+
+            if (s != null) {
+                if (degreeId == null && s.getDegree() != null) {
+                    degreeId = s.getDegree();
+                }
+                if (programId == null && s.getBranch() != null) {
+                    programId = s.getBranch();
+                }
+            }
+
+            if (degreeCode == null && degreeId != null) {
+                Degree d = degreeRepository.findByIdAndIsDeletedFalse(degreeId).orElse(null);
+                if (d != null) {
+                    degreeCode = d.getCode();
+                }
+            } else if (degreeId == null && degreeCode != null && !degreeCode.isBlank()) {
+                Degree d = degreeRepository.findByCodeIgnoreCaseAndIsDeletedFalse(degreeCode.trim()).orElse(null);
+                if (d != null) {
+                    degreeId = d.getId();
+                }
+            }
+
+            if (programCode == null && programId != null) {
+                Program p = programRepository.findByIdAndIsDeletedFalse(programId).orElse(null);
+                if (p != null) {
+                    programCode = p.getCode();
+                    programName = p.getName();
+                }
+            } else if (programId == null && programCode != null && !programCode.isBlank()) {
+                Program p = programRepository.findByCodeIgnoreCaseAndIsDeletedFalse(programCode.trim()).orElse(null);
+                if (p != null) {
+                    programId = p.getId();
+                    if (programName == null) programName = p.getName();
+                }
+            }
+        }
+
         return CollegeMarksheetResponse.builder()
                 .id(entity.getId())
                 .studentId(entity.getStudentId())
@@ -311,11 +375,11 @@ public class CollegeMarksheetServiceImpl implements CollegeMarksheetService {
                 .admissionNo(entity.getAdmissionNo())
                 .fatherName(entity.getFatherName())
                 .motherName(entity.getMotherName())
-                .degreeId(entity.getDegreeId())
-                .degreeCode(entity.getDegreeCode())
-                .programId(entity.getProgramId())
-                .programCode(entity.getProgramCode())
-                .programName(entity.getProgramName())
+                .degreeId(degreeId)
+                .degreeCode(degreeCode)
+                .programId(programId)
+                .programCode(programCode)
+                .programName(programName)
                 .departmentName(entity.getDepartmentName())
                 .academicYear(entity.getAcademicYear())
                 .semester(entity.getSemester())
