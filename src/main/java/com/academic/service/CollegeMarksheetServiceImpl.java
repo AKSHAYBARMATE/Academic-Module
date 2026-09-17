@@ -6,8 +6,10 @@ import com.academic.dto.ExcelValidationError;
 import com.academic.dto.GazetteUploadResponse;
 import com.academic.entity.CollegeMarksheet;
 import com.academic.entity.CollegeMarksheetSubject;
+import com.academic.entity.Student;
 import com.academic.exception.ResourceNotFoundException;
 import com.academic.repository.CollegeMarksheetRepository;
+import com.academic.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -17,10 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,6 +29,7 @@ public class CollegeMarksheetServiceImpl implements CollegeMarksheetService {
 
     private final CollegeMarksheetRepository repository;
     private final CollegeMarksheetExcelService excelService;
+    private final StudentRepository studentRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -150,11 +150,25 @@ public class CollegeMarksheetServiceImpl implements CollegeMarksheetService {
                 savedCount++;
             }
 
+            String statusMsg;
+            if (result.unlinkedCount > 0 && result.linkedCount > 0) {
+                statusMsg = String.format("Successfully ingested %d student marksheets (%d linked with student database, %d unlinked - pending student registration).",
+                        savedCount, result.linkedCount, result.unlinkedCount);
+            } else if (result.unlinkedCount > 0) {
+                statusMsg = String.format("Successfully ingested %d student marksheets (%d students pending registration in college student database).",
+                        savedCount, result.unlinkedCount);
+            } else {
+                statusMsg = String.format("Successfully ingested and linked all %d student marksheets (%d course entries).",
+                        savedCount, result.totalSubjects);
+            }
+
             return GazetteUploadResponse.builder()
                     .success(true)
-                    .message("Successfully ingested and validated " + savedCount + " student marksheets (" + result.totalSubjects + " course entries).")
+                    .message(statusMsg)
                     .totalRowsProcessed(result.totalRows)
                     .validStudentsCount(savedCount)
+                    .linkedStudentsCount(result.linkedCount)
+                    .unlinkedStudentsCount(result.unlinkedCount)
                     .totalSubjectsParsed(result.totalSubjects)
                     .errorCount(0)
                     .errors(Collections.emptyList())
@@ -209,6 +223,42 @@ public class CollegeMarksheetServiceImpl implements CollegeMarksheetService {
                 .orElseThrow(() -> new ResourceNotFoundException("Marksheet not found with id: " + id));
         ms.setIsDeleted(true);
         repository.save(ms);
+    }
+
+    @Override
+    @Transactional
+    public int autoLinkUnlinkedMarksheets() {
+        List<CollegeMarksheet> unlinked = repository.findByStudentIdIsNullAndIsDeletedFalse();
+        if (unlinked.isEmpty()) return 0;
+
+        Set<String> admissionNos = unlinked.stream()
+                .map(CollegeMarksheet::getAdmissionNo)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+        if (admissionNos.isEmpty()) return 0;
+
+        List<Student> dbStudents = studentRepository.findByAdmissionNoInIgnoreCase(admissionNos);
+        Map<String, Student> studentMap = dbStudents.stream()
+                .filter(s -> s.getAdmissionNo() != null)
+                .collect(Collectors.toMap(s -> s.getAdmissionNo().trim().toLowerCase(), s -> s, (a, b) -> a));
+
+        int linked = 0;
+        for (CollegeMarksheet ms : unlinked) {
+            if (ms.getAdmissionNo() != null && studentMap.containsKey(ms.getAdmissionNo().trim().toLowerCase())) {
+                Student s = studentMap.get(ms.getAdmissionNo().trim().toLowerCase());
+                ms.setStudentId(s.getId().longValue());
+                if (ms.getFatherName() == null) ms.setFatherName(s.getFatherName());
+                if (ms.getMotherName() == null) ms.setMotherName(s.getMotherName());
+                repository.save(ms);
+                linked++;
+            }
+        }
+        if (linked > 0) {
+            log.info("Auto-linked {} previously unlinked marksheets to registered students", linked);
+        }
+        return linked;
     }
 
     private CollegeMarksheetResponse mapToResponse(CollegeMarksheet entity) {

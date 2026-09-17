@@ -302,13 +302,6 @@ public class CollegeMarksheetExcelService {
                 }
                 if (admissionNo.isEmpty()) {
                     errors.add(new ExcelValidationError(displayRowNum, "ADMISSION_NO", admissionNo, "Admission No cannot be empty"));
-                } else if (!studentDbMap.containsKey(admissionNo.toLowerCase())) {
-                    errors.add(new ExcelValidationError(
-                            displayRowNum,
-                            "ADMISSION_NO",
-                            admissionNo,
-                            "Student with Admission No '" + admissionNo + "' was not found in College Student database. Please ensure student is admitted first."
-                    ));
                 }
                 if (studentName.isEmpty()) {
                     errors.add(new ExcelValidationError(displayRowNum, "STUDENT_NAME", studentName, "Student Name cannot be empty"));
@@ -421,12 +414,19 @@ public class CollegeMarksheetExcelService {
 
             // Build CollegeMarksheet Entities with Aggregations
             List<CollegeMarksheet> marksheetEntities = new ArrayList<>();
+            int linkedCount = 0;
+            int unlinkedCount = 0;
             for (StudentAggregateData data : studentMap.values()) {
+                if (data.studentId != null) {
+                    linkedCount++;
+                } else {
+                    unlinkedCount++;
+                }
                 CollegeMarksheet marksheet = buildMarksheetEntity(data);
                 marksheetEntities.add(marksheet);
             }
 
-            return new ParsingResult(marksheetEntities, errors, totalRows, totalSubjects);
+            return new ParsingResult(marksheetEntities, errors, totalRows, totalSubjects, linkedCount, unlinkedCount);
         } catch (Exception e) {
             log.error("Failed to parse Gazette Excel", e);
             errors.add(ExcelValidationError.builder()
@@ -583,12 +583,20 @@ public class CollegeMarksheetExcelService {
         public final List<ExcelValidationError> errors;
         public final int totalRows;
         public final int totalSubjects;
+        public final int linkedCount;
+        public final int unlinkedCount;
 
-        public ParsingResult(List<CollegeMarksheet> marksheets, List<ExcelValidationError> errors, int totalRows, int totalSubjects) {
+        public ParsingResult(List<CollegeMarksheet> marksheets, List<ExcelValidationError> errors, int totalRows, int totalSubjects, int linkedCount, int unlinkedCount) {
             this.marksheets = marksheets;
             this.errors = errors;
             this.totalRows = totalRows;
             this.totalSubjects = totalSubjects;
+            this.linkedCount = linkedCount;
+            this.unlinkedCount = unlinkedCount;
+        }
+
+        public ParsingResult(List<CollegeMarksheet> marksheets, List<ExcelValidationError> errors, int totalRows, int totalSubjects) {
+            this(marksheets, errors, totalRows, totalSubjects, 0, 0);
         }
     }
 

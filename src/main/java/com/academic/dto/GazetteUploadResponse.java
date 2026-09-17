@@ -17,6 +17,8 @@ public class GazetteUploadResponse {
     private String message;
     private int totalRowsProcessed;
     private int validStudentsCount;
+    private int linkedStudentsCount;
+    private int unlinkedStudentsCount;
     private int totalSubjectsParsed;
     private int errorCount;
 

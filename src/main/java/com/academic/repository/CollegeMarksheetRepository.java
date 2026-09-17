@@ -17,6 +17,8 @@ public interface CollegeMarksheetRepository extends JpaRepository<CollegeMarkshe
             String universityPrn, String examSession, String semester
     );
 
+    java.util.List<CollegeMarksheet> findByStudentIdIsNullAndIsDeletedFalse();
+
     @Query("SELECT m FROM CollegeMarksheet m " +
             "WHERE m.isDeleted = false " +
             "AND (:degreeCode IS NULL OR LOWER(m.degreeCode) = LOWER(:degreeCode)) " +

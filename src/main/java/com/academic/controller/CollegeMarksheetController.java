@@ -2,8 +2,10 @@ package com.academic.controller;
 
 import com.academic.dto.CollegeMarksheetResponse;
 import com.academic.dto.GazetteUploadResponse;
+import com.academic.response.LogContext;
 import com.academic.response.StandardResponse;
 import com.academic.service.CollegeMarksheetService;
+import com.academic.utility.IstClock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -64,8 +66,20 @@ public class CollegeMarksheetController {
         if (response.isSuccess()) {
             return ResponseEntity.ok(StandardResponse.success(response, response.getMessage()));
         } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(StandardResponse.error(response.getMessage(), "VALIDATION_ERROR", response.getMessage()));
+            StandardResponse<GazetteUploadResponse> errResp = StandardResponse.<GazetteUploadResponse>builder()
+                    .success(false)
+                    .data(response)
+                    .message(response.getMessage())
+                    .error(StandardResponse.ErrorDetails.builder()
+                            .code("VALIDATION_ERROR")
+                            .message(response.getMessage())
+                            .details(response.getMessage())
+                            .build())
+                    .logId(LogContext.getLogId())
+                    .requestId(LogContext.getRequestId())
+                    .timestamp(IstClock.nowDateTime())
+                    .build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errResp);
         }
     }
 
@@ -139,5 +153,15 @@ public class CollegeMarksheetController {
         log.info("API call: DELETE /college-marksheets/delete/{}", id);
         marksheetService.deleteMarksheet(id);
         return ResponseEntity.ok(StandardResponse.success("Marksheet deleted successfully"));
+    }
+
+    /**
+     * 8. Auto-link unlinked marksheets to registered students
+     */
+    @PostMapping("/auto-link-students")
+    public ResponseEntity<StandardResponse<Integer>> autoLinkStudents() {
+        log.info("API call: POST /college-marksheets/auto-link-students");
+        int linked = marksheetService.autoLinkUnlinkedMarksheets();
+        return ResponseEntity.ok(StandardResponse.success(linked, "Successfully linked " + linked + " marksheets to registered students."));
     }
 }

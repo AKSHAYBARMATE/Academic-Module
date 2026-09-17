@@ -39,4 +39,6 @@ public interface CollegeMarksheetService {
     int batchPublish(List<Long> ids, Boolean published);
 
     void deleteMarksheet(Long id);
+
+    int autoLinkUnlinkedMarksheets();
 }
