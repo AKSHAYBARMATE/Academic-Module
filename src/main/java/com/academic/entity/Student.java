@@ -95,6 +95,14 @@ public class Student {
     private Integer section;
 
     private Integer academicYear;
+
+    private Integer degree;
+    
+    private Integer branch;
+    
+    private Integer semester;
+    
+    private Integer division;
     
     private String previousSchoolName;
     

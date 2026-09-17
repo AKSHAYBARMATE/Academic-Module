@@ -4,7 +4,11 @@ import com.academic.dto.ExcelValidationError;
 import com.academic.dto.GazetteUploadResponse;
 import com.academic.entity.CollegeMarksheet;
 import com.academic.entity.CollegeMarksheetSubject;
+import com.academic.entity.Degree;
+import com.academic.entity.Program;
 import com.academic.entity.Student;
+import com.academic.repository.DegreeRepository;
+import com.academic.repository.ProgramRepository;
 import com.academic.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +27,8 @@ import java.util.*;
 public class CollegeMarksheetExcelService {
 
     private final StudentRepository studentRepository;
+    private final DegreeRepository degreeRepository;
+    private final ProgramRepository programRepository;
 
     public static final String[] REQUIRED_HEADERS = {
             "UNIVERSITY_PRN",
@@ -280,6 +286,45 @@ public class CollegeMarksheetExcelService {
             int totalRows = 0;
             int totalSubjects = 0;
 
+            // Resolve target Degree & Program from database
+            Degree targetDegree = null;
+            if (degreeCode != null && !degreeCode.trim().isEmpty() && !"all".equalsIgnoreCase(degreeCode.trim())) {
+                targetDegree = degreeRepository.findByCodeIgnoreCaseAndIsDeletedFalse(degreeCode.trim()).orElse(null);
+                if (targetDegree == null) {
+                    try {
+                        int degId = Integer.parseInt(degreeCode.trim());
+                        targetDegree = degreeRepository.findByIdAndIsDeletedFalse(degId).orElse(null);
+                    } catch (NumberFormatException ignored) {}
+                }
+                if (targetDegree == null) {
+                    for (Degree d : degreeRepository.findByIsDeletedFalseOrderByCodeAsc()) {
+                        if (d.getName() != null && d.getName().equalsIgnoreCase(degreeCode.trim())) {
+                            targetDegree = d;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            Program targetProgram = null;
+            if (programCode != null && !programCode.trim().isEmpty() && !"all".equalsIgnoreCase(programCode.trim())) {
+                targetProgram = programRepository.findByCodeIgnoreCaseAndIsDeletedFalse(programCode.trim()).orElse(null);
+                if (targetProgram == null) {
+                    try {
+                        int progId = Integer.parseInt(programCode.trim());
+                        targetProgram = programRepository.findByIdAndIsDeletedFalse(progId).orElse(null);
+                    } catch (NumberFormatException ignored) {}
+                }
+                if (targetProgram == null) {
+                    for (Program p : programRepository.findByIsDeletedFalseOrderByCodeAsc()) {
+                        if (p.getName() != null && p.getName().equalsIgnoreCase(programCode.trim())) {
+                            targetProgram = p;
+                            break;
+                        }
+                    }
+                }
+            }
+
             // 3. Row by Row Validation and Extraction
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
@@ -309,6 +354,28 @@ public class CollegeMarksheetExcelService {
                             admissionNo,
                             "Student with Admission No '" + admissionNo + "' is not present in the database. Marksheet cannot be processed."
                     ));
+                } else {
+                    Student stu = studentDbMap.get(admissionNo.toLowerCase());
+                    // 1. Validate Degree Match
+                    if (targetDegree != null && stu.getDegree() != null && !targetDegree.getId().equals(stu.getDegree())) {
+                        String expectedDeg = targetDegree.getName() != null ? targetDegree.getName() : degreeCode;
+                        errors.add(new ExcelValidationError(
+                                displayRowNum,
+                                "DEGREE",
+                                admissionNo,
+                                "Student with Admission No '" + admissionNo + "' is enrolled in a different Degree (ID: " + stu.getDegree() + ") and does not match selected Degree '" + expectedDeg + "'."
+                        ));
+                    }
+                    // 2. Validate Program/Branch Match
+                    if (targetProgram != null && stu.getBranch() != null && !targetProgram.getId().equals(stu.getBranch())) {
+                        String expectedProg = targetProgram.getName() != null ? targetProgram.getName() : programCode;
+                        errors.add(new ExcelValidationError(
+                                displayRowNum,
+                                "PROGRAM",
+                                admissionNo,
+                                "Student with Admission No '" + admissionNo + "' is enrolled in a different Program/Branch (ID: " + stu.getBranch() + ") and does not match selected Program '" + expectedProg + "'."
+                        ));
+                    }
                 }
                 if (studentName.isEmpty()) {
                     errors.add(new ExcelValidationError(displayRowNum, "STUDENT_NAME", studentName, "Student Name cannot be empty"));
