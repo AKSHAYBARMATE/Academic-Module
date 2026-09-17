@@ -24,7 +24,9 @@ public class CollegeMarksheetResponse {
     private String fatherName;
     private String motherName;
 
+    private Integer degreeId;
     private String degreeCode;
+    private Integer programId;
     private String programCode;
     private String programName;
     private String departmentName;

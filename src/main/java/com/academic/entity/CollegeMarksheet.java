@@ -38,9 +38,14 @@ public class CollegeMarksheet {
     private String fatherName;
     private String motherName;
 
-    private String degreeCode;
-    private String programCode;
-    private String programName;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "degree_id")
+    private Degree degree;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "program_id")
+    private Program program;
+
     private String departmentName;
 
     private String academicYear; // e.g. "2024-2025"
@@ -77,6 +82,26 @@ public class CollegeMarksheet {
     @OneToMany(mappedBy = "collegeMarksheet", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<CollegeMarksheetSubject> subjects = new ArrayList<>();
+
+    public Integer getDegreeId() {
+        return degree != null ? degree.getId() : null;
+    }
+
+    public String getDegreeCode() {
+        return degree != null ? degree.getCode() : null;
+    }
+
+    public Integer getProgramId() {
+        return program != null ? program.getId() : null;
+    }
+
+    public String getProgramCode() {
+        return program != null ? program.getCode() : null;
+    }
+
+    public String getProgramName() {
+        return program != null ? program.getName() : null;
+    }
 
     @PrePersist
     public void prePersist() {

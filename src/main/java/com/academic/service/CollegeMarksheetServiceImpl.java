@@ -51,8 +51,22 @@ public class CollegeMarksheetServiceImpl implements CollegeMarksheetService {
         String cleanStatus = (resultStatus != null && !resultStatus.trim().equalsIgnoreCase("all")) ? resultStatus.trim() : null;
         String cleanSearch = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
 
+        Integer degreeId = null;
+        if (cleanDegree != null) {
+            try {
+                degreeId = Integer.parseInt(cleanDegree);
+            } catch (NumberFormatException ignored) {}
+        }
+
+        Integer programId = null;
+        if (cleanProgram != null) {
+            try {
+                programId = Integer.parseInt(cleanProgram);
+            } catch (NumberFormatException ignored) {}
+        }
+
         Page<CollegeMarksheet> page = repository.searchAndFilter(
-                cleanDegree, cleanProgram, cleanSemester, cleanYear, cleanSession, cleanStatus, cleanSearch, pageable
+                degreeId, cleanDegree, programId, cleanProgram, cleanSemester, cleanYear, cleanSession, cleanStatus, cleanSearch, pageable
         );
 
         return page.map(this::mapToResponse);
@@ -124,9 +138,8 @@ public class CollegeMarksheetServiceImpl implements CollegeMarksheetService {
                     existing.setStudentName(newMs.getStudentName());
                     existing.setCollegeRollNo(newMs.getCollegeRollNo());
                     existing.setFatherName(newMs.getFatherName());
-                    existing.setMotherName(newMs.getMotherName());
-                    existing.setDegreeCode(newMs.getDegreeCode());
-                    existing.setProgramCode(newMs.getProgramCode());
+                    existing.setDegree(newMs.getDegree());
+                    existing.setProgram(newMs.getProgram());
                     existing.setTotalCreditsOffered(newMs.getTotalCreditsOffered());
                     existing.setTotalCreditsEarned(newMs.getTotalCreditsEarned());
                     existing.setSgpa(newMs.getSgpa());
@@ -298,7 +311,9 @@ public class CollegeMarksheetServiceImpl implements CollegeMarksheetService {
                 .admissionNo(entity.getAdmissionNo())
                 .fatherName(entity.getFatherName())
                 .motherName(entity.getMotherName())
+                .degreeId(entity.getDegreeId())
                 .degreeCode(entity.getDegreeCode())
+                .programId(entity.getProgramId())
                 .programCode(entity.getProgramCode())
                 .programName(entity.getProgramName())
                 .departmentName(entity.getDepartmentName())

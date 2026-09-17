@@ -20,9 +20,11 @@ public interface CollegeMarksheetRepository extends JpaRepository<CollegeMarkshe
     java.util.List<CollegeMarksheet> findByStudentIdIsNullAndIsDeletedFalse();
 
     @Query("SELECT m FROM CollegeMarksheet m " +
+            "LEFT JOIN m.degree d " +
+            "LEFT JOIN m.program p " +
             "WHERE m.isDeleted = false " +
-            "AND (:degreeCode IS NULL OR LOWER(m.degreeCode) = LOWER(:degreeCode)) " +
-            "AND (:programCode IS NULL OR LOWER(m.programCode) = LOWER(:programCode)) " +
+            "AND (:degreeCode IS NULL OR LOWER(d.code) = LOWER(:degreeCode) OR LOWER(d.name) = LOWER(:degreeCode) OR (:degreeId IS NOT NULL AND d.id = :degreeId)) " +
+            "AND (:programCode IS NULL OR LOWER(p.code) = LOWER(:programCode) OR LOWER(p.name) = LOWER(:programCode) OR (:programId IS NOT NULL AND p.id = :programId)) " +
             "AND (:semester IS NULL OR LOWER(m.semester) = LOWER(:semester)) " +
             "AND (:academicYear IS NULL OR LOWER(m.academicYear) = LOWER(:academicYear)) " +
             "AND (:examSession IS NULL OR LOWER(m.examSession) = LOWER(:examSession)) " +
@@ -35,7 +37,9 @@ public interface CollegeMarksheetRepository extends JpaRepository<CollegeMarkshe
             "     LOWER(m.universityRollNo) LIKE LOWER(CONCAT('%', :search, '%'))) " +
             "ORDER BY m.id DESC")
     Page<CollegeMarksheet> searchAndFilter(
+            @Param("degreeId") Integer degreeId,
             @Param("degreeCode") String degreeCode,
+            @Param("programId") Integer programId,
             @Param("programCode") String programCode,
             @Param("semester") String semester,
             @Param("academicYear") String academicYear,

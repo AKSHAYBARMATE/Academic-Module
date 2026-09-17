@@ -325,6 +325,9 @@ public class CollegeMarksheetExcelService {
                 }
             }
 
+            final Degree resolvedDegree = targetDegree;
+            final Program resolvedProgram = targetProgram;
+
             // 3. Row by Row Validation and Extraction
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
@@ -452,11 +455,12 @@ public class CollegeMarksheetExcelService {
                     String finalFatherName = matchedStudent != null ? matchedStudent.getFatherName() : null;
                     String finalMotherName = matchedStudent != null ? matchedStudent.getMotherName() : null;
 
-                    // Group under Student PRN
                     StudentAggregateData studentData = studentMap.computeIfAbsent(prn, k -> new StudentAggregateData(
                             matchedStudentId, admissionNo, prn, admissionNo, studentName,
                             finalFatherName, finalMotherName,
-                            degreeCode, programCode, semester, academicYear, examSession
+                            resolvedDegree,
+                            resolvedProgram,
+                            semester, academicYear, examSession
                     ));
 
                     CollegeMarksheetSubject sub = CollegeMarksheetSubject.builder()
@@ -563,9 +567,8 @@ public class CollegeMarksheetExcelService {
                 .motherName(data.motherName)
                 .universityPrn(data.universityPrn)
                 .collegeRollNo(data.collegeRollNo != null ? data.collegeRollNo : data.admissionNo)
-                .degreeCode(data.degreeCode)
-                .programCode(data.programCode)
-                .programName(data.programCode)
+                .degree(data.degree)
+                .program(data.program)
                 .semester(data.semester)
                 .academicYear(data.academicYear)
                 .examSession(data.examSession)
@@ -682,8 +685,8 @@ public class CollegeMarksheetExcelService {
         final String studentName;
         final String fatherName;
         final String motherName;
-        final String degreeCode;
-        final String programCode;
+        final Degree degree;
+        final Program program;
         final String semester;
         final String academicYear;
         final String examSession;
@@ -691,8 +694,8 @@ public class CollegeMarksheetExcelService {
 
         StudentAggregateData(Long studentId, String admissionNo, String universityPrn, String collegeRollNo,
                              String studentName, String fatherName, String motherName,
-                             String degreeCode, String programCode, String semester,
-                             String academicYear, String examSession) {
+                             Degree degree, Program program,
+                             String semester, String academicYear, String examSession) {
             this.studentId = studentId;
             this.admissionNo = admissionNo;
             this.universityPrn = universityPrn;
@@ -700,8 +703,8 @@ public class CollegeMarksheetExcelService {
             this.studentName = studentName;
             this.fatherName = fatherName;
             this.motherName = motherName;
-            this.degreeCode = degreeCode;
-            this.programCode = programCode;
+            this.degree = degree;
+            this.program = program;
             this.semester = semester;
             this.academicYear = academicYear;
             this.examSession = examSession;
