@@ -119,8 +119,12 @@ public class CollegeMarksheetServiceImpl implements CollegeMarksheetService {
                 if (existingOpt.isPresent()) {
                     CollegeMarksheet existing = existingOpt.get();
                     // Update existing marksheet with new results
+                    existing.setStudentId(newMs.getStudentId());
+                    existing.setAdmissionNo(newMs.getAdmissionNo());
                     existing.setStudentName(newMs.getStudentName());
                     existing.setCollegeRollNo(newMs.getCollegeRollNo());
+                    existing.setFatherName(newMs.getFatherName());
+                    existing.setMotherName(newMs.getMotherName());
                     existing.setDegreeCode(newMs.getDegreeCode());
                     existing.setProgramCode(newMs.getProgramCode());
                     existing.setTotalCreditsOffered(newMs.getTotalCreditsOffered());
@@ -241,6 +245,7 @@ public class CollegeMarksheetServiceImpl implements CollegeMarksheetService {
                 .universityPrn(entity.getUniversityPrn())
                 .universityRollNo(entity.getUniversityRollNo())
                 .collegeRollNo(entity.getCollegeRollNo())
+                .admissionNo(entity.getAdmissionNo())
                 .fatherName(entity.getFatherName())
                 .motherName(entity.getMotherName())
                 .degreeCode(entity.getDegreeCode())

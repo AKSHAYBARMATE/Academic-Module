@@ -33,6 +33,8 @@ public class CollegeMarksheet {
     @Column(nullable = false)
     private String collegeRollNo;
 
+    private String admissionNo;
+
     private String fatherName;
     private String motherName;
 

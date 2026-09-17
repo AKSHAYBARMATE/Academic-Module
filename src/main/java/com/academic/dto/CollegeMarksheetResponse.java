@@ -20,6 +20,7 @@ public class CollegeMarksheetResponse {
     private String universityPrn;
     private String universityRollNo;
     private String collegeRollNo;
+    private String admissionNo;
     private String fatherName;
     private String motherName;
 

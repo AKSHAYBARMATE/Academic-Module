@@ -4,6 +4,9 @@ import com.academic.dto.ExcelValidationError;
 import com.academic.dto.GazetteUploadResponse;
 import com.academic.entity.CollegeMarksheet;
 import com.academic.entity.CollegeMarksheetSubject;
+import com.academic.entity.Student;
+import com.academic.repository.StudentRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -15,12 +18,15 @@ import java.time.LocalDate;
 import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 @Slf4j
 public class CollegeMarksheetExcelService {
 
+    private final StudentRepository studentRepository;
+
     public static final String[] REQUIRED_HEADERS = {
             "UNIVERSITY_PRN",
-            "COLLEGE_ROLL_NO",
+            "ADMISSION_NO",
             "STUDENT_NAME",
             "SUBJECT_CODE",
             "SUBJECT_NAME",
@@ -80,11 +86,11 @@ public class CollegeMarksheetExcelService {
                 cell.setCellStyle(headerStyle);
             }
 
-            // Sample Row 1
+            // Sample Row 1: Student COL2026001 (Rahul Sharma) - Subject 1
             Row sample1 = dataSheet.createRow(1);
             sample1.createCell(0).setCellValue("22019481001");
-            sample1.createCell(1).setCellValue("CSE-2022-001");
-            sample1.createCell(2).setCellValue("Aarav Sharma");
+            sample1.createCell(1).setCellValue("COL2026001");
+            sample1.createCell(2).setCellValue("Rahul Sharma");
             sample1.createCell(3).setCellValue("CS501");
             sample1.createCell(4).setCellValue("Design & Analysis of Algorithms");
             sample1.createCell(5).setCellValue("Theory");
@@ -97,11 +103,11 @@ public class CollegeMarksheetExcelService {
             sample1.createCell(12).setCellValue("O");
             sample1.createCell(13).setCellValue("Pass");
 
-            // Sample Row 2
+            // Sample Row 2: Student COL2026001 (Rahul Sharma) - Subject 2
             Row sample2 = dataSheet.createRow(2);
             sample2.createCell(0).setCellValue("22019481001");
-            sample2.createCell(1).setCellValue("CSE-2022-001");
-            sample2.createCell(2).setCellValue("Aarav Sharma");
+            sample2.createCell(1).setCellValue("COL2026001");
+            sample2.createCell(2).setCellValue("Rahul Sharma");
             sample2.createCell(3).setCellValue("CS502");
             sample2.createCell(4).setCellValue("Database Management Systems");
             sample2.createCell(5).setCellValue("Theory");
@@ -114,9 +120,27 @@ public class CollegeMarksheetExcelService {
             sample2.createCell(12).setCellValue("A+");
             sample2.createCell(13).setCellValue("Pass");
 
+            // Sample Row 3: Student 9293992 (Abhay Mohite) - Subject 1
+            Row sample3 = dataSheet.createRow(3);
+            sample3.createCell(0).setCellValue("22019481002");
+            sample3.createCell(1).setCellValue("9293992");
+            sample3.createCell(2).setCellValue("Abhay Mohite");
+            sample3.createCell(3).setCellValue("CS501");
+            sample3.createCell(4).setCellValue("Design & Analysis of Algorithms");
+            sample3.createCell(5).setCellValue("Theory");
+            sample3.createCell(6).setCellValue(4.0);
+            sample3.createCell(7).setCellValue(30);
+            sample3.createCell(8).setCellValue(25);
+            sample3.createCell(9).setCellValue(70);
+            sample3.createCell(10).setCellValue(59);
+            sample3.createCell(11).setCellValue(9.0);
+            sample3.createCell(12).setCellValue("A+");
+            sample3.createCell(13).setCellValue("Pass");
+
             for (int i = 0; i < REQUIRED_HEADERS.length; i++) {
                 sample1.getCell(i).setCellStyle(borderStyle);
                 sample2.getCell(i).setCellStyle(borderStyle);
+                sample3.getCell(i).setCellStyle(borderStyle);
                 dataSheet.autoSizeColumn(i);
             }
 
@@ -128,11 +152,12 @@ public class CollegeMarksheetExcelService {
             String[] rules = {
                     "1. Each row corresponds to a single course result for a student.",
                     "2. Multiple rows sharing the same UNIVERSITY_PRN will be automatically grouped into one consolidated student marksheet.",
-                    "3. Mandatory Fields: UNIVERSITY_PRN, COLLEGE_ROLL_NO, STUDENT_NAME, SUBJECT_CODE, SUBJECT_NAME, CREDITS, INTERNAL_MAX, INTERNAL_OBTAINED, EXTERNAL_MAX, EXTERNAL_OBTAINED.",
-                    "4. Mark Validations: INTERNAL_OBTAINED must be >= 0 and <= INTERNAL_MAX. EXTERNAL_OBTAINED must be >= 0 and <= EXTERNAL_MAX.",
-                    "5. Supported Letter Grades (CBCS 10-Point Scale): O (10), A+ (9), A (8), B+ (7), B (6), C (5), P (4), F (0), Ab (0).",
-                    "6. Overall Result Status (Distinction, First Class, Second Class, ATKT, Fail) and SGPA/CGPA will be auto-calculated if left blank.",
-                    "7. Do NOT alter or re-order column headers in the 'Marksheet_Data' sheet."
+                    "3. Mandatory Fields: UNIVERSITY_PRN, ADMISSION_NO, STUDENT_NAME, SUBJECT_CODE, SUBJECT_NAME, CREDITS, INTERNAL_MAX, INTERNAL_OBTAINED, EXTERNAL_MAX, EXTERNAL_OBTAINED.",
+                    "4. Student Verification: ADMISSION_NO must match an active student admission number in the College Student Directory (e.g. COL2026001, 9293992). The student's database ID (foreign key) is automatically linked to the marksheet.",
+                    "5. Mark Validations: INTERNAL_OBTAINED must be >= 0 and <= INTERNAL_MAX. EXTERNAL_OBTAINED must be >= 0 and <= EXTERNAL_MAX.",
+                    "6. Supported Letter Grades (CBCS 10-Point Scale): O (10), A+ (9), A (8), B+ (7), B (6), C (5), P (4), F (0), Ab (0).",
+                    "7. Overall Result Status (Distinction, First Class, Second Class, ATKT, Fail) and SGPA/CGPA will be auto-calculated if left blank.",
+                    "8. Do NOT alter or re-order column headers in the 'Marksheet_Data' sheet."
             };
 
             for (int i = 0; i < rules.length; i++) {
@@ -197,7 +222,26 @@ public class CollegeMarksheetExcelService {
                 headerIndexMap.put(headerVal, cell.getColumnIndex());
             }
 
+            // Resolve Admission No / Roll No column (supports ADMISSION_NO, COLLEGE_ROLL_NO, ROLL_NO, etc.)
+            Integer admissionCol = headerIndexMap.get("ADMISSION_NO");
+            if (admissionCol == null) admissionCol = headerIndexMap.get("COLLEGE_ROLL_NO");
+            if (admissionCol == null) admissionCol = headerIndexMap.get("ROLL_NO");
+            if (admissionCol == null) admissionCol = headerIndexMap.get("ADMISSION_NUMBER");
+            if (admissionCol == null) admissionCol = headerIndexMap.get("STUDENT_ADMISSION_NO");
+            if (admissionCol == null) admissionCol = headerIndexMap.get("COLLEGE_ROLL_NO / ADMISSION_NO");
+            if (admissionCol == null) {
+                errors.add(ExcelValidationError.builder()
+                        .rowNumber(1)
+                        .columnName("ADMISSION_NO")
+                        .invalidValue("Missing")
+                        .errorMessage("Required header column 'ADMISSION_NO' (or 'COLLEGE_ROLL_NO') was not found.")
+                        .build());
+            }
+
             for (String requiredHeader : REQUIRED_HEADERS) {
+                if ("ADMISSION_NO".equals(requiredHeader)) {
+                    continue; // Checked above with aliases
+                }
                 if (!headerIndexMap.containsKey(requiredHeader)) {
                     errors.add(ExcelValidationError.builder()
                             .rowNumber(1)
@@ -208,14 +252,35 @@ public class CollegeMarksheetExcelService {
                 }
             }
 
-            if (!errors.isEmpty()) {
+            if (!errors.isEmpty() || admissionCol == null) {
                 return new ParsingResult(Collections.emptyList(), errors, 0, 0);
+            }
+
+            // ── Step 2: Batch Pre-fetch Student Records from DB in a SINGLE Query ──
+            Set<String> distinctAdmissionNos = new LinkedHashSet<>();
+            for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+                Row row = sheet.getRow(r);
+                if (row == null || isRowEmpty(row)) continue;
+                String adm = getCellString(row.getCell(admissionCol)).trim();
+                if (!adm.isEmpty()) {
+                    distinctAdmissionNos.add(adm.toLowerCase());
+                }
+            }
+
+            Map<String, Student> studentDbMap = new HashMap<>();
+            if (!distinctAdmissionNos.isEmpty()) {
+                List<Student> dbStudents = studentRepository.findByAdmissionNoInIgnoreCase(distinctAdmissionNos);
+                for (Student s : dbStudents) {
+                    if (s.getAdmissionNo() != null) {
+                        studentDbMap.put(s.getAdmissionNo().trim().toLowerCase(), s);
+                    }
+                }
             }
 
             int totalRows = 0;
             int totalSubjects = 0;
 
-            // 2. Row by Row Validation and Extraction
+            // 3. Row by Row Validation and Extraction
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
                 if (row == null || isRowEmpty(row)) {
@@ -225,7 +290,7 @@ public class CollegeMarksheetExcelService {
                 int displayRowNum = r + 1; // 1-based display row
 
                 String prn = getCellString(row.getCell(headerIndexMap.get("UNIVERSITY_PRN"))).trim();
-                String rollNo = getCellString(row.getCell(headerIndexMap.get("COLLEGE_ROLL_NO"))).trim();
+                String admissionNo = getCellString(row.getCell(admissionCol)).trim();
                 String studentName = getCellString(row.getCell(headerIndexMap.get("STUDENT_NAME"))).trim();
                 String subCode = getCellString(row.getCell(headerIndexMap.get("SUBJECT_CODE"))).trim();
                 String subName = getCellString(row.getCell(headerIndexMap.get("SUBJECT_NAME"))).trim();
@@ -235,8 +300,15 @@ public class CollegeMarksheetExcelService {
                 if (prn.isEmpty()) {
                     errors.add(new ExcelValidationError(displayRowNum, "UNIVERSITY_PRN", prn, "University PRN cannot be empty"));
                 }
-                if (rollNo.isEmpty()) {
-                    errors.add(new ExcelValidationError(displayRowNum, "COLLEGE_ROLL_NO", rollNo, "College Roll No cannot be empty"));
+                if (admissionNo.isEmpty()) {
+                    errors.add(new ExcelValidationError(displayRowNum, "ADMISSION_NO", admissionNo, "Admission No cannot be empty"));
+                } else if (!studentDbMap.containsKey(admissionNo.toLowerCase())) {
+                    errors.add(new ExcelValidationError(
+                            displayRowNum,
+                            "ADMISSION_NO",
+                            admissionNo,
+                            "Student with Admission No '" + admissionNo + "' was not found in College Student database. Please ensure student is admitted first."
+                    ));
                 }
                 if (studentName.isEmpty()) {
                     errors.add(new ExcelValidationError(displayRowNum, "STUDENT_NAME", studentName, "Student Name cannot be empty"));
@@ -307,9 +379,17 @@ public class CollegeMarksheetExcelService {
                 }
 
                 if (errors.isEmpty() && !prn.isEmpty()) {
-                    // Group under Student
+                    Student matchedStudent = studentDbMap.get(admissionNo.toLowerCase());
+                    Long matchedStudentId = (matchedStudent != null && matchedStudent.getId() != null)
+                            ? matchedStudent.getId().longValue() : null;
+                    String finalFatherName = matchedStudent != null ? matchedStudent.getFatherName() : null;
+                    String finalMotherName = matchedStudent != null ? matchedStudent.getMotherName() : null;
+
+                    // Group under Student PRN
                     StudentAggregateData studentData = studentMap.computeIfAbsent(prn, k -> new StudentAggregateData(
-                            prn, rollNo, studentName, degreeCode, programCode, semester, academicYear, examSession
+                            matchedStudentId, admissionNo, prn, admissionNo, studentName,
+                            finalFatherName, finalMotherName,
+                            degreeCode, programCode, semester, academicYear, examSession
                     ));
 
                     CollegeMarksheetSubject sub = CollegeMarksheetSubject.builder()
@@ -402,9 +482,13 @@ public class CollegeMarksheetExcelService {
         }
 
         CollegeMarksheet ms = CollegeMarksheet.builder()
+                .studentId(data.studentId)
+                .admissionNo(data.admissionNo)
                 .studentName(data.studentName)
+                .fatherName(data.fatherName)
+                .motherName(data.motherName)
                 .universityPrn(data.universityPrn)
-                .collegeRollNo(data.collegeRollNo)
+                .collegeRollNo(data.collegeRollNo != null ? data.collegeRollNo : data.admissionNo)
                 .degreeCode(data.degreeCode)
                 .programCode(data.programCode)
                 .programName(data.programCode)
@@ -421,7 +505,7 @@ public class CollegeMarksheetExcelService {
                 .percentage(percentage)
                 .resultStatus(resultStatus)
                 .backlogCount(backlogCount)
-                .marksheetNumber("MS-" + data.examSession.replaceAll("\\s+", "") + "-" + data.universityPrn)
+                .marksheetNumber("MS-" + (data.examSession != null ? data.examSession.replaceAll("\\s+", "") : "SEM") + "-" + data.universityPrn)
                 .issueDate(LocalDate.now())
                 .verificationCode("VER-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .published(true)
@@ -509,9 +593,13 @@ public class CollegeMarksheetExcelService {
     }
 
     private static class StudentAggregateData {
+        final Long studentId;
+        final String admissionNo;
         final String universityPrn;
         final String collegeRollNo;
         final String studentName;
+        final String fatherName;
+        final String motherName;
         final String degreeCode;
         final String programCode;
         final String semester;
@@ -519,12 +607,17 @@ public class CollegeMarksheetExcelService {
         final String examSession;
         final List<CollegeMarksheetSubject> subjects = new ArrayList<>();
 
-        StudentAggregateData(String universityPrn, String collegeRollNo, String studentName,
+        StudentAggregateData(Long studentId, String admissionNo, String universityPrn, String collegeRollNo,
+                             String studentName, String fatherName, String motherName,
                              String degreeCode, String programCode, String semester,
                              String academicYear, String examSession) {
+            this.studentId = studentId;
+            this.admissionNo = admissionNo;
             this.universityPrn = universityPrn;
             this.collegeRollNo = collegeRollNo;
             this.studentName = studentName;
+            this.fatherName = fatherName;
+            this.motherName = motherName;
             this.degreeCode = degreeCode;
             this.programCode = programCode;
             this.semester = semester;

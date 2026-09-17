@@ -29,6 +29,7 @@ public interface CollegeMarksheetRepository extends JpaRepository<CollegeMarkshe
             "     LOWER(m.studentName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
             "     LOWER(m.universityPrn) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
             "     LOWER(m.collegeRollNo) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "     (m.admissionNo IS NOT NULL AND LOWER(m.admissionNo) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
             "     LOWER(m.universityRollNo) LIKE LOWER(CONCAT('%', :search, '%'))) " +
             "ORDER BY m.id DESC")
     Page<CollegeMarksheet> searchAndFilter(
