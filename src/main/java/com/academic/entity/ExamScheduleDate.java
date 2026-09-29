@@ -34,6 +34,10 @@ public class ExamScheduleDate {
     @JoinColumn(name = "class_id", nullable = false)
     private CommonMaster classMaster;
 
+    /* Section (Optional) */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "section_id")
+    private CommonMaster sectionMaster;
 
     /* Subject */
     @ManyToOne(fetch = FetchType.LAZY)
@@ -55,6 +59,9 @@ public class ExamScheduleDate {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invigilator_id")
     private Staff invigilator;
+
+    @Column(length = 100)
+    private String invigilatorName;
 
     /* Room Number */
     @Column(length = 50)

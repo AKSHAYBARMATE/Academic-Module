@@ -28,6 +28,7 @@ public class ExamScheduleDateRequest {
     private String endTime; // e.g. "12:00 PM" or "12:00"
 
     private Integer invigilatorId; // Staff ID (optional)
+    private String invigilatorName; // Invigilator Name (optional)
     private String roomNo; // Room number / Hall number
 
     private Integer maxMarks; // Maximum marks
