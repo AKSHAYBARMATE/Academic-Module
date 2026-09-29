@@ -104,6 +104,11 @@ public class FirebaseNotificationServiceImpl implements FirebaseNotificationServ
     @Override
     public StandardResponse<NotificationResponse> sendNotification(SendNotificationRequest request) {
 
+        if (com.google.firebase.FirebaseApp.getApps().isEmpty()) {
+            log.warn("Cannot send notification: Firebase is not initialized");
+            return StandardResponse.error("Firebase is not initialized on the server", "FIREBASE_NOT_CONFIGURED", null);
+        }
+
         List<String> tokens = resolveTargetTokens(request);
 
         if (tokens.isEmpty()) {
@@ -248,6 +253,11 @@ public class FirebaseNotificationServiceImpl implements FirebaseNotificationServ
     @Override
     public StandardResponse<NotificationResponse> sendFeePaymentNotification(
             FeePaymentNotificationRequest req) {
+
+        if (com.google.firebase.FirebaseApp.getApps().isEmpty()) {
+            log.warn("Cannot send fee notification: Firebase is not initialized");
+            return StandardResponse.error("Firebase is not initialized on the server", "FIREBASE_NOT_CONFIGURED", null);
+        }
 
         // 1. Resolve student's active FCM tokens
         List<String> tokens = deviceTokenRepository
