@@ -75,15 +75,6 @@ public class TimeTableController {
         return ResponseEntity.ok(StandardResponse.success("Timetable deleted successfully"));
     }
 
-    /**
-     * List all timetables with pagination, optional filters, and search
-     *
-     * @param page    Page number (1-based)
-     * @param size    Page size
-     * @param classId Optional class filter
-     * @param section Optional section filter
-     * @param search  Optional search on timetable name
-     */
     @GetMapping("/listAllTimetables")
     public ResponseEntity<StandardResponse<Map<String, Object>>> listAll(
             @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
