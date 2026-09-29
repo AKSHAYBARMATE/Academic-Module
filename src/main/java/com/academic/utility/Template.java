@@ -905,5 +905,205 @@ public class Template {
             </body>
             </html>
             """;
+
+    public static final String EXAM_TIMETABLE_PDF_HTML = """
+            <html xmlns="http://www.w3.org/1999/xhtml">
+            <head>
+            <meta charset="UTF-8"/>
+            <title>EXAMINATION DATE SHEET</title>
+            <style>
+                @page {
+                    size: A4 portrait;
+                    margin: 0.8cm;
+                }
+                body {
+                    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                    font-size: 11px;
+                    margin: 0;
+                    padding: 0;
+                    color: #1e293b;
+                    background-color: #ffffff;
+                }
+                .container {
+                    border: 2px solid #1e3a8a;
+                    border-radius: 8px;
+                    padding: 16px;
+                    background-color: #ffffff;
+                }
+                .school-title {
+                    font-size: 22px;
+                    font-weight: 800;
+                    color: #1e3a8a;
+                    text-align: center;
+                    margin-bottom: 4px;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                }
+                .banner-title {
+                    font-size: 14px;
+                    font-weight: bold;
+                    color: #475569;
+                    text-align: center;
+                    margin-bottom: 12px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+                .meta-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 14px;
+                    background-color: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                }
+                .meta-table td {
+                    border: none;
+                    padding: 4px 8px;
+                    font-size: 11px;
+                    color: #334155;
+                }
+                .meta-label {
+                    font-weight: bold;
+                    color: #0f172a;
+                }
+                .data-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 15px;
+                }
+                .data-table th, .data-table td {
+                    border: 1px solid #cbd5e1;
+                    padding: 8px 6px;
+                    text-align: center;
+                    font-size: 10.5px;
+                }
+                .data-table th {
+                    background-color: #1e3a8a;
+                    color: #ffffff;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                    font-size: 10px;
+                    letter-spacing: 0.5px;
+                }
+                .data-table tr:nth-child(even) {
+                    background-color: #f8fafc;
+                }
+                .subject-cell {
+                    text-align: left !important;
+                    font-weight: 600;
+                    color: #0f172a;
+                }
+                .date-cell {
+                    font-weight: 600;
+                    color: #1e3a8a;
+                    white-space: nowrap;
+                }
+                .time-cell {
+                    font-weight: 600;
+                    color: #334155;
+                    white-space: nowrap;
+                }
+                .instructions-box {
+                    border: 1px dashed #94a3b8;
+                    border-radius: 6px;
+                    padding: 10px 12px;
+                    background-color: #f8fafc;
+                    margin-bottom: 20px;
+                }
+                .instructions-title {
+                    font-weight: bold;
+                    font-size: 10.5px;
+                    color: #1e3a8a;
+                    margin-bottom: 4px;
+                    text-transform: uppercase;
+                }
+                .instructions-list {
+                    margin: 0;
+                    padding-left: 15px;
+                    font-size: 9.5px;
+                    color: #475569;
+                    line-height: 1.4;
+                }
+                .footer-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 25px;
+                }
+                .footer-table td {
+                    border: none;
+                    padding: 0;
+                }
+                .sig-line {
+                    border-top: 1px solid #64748b;
+                    padding-top: 4px;
+                    font-weight: bold;
+                    font-size: 10px;
+                    color: #334155;
+                    width: 140px;
+                    display: inline-block;
+                    text-align: center;
+                }
+            </style>
+            </head>
+            <body>
+            <div class="container">
+                <div class="school-title">ACADEMIC EXAMINATION</div>
+                <div class="banner-title">${EXAM_TITLE} - DATE SHEET</div>
+
+                <table class="meta-table">
+                    <tr>
+                        <td width="50%"><span class="meta-label">Session:</span> ${SESSION}</td>
+                        <td width="50%"><span class="meta-label">Class &amp; Section:</span> ${CLASS_SECTION}</td>
+                    </tr>
+                    <tr>
+                        <td><span class="meta-label">Date Filter:</span> ${DATE_RANGE}</td>
+                        <td><span class="meta-label">Generated Date:</span> ${PRINT_DATE}</td>
+                    </tr>
+                </table>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">#</th>
+                            <th style="width: 15%;">Date</th>
+                            <th style="width: 12%;">Day</th>
+                            <th style="width: 25%;">Subject</th>
+                            <th style="width: 18%;">Time Slot</th>
+                            <th style="width: 10%;">Room No</th>
+                            <th style="width: 15%;">Invigilator</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${TABLE_ROWS}
+                    </tbody>
+                </table>
+
+                <div class="instructions-box">
+                    <div class="instructions-title">Important Instructions:</div>
+                    <ul class="instructions-list">
+                        <li>Students must be present in the examination hall 15 minutes before the scheduled time.</li>
+                        <li>School Uniform and ID card are mandatory during all examination days.</li>
+                        <li>No electronic gadgets or unfair means are permitted inside the examination hall.</li>
+                    </ul>
+                </div>
+
+                <table class="footer-table">
+                    <tr>
+                        <td align="left" style="width:33%;">
+                            <div class="sig-line">Exam In-Charge</div>
+                        </td>
+                        <td align="center" style="width:34%;">
+                            <div class="sig-line">School Stamp</div>
+                        </td>
+                        <td align="right" style="width:33%;">
+                            <div class="sig-line">Principal</div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            </body>
+            </html>
+            """;
 }
 

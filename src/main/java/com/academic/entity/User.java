@@ -18,6 +18,8 @@ public class User {
     private Integer staffId;
 
     private String email;
+
     private String username;
+
     private boolean isStaff;
 }
