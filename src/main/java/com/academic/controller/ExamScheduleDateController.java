@@ -16,8 +16,7 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@CrossOrigin(origins = "*")
-@RequestMapping({"/api/v1/academic-module/exam-schedule-dates", "/api/v1/academic-module"})
+@RequestMapping("/api/v1/academic-module/exam-schedule-dates")
 @RequiredArgsConstructor
 public class ExamScheduleDateController {
 
