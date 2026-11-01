@@ -1,11 +1,13 @@
 package com.academic.config;
 
 import org.springframework.data.domain.AuditorAware;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
 @Component
+@EnableJpaAuditing
 public class JpaAuditingConfig implements AuditorAware<Long> {
 
     private final LoginUser loginUser;
@@ -19,3 +21,4 @@ public class JpaAuditingConfig implements AuditorAware<Long> {
         return Optional.ofNullable(loginUser.getUserId());
     }
 }
+

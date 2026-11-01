@@ -58,6 +58,18 @@ public class MonthlyAttendanceCalendarResponse {
 
         /** List of students who were absent on this day */
         private List<StudentRecord> absentStudents;
+
+        /** true if this date is a Holiday or a Weekly Off day */
+        private boolean isHoliday;
+
+        /** true if any Class/School Event occurs on this date */
+        private boolean isEvent;
+
+        /** Optional name of the holiday (or weekly off day name) */
+        private String holidayName;
+
+        /** Optional title/name of the class event */
+        private String eventName;
     }
 
     @Data

@@ -15,6 +15,7 @@ import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.*;
 
 import java.io.ByteArrayOutputStream;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.YearMonth;
@@ -49,6 +50,9 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
     private final ExamComponentMasterRepostory componentMasterRepository;
     private final LeaveApplicationRepository leaveApplicationRepository;
     private final StaffRepository staffRepository;
+    private final HolidayRepository holidayRepository;
+    private final WeeklyOffRepository weeklyOffRepository;
+    private final ClassEventRepository classEventRepository;
 
     @Override
     public StandardResponse<?> getDashboardData(String employeeId) {
@@ -365,6 +369,55 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         int totalStudents = students.size();
         List<MonthlyAttendanceCalendarResponse.DailyRecord> dailyRecords = new ArrayList<>();
 
+        // Fetch Weekly Offs, Holidays & Class Events for the month
+        List<WeeklyOff> weeklyOffConfigs = weeklyOffRepository.findByIsDeletedFalseOrderByDayOfWeekAsc();
+        Set<java.time.DayOfWeek> weeklyOffDays = weeklyOffConfigs.stream()
+                .map(WeeklyOff::getDayOfWeek)
+                .collect(Collectors.toSet());
+
+        List<Holiday> monthHolidays = holidayRepository.findOverlappingHolidays(startDate, endDate);
+        Map<LocalDate, String> holidayMap = new HashMap<>();
+        for (Holiday h : monthHolidays) {
+            if ("ALL_SCHOOL".equals(h.getApplicableTo())
+                    || (h.getSelectedClassIds() != null && h.getSelectedClassIds().contains(classId))) {
+                LocalDate hStart = h.getStartDate().isBefore(startDate) ? startDate : h.getStartDate();
+                LocalDate hEnd = h.getEndDate().isAfter(endDate) ? endDate : h.getEndDate();
+                LocalDate cur = hStart;
+                while (!cur.isAfter(hEnd)) {
+                    holidayMap.putIfAbsent(cur, h.getHolidayName());
+                    cur = cur.plusDays(1);
+                }
+            }
+        }
+
+        List<ClassEvent> monthEvents = classEventRepository.findEventsForMonth(year, month, startDate, endDate);
+        Map<LocalDate, String> eventMap = new HashMap<>();
+        for (ClassEvent e : monthEvents) {
+            boolean matches = false;
+            String app = e.getApplicableTo();
+            if ("ENTIRE_SCHOOL".equals(app)) {
+                matches = true;
+            } else if ("SELECTED_CLASSES".equals(app)) {
+                matches = e.getClassIds() != null && e.getClassIds().contains(classId);
+            } else if ("SELECTED_SECTIONS".equals(app)) {
+                boolean classMatch = e.getClassIds() != null && e.getClassIds().contains(classId);
+                boolean sectionMatch = e.getSectionIds() != null && e.getSectionIds().contains(sectionId);
+                matches = classMatch && sectionMatch;
+            }
+            if (matches) {
+                LocalDate eStart = e.getEventDate().isBefore(startDate) ? startDate : e.getEventDate();
+                LocalDate eEnd = (e.getEndDate() != null ? e.getEndDate() : e.getEventDate());
+                if (eEnd.isAfter(endDate)) {
+                    eEnd = endDate;
+                }
+                LocalDate cur = eStart;
+                while (!cur.isAfter(eEnd)) {
+                    eventMap.putIfAbsent(cur, e.getEventTitle());
+                    cur = cur.plusDays(1);
+                }
+            }
+        }
+
         long monthTotalPresent = 0;
         long monthTotalAbsent = 0;
         int workingDays = 0;
@@ -376,6 +429,20 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
             LocalDate date = yearMonth.atDay(day);
 
             List<StudentAttendance> dayRecords = byDate.getOrDefault(date, java.util.Collections.emptyList());
+
+            boolean isWeeklyOff = weeklyOffDays.contains(date.getDayOfWeek());
+            boolean hasHoliday = holidayMap.containsKey(date);
+            boolean isHoliday = isWeeklyOff || hasHoliday;
+
+            String holidayName = null;
+            if (hasHoliday) {
+                holidayName = holidayMap.get(date);
+            } else if (isWeeklyOff) {
+                holidayName = "Weekly Off (" + date.getDayOfWeek().name() + ")";
+            }
+
+            boolean isEvent = eventMap.containsKey(date);
+            String eventName = isEvent ? eventMap.get(date) : null;
 
             // Build present / absent student lists for this day
             List<MonthlyAttendanceCalendarResponse.StudentRecord> presentList = new ArrayList<>();
@@ -427,6 +494,10 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                     .notMarkedCount(notMarked < 0 ? 0 : notMarked)
                     .attendancePercentage(pct != null ? Math.round(pct * 10.0) / 10.0 : null)
                     .attendanceTag(tag)
+                    .isHoliday(isHoliday)
+                    .isEvent(isEvent)
+                    .holidayName(holidayName)
+                    .eventName(eventName)
                     .presentStudents(presentList)
                     .absentStudents(absentList)
                     .build());
@@ -977,6 +1048,55 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         }
         sheet.addMergedRegion(new CellRangeAddress(2, 3, 0, 0));
 
+        // Resolve Weekly Offs, Holidays & Class Events for this month
+        List<WeeklyOff> weeklyOffConfigs = weeklyOffRepository.findByIsDeletedFalseOrderByDayOfWeekAsc();
+        Set<DayOfWeek> weeklyOffDays = weeklyOffConfigs.stream()
+                .map(WeeklyOff::getDayOfWeek)
+                .collect(Collectors.toSet());
+
+        List<Holiday> monthHolidays = holidayRepository.findOverlappingHolidays(startDate, endDate);
+        Set<LocalDate> holidayDates = new HashSet<>();
+        for (Holiday h : monthHolidays) {
+            if ("ALL_SCHOOL".equals(h.getApplicableTo())
+                    || (h.getSelectedClassIds() != null && h.getSelectedClassIds().contains(classId))) {
+                LocalDate hStart = h.getStartDate().isBefore(startDate) ? startDate : h.getStartDate();
+                LocalDate hEnd = h.getEndDate().isAfter(endDate) ? endDate : h.getEndDate();
+                LocalDate cur = hStart;
+                while (!cur.isAfter(hEnd)) {
+                    holidayDates.add(cur);
+                    cur = cur.plusDays(1);
+                }
+            }
+        }
+
+        List<ClassEvent> monthEvents = classEventRepository.findEventsForMonth(year, month, startDate, endDate);
+        Set<LocalDate> eventDates = new HashSet<>();
+        for (ClassEvent e : monthEvents) {
+            boolean matches = false;
+            String app = e.getApplicableTo();
+            if ("ENTIRE_SCHOOL".equals(app)) {
+                matches = true;
+            } else if ("SELECTED_CLASSES".equals(app)) {
+                matches = e.getClassIds() != null && e.getClassIds().contains(classId);
+            } else if ("SELECTED_SECTIONS".equals(app)) {
+                boolean classMatch = e.getClassIds() != null && e.getClassIds().contains(classId);
+                boolean sectionMatch = e.getSectionIds() != null && e.getSectionIds().contains(sectionId);
+                matches = classMatch && sectionMatch;
+            }
+            if (matches) {
+                LocalDate eStart = e.getEventDate().isBefore(startDate) ? startDate : e.getEventDate();
+                LocalDate eEnd = (e.getEndDate() != null ? e.getEndDate() : e.getEventDate());
+                if (eEnd.isAfter(endDate)) {
+                    eEnd = endDate;
+                }
+                LocalDate cur = eStart;
+                while (!cur.isAfter(eEnd)) {
+                    eventDates.add(cur);
+                    cur = cur.plusDays(1);
+                }
+            }
+        }
+
         String[] dayAbbr = {"", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
         for (int d = 1; d <= daysInMonth; d++) {
             LocalDate date = ym.atDay(d);
@@ -1001,7 +1121,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
             Long studentId = Long.valueOf(student.getId());
             Map<LocalDate, String> sAttendance = attendanceMap.getOrDefault(studentId, Collections.emptyMap());
 
-            int presentCount = 0, absentCount = 0, holidayCount = 0;
+            int presentCount = 0, absentCount = 0, holidayCount = 0; Map<Integer, String> dailyStatus = new HashMap<>();
             for (Map.Entry<LocalDate, String> e : sAttendance.entrySet()) {
                 String status = e.getValue();
                 if ("PRESENT".equals(status)) presentCount++;
@@ -1043,9 +1163,9 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 String status = sAttendance.get(date);
                 Cell dc = row.createCell(6 + d);
 
-                if (status == null) {
-                    dc.setCellValue("-");
-                    dc.setCellStyle(dashStyle);
+                boolean isWeeklyOff = weeklyOffDays.contains(date.getDayOfWeek()); boolean isHolidayDay = isWeeklyOff || holidayDates.contains(date); boolean isEventDay = eventDates.contains(date); if (isEventDay) { dailyStatus.put(d, "E"); } else if (isHolidayDay) { holidayCount++; dailyStatus.put(d, "H"); } else if (status == null) {
+                    if (isEventDay) { dc.setCellValue("E"); dc.setCellStyle(holidayStyle); } else if (isHolidayDay) { dc.setCellValue("H"); dc.setCellStyle(holidayStyle); } else { dc.setCellValue("-"); }
+                    if (!isEventDay && !isHolidayDay) { dc.setCellStyle(dashStyle); }
                 } else {
                     switch (status) {
                         case "PRESENT":
@@ -1062,7 +1182,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                             break;
                         default:
                             dc.setCellValue(status.substring(0, 1));
-                            dc.setCellStyle(dashStyle);
+                            if (!isEventDay && !isHolidayDay) { dc.setCellStyle(dashStyle); }
                     }
                 }
             }
@@ -1163,15 +1283,70 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
         // Create Day Headers
         List<MonthlyAttendanceGridResponse.DayHeader> dayHeaders = new ArrayList<>();
+        // Resolve Weekly Offs, Holidays & Class Events for this month
+        List<WeeklyOff> weeklyOffConfigs = weeklyOffRepository.findByIsDeletedFalseOrderByDayOfWeekAsc();
+        Set<DayOfWeek> weeklyOffDays = weeklyOffConfigs.stream()
+                .map(WeeklyOff::getDayOfWeek)
+                .collect(Collectors.toSet());
+
+        List<Holiday> monthHolidays = holidayRepository.findOverlappingHolidays(startDate, endDate);
+        Set<LocalDate> holidayDates = new HashSet<>();
+        for (Holiday h : monthHolidays) {
+            if ("ALL_SCHOOL".equals(h.getApplicableTo())
+                    || (h.getSelectedClassIds() != null && h.getSelectedClassIds().contains(classId))) {
+                LocalDate hStart = h.getStartDate().isBefore(startDate) ? startDate : h.getStartDate();
+                LocalDate hEnd = h.getEndDate().isAfter(endDate) ? endDate : h.getEndDate();
+                LocalDate cur = hStart;
+                while (!cur.isAfter(hEnd)) {
+                    holidayDates.add(cur);
+                    cur = cur.plusDays(1);
+                }
+            }
+        }
+
+        List<ClassEvent> monthEvents = classEventRepository.findEventsForMonth(year, month, startDate, endDate);
+        Set<LocalDate> eventDates = new HashSet<>();
+        for (ClassEvent e : monthEvents) {
+            boolean matches = false;
+            String app = e.getApplicableTo();
+            if ("ENTIRE_SCHOOL".equals(app)) {
+                matches = true;
+            } else if ("SELECTED_CLASSES".equals(app)) {
+                matches = e.getClassIds() != null && e.getClassIds().contains(classId);
+            } else if ("SELECTED_SECTIONS".equals(app)) {
+                boolean classMatch = e.getClassIds() != null && e.getClassIds().contains(classId);
+                boolean sectionMatch = e.getSectionIds() != null && e.getSectionIds().contains(sectionId);
+                matches = classMatch && sectionMatch;
+            }
+            if (matches) {
+                LocalDate eStart = e.getEventDate().isBefore(startDate) ? startDate : e.getEventDate();
+                LocalDate eEnd = (e.getEndDate() != null ? e.getEndDate() : e.getEventDate());
+                if (eEnd.isAfter(endDate)) {
+                    eEnd = endDate;
+                }
+                LocalDate cur = eStart;
+                while (!cur.isAfter(eEnd)) {
+                    eventDates.add(cur);
+                    cur = cur.plusDays(1);
+                }
+            }
+        }
+
         String[] dayAbbr = {"", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
         for (int d = 1; d <= daysInMonth; d++) {
             LocalDate date = ym.atDay(d);
             int dow = date.getDayOfWeek().getValue();
+            boolean isWeeklyOff = weeklyOffDays.contains(date.getDayOfWeek());
+            boolean isHol = isWeeklyOff || holidayDates.contains(date);
+            boolean isEvt = eventDates.contains(date);
+
             dayHeaders.add(MonthlyAttendanceGridResponse.DayHeader.builder()
                     .date(date.toString())
                     .dayOfMonth(String.format("%02d", d))
                     .dayName(dayAbbr[dow])
-                    .weekend(dow == 7) // Sunday
+                    .weekend(dow == 7 || isWeeklyOff) // Sunday or Weekly Off
+                    .isHoliday(isHol)
+                    .isEvent(isEvt)
                     .build());
         }
 
@@ -1192,7 +1367,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
             for (int d = 1; d <= daysInMonth; d++) {
                 LocalDate date = ym.atDay(d);
                 String status = sAttendance.get(date);
-                if (status == null) {
+                boolean isWeeklyOff = weeklyOffDays.contains(date.getDayOfWeek()); boolean isHolidayDay = isWeeklyOff || holidayDates.contains(date); boolean isEventDay = eventDates.contains(date); if (isEventDay) { dailyStatus.put(d, "E"); } else if (isHolidayDay) { holidayCount++; dailyStatus.put(d, "H"); } else if (status == null) {
                     dailyStatus.put(d, "-");
                 } else {
                     switch (status) {
