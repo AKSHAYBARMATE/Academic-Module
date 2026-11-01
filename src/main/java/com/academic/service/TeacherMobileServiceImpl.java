@@ -305,12 +305,60 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
     @Override
     @Transactional
     public StandardResponse<?> submitAttendance(AttendanceSubmissionRequest request) {
+        if (request == null || request.getAttendanceList() == null || request.getAttendanceList().isEmpty()) {
+            return StandardResponse.error("Attendance list cannot be empty", "INVALID_REQUEST", null);
+        }
+
+        LocalDate attendanceDate = request.getDate() != null ? request.getDate() : IstClock.today();
+
+        // 1. Validate Weekly Off
+        DayOfWeek dow = attendanceDate.getDayOfWeek();
+        boolean isWeeklyOff = weeklyOffRepository.existsByDayOfWeekAndIsDeletedFalse(dow);
+        if (isWeeklyOff) {
+            String dayName = dow.name().charAt(0) + dow.name().substring(1).toLowerCase();
+            return StandardResponse.error(
+                    "Cannot mark attendance on a weekly off (" + dayName + ")",
+                    "WEEKLY_OFF",
+                    "Attendance cannot be submitted on weekly off days");
+        }
+
+        // 2. Resolve class ID if not explicitly provided
+        Long classId = request.getClassId();
+        if (classId == null && !request.getAttendanceList().isEmpty()) {
+            Long firstStudentId = request.getAttendanceList().get(0).getStudentId();
+            if (firstStudentId != null) {
+                try {
+                    Session session = getActiveSession();
+                    if (session != null) {
+                        StudentPromotionMapper promo = studentPromotionMapperRepository
+                                .findByAcademicYearAndStudentId(session.getId(), firstStudentId.intValue());
+                        if (promo != null && promo.getToClass() != null) {
+                            classId = promo.getToClass().longValue();
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        // 3. Validate Holiday
+        List<Holiday> holidays = holidayRepository.findOverlappingHolidays(attendanceDate, attendanceDate);
+        for (Holiday h : holidays) {
+            boolean isHolidayForClass = "ALL_SCHOOL".equalsIgnoreCase(h.getApplicableTo())
+                    || (classId != null && h.getSelectedClassIds() != null && h.getSelectedClassIds().contains(classId));
+            if (isHolidayForClass) {
+                return StandardResponse.error(
+                        "Cannot mark attendance on a holiday (" + h.getHolidayName() + ")",
+                        "HOLIDAY",
+                        "Attendance cannot be submitted on holidays");
+            }
+        }
         for (AttendanceSubmissionRequest.StudentStatus item : request.getAttendanceList()) {
             StudentAttendance att = studentAttendanceRepository
-                    .findByStudentIdAndAttendanceDate(item.getStudentId(), request.getDate())
+                    .findByStudentIdAndAttendanceDate(item.getStudentId(), attendanceDate)
                     .orElse(new StudentAttendance());
             att.setStudentId(item.getStudentId());
-            att.setAttendanceDate(request.getDate());
+            att.setAttendanceDate(attendanceDate);
             att.setStatus(StudentAttendance.AttendanceStatus.valueOf(item.getStatus()));
             studentAttendanceRepository.save(att);
         }
