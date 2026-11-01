@@ -1103,7 +1103,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 .collect(Collectors.toSet());
 
         List<Holiday> monthHolidays = holidayRepository.findOverlappingHolidays(startDate, endDate);
-        Set<LocalDate> holidayDates = new HashSet<>();
+        Set<LocalDate> holidayDates = new HashSet<>(); Map<LocalDate, String> holidayNames = new HashMap<>();
         for (Holiday h : monthHolidays) {
             if ("ALL_SCHOOL".equals(h.getApplicableTo())
                     || (h.getSelectedClassIds() != null && h.getSelectedClassIds().contains(classId))) {
@@ -1111,14 +1111,14 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 LocalDate hEnd = h.getEndDate().isAfter(endDate) ? endDate : h.getEndDate();
                 LocalDate cur = hStart;
                 while (!cur.isAfter(hEnd)) {
-                    holidayDates.add(cur);
+                    holidayDates.add(cur); holidayNames.putIfAbsent(cur, h.getHolidayName());
                     cur = cur.plusDays(1);
                 }
             }
         }
 
         List<ClassEvent> monthEvents = classEventRepository.findEventsForMonth(year, month, startDate, endDate);
-        Set<LocalDate> eventDates = new HashSet<>();
+        Set<LocalDate> eventDates = new HashSet<>(); Map<LocalDate, String> eventNames = new HashMap<>();
         for (ClassEvent e : monthEvents) {
             boolean matches = false;
             String app = e.getApplicableTo();
@@ -1139,7 +1139,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 }
                 LocalDate cur = eStart;
                 while (!cur.isAfter(eEnd)) {
-                    eventDates.add(cur);
+                    eventDates.add(cur); eventNames.putIfAbsent(cur, e.getEventTitle());
                     cur = cur.plusDays(1);
                 }
             }
@@ -1211,8 +1211,8 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 String status = sAttendance.get(date);
                 Cell dc = row.createCell(6 + d);
 
-                boolean isWeeklyOff = weeklyOffDays.contains(date.getDayOfWeek()); boolean isHolidayDay = isWeeklyOff || holidayDates.contains(date); boolean isEventDay = eventDates.contains(date); if (isEventDay) { dailyStatus.put(d, "E"); } else if (isHolidayDay) { holidayCount++; dailyStatus.put(d, "H"); } else if (status == null) {
-                    if (isEventDay) { dc.setCellValue("E"); dc.setCellStyle(holidayStyle); } else if (isHolidayDay) { dc.setCellValue("H"); dc.setCellStyle(holidayStyle); } else { dc.setCellValue("-"); }
+                boolean isWeeklyOff = weeklyOffDays.contains(date.getDayOfWeek()); boolean isHolidayDay = isWeeklyOff || holidayDates.contains(date); boolean isEventDay = eventDates.contains(date); String repChar = getHolidayOrEventChar(isEventDay, isHolidayDay, date, eventNames, holidayNames, si); if (repChar != null) { if (isHolidayDay) holidayCount++; dailyStatus.put(d, repChar); } else if (status == null) {
+                    if (repChar != null) { dc.setCellValue(repChar); dc.setCellStyle(holidayStyle); } else { dc.setCellValue("-"); }
                     if (!isEventDay && !isHolidayDay) { dc.setCellStyle(dashStyle); }
                 } else {
                     switch (status) {
@@ -1338,7 +1338,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 .collect(Collectors.toSet());
 
         List<Holiday> monthHolidays = holidayRepository.findOverlappingHolidays(startDate, endDate);
-        Set<LocalDate> holidayDates = new HashSet<>();
+        Set<LocalDate> holidayDates = new HashSet<>(); Map<LocalDate, String> holidayNames = new HashMap<>();
         for (Holiday h : monthHolidays) {
             if ("ALL_SCHOOL".equals(h.getApplicableTo())
                     || (h.getSelectedClassIds() != null && h.getSelectedClassIds().contains(classId))) {
@@ -1346,14 +1346,14 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 LocalDate hEnd = h.getEndDate().isAfter(endDate) ? endDate : h.getEndDate();
                 LocalDate cur = hStart;
                 while (!cur.isAfter(hEnd)) {
-                    holidayDates.add(cur);
+                    holidayDates.add(cur); holidayNames.putIfAbsent(cur, h.getHolidayName());
                     cur = cur.plusDays(1);
                 }
             }
         }
 
         List<ClassEvent> monthEvents = classEventRepository.findEventsForMonth(year, month, startDate, endDate);
-        Set<LocalDate> eventDates = new HashSet<>();
+        Set<LocalDate> eventDates = new HashSet<>(); Map<LocalDate, String> eventNames = new HashMap<>();
         for (ClassEvent e : monthEvents) {
             boolean matches = false;
             String app = e.getApplicableTo();
@@ -1374,7 +1374,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 }
                 LocalDate cur = eStart;
                 while (!cur.isAfter(eEnd)) {
-                    eventDates.add(cur);
+                    eventDates.add(cur); eventNames.putIfAbsent(cur, e.getEventTitle());
                     cur = cur.plusDays(1);
                 }
             }
@@ -1395,12 +1395,14 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                     .weekend(dow == 7 || isWeeklyOff) // Sunday or Weekly Off
                     .isHoliday(isHol)
                     .isEvent(isEvt)
+                    .holidayName(holidayNames.get(date))
+                    .eventName(eventNames.get(date))
                     .build());
         }
 
         // Create Student Rows
         List<MonthlyAttendanceGridResponse.StudentRow> rows = new ArrayList<>();
-        for (Student student : students) {
+        for (int si = 0; si < students.size(); si++) { Student student = students.get(si);
             Long studentId = Long.valueOf(student.getId());
             Map<LocalDate, String> sAttendance = attendanceMap.getOrDefault(studentId, Collections.emptyMap());
 
@@ -1415,7 +1417,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
             for (int d = 1; d <= daysInMonth; d++) {
                 LocalDate date = ym.atDay(d);
                 String status = sAttendance.get(date);
-                boolean isWeeklyOff = weeklyOffDays.contains(date.getDayOfWeek()); boolean isHolidayDay = isWeeklyOff || holidayDates.contains(date); boolean isEventDay = eventDates.contains(date); if (isEventDay) { dailyStatus.put(d, "E"); } else if (isHolidayDay) { holidayCount++; dailyStatus.put(d, "H"); } else if (status == null) {
+                boolean isWeeklyOff = weeklyOffDays.contains(date.getDayOfWeek()); boolean isHolidayDay = isWeeklyOff || holidayDates.contains(date); boolean isEventDay = eventDates.contains(date); String repChar = getHolidayOrEventChar(isEventDay, isHolidayDay, date, eventNames, holidayNames, si); if (repChar != null) { if (isHolidayDay) holidayCount++; dailyStatus.put(d, repChar); } else if (status == null) {
                     dailyStatus.put(d, "-");
                 } else {
                     switch (status) {
@@ -1471,6 +1473,35 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
                 .build();
 
         return StandardResponse.success(response, "Monthly attendance grid fetched successfully");
+    }
+
+    private static String getHolidayOrEventChar(boolean isEvent, boolean isHoliday, LocalDate date,
+            Map<LocalDate, String> eventNames, Map<LocalDate, String> holidayNames, int studentIndex) {
+        if (isEvent) {
+            String title = eventNames.get(date);
+            if (title == null || title.isBlank()) title = "EVENT";
+            String clean = title.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+            if (clean.isEmpty()) clean = "E";
+            return String.valueOf(clean.charAt(studentIndex % clean.length()));
+        }
+        if (isHoliday) {
+            String name = holidayNames.get(date);
+            String nameToUse;
+            if (name != null && !name.isBlank()) {
+                nameToUse = name.trim();
+                if (nameToUse.toLowerCase().endsWith(" holiday") && nameToUse.length() > 8) {
+                    nameToUse = nameToUse.substring(0, nameToUse.length() - 8).trim();
+                } else if (nameToUse.toLowerCase().endsWith(" vacation") && nameToUse.length() > 9) {
+                    nameToUse = nameToUse.substring(0, nameToUse.length() - 9).trim();
+                }
+            } else {
+                nameToUse = date.getDayOfWeek().name();
+            }
+            String clean = nameToUse.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+            if (clean.isEmpty()) clean = "H";
+            return String.valueOf(clean.charAt(studentIndex % clean.length()));
+        }
+        return null;
     }
 }
 

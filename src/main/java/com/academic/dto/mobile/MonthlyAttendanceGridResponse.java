@@ -24,6 +24,8 @@ public class MonthlyAttendanceGridResponse {
         private boolean weekend;
         private boolean isHoliday;
         private boolean isEvent;
+        private String holidayName;
+        private String eventName;
     }
 
     @Data
