@@ -35,8 +35,8 @@ public class AcademicExamScheduleSlot extends BaseEntity {
     @Column(name = "class_id", nullable = false)
     private Long classId;
 
-    @Column(name = "section_id", nullable = false)
-    private Long sectionId;
+    @Column(name = "section_id")
+    private Long sectionId; // optional; null means applies to all sections of this class
 
     @Column(name = "subject_id", nullable = false)
     private Long subjectId;

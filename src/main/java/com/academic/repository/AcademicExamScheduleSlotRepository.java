@@ -18,6 +18,9 @@ public interface AcademicExamScheduleSlotRepository extends JpaRepository<Academ
     List<AcademicExamScheduleSlot> findByExamIdAndClassIdAndSectionIdAndIsDeletedFalseOrderByExamDateAscStartTimeAsc(
             Long examId, Long classId, Long sectionId);
 
+    List<AcademicExamScheduleSlot> findByExamIdAndClassIdAndIsDeletedFalseOrderByExamDateAscStartTimeAsc(
+            Long examId, Long classId);
+
     Optional<AcademicExamScheduleSlot> findByIdAndIsDeletedFalse(Long id);
 
     /**
@@ -26,6 +29,16 @@ public interface AcademicExamScheduleSlotRepository extends JpaRepository<Academ
     boolean existsByExamIdAndClassIdAndSectionIdAndSubjectIdAndIsDeletedFalse(
             Long examId, Long classId, Long sectionId, Long subjectId);
 
+    @Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END FROM AcademicExamScheduleSlot s " +
+            "WHERE s.isDeleted = false AND s.examId = :examId AND s.classId = :classId AND s.subjectId = :subjectId " +
+            "AND (:sectionId IS NULL OR s.sectionId IS NULL OR s.sectionId = :sectionId)")
+    boolean isSubjectScheduled(
+            @Param("examId") Long examId,
+            @Param("classId") Long classId,
+            @Param("sectionId") Long sectionId,
+            @Param("subjectId") Long subjectId
+    );
+
     Optional<AcademicExamScheduleSlot> findByExamIdAndClassIdAndSectionIdAndSubjectIdAndIsDeletedFalse(
             Long examId, Long classId, Long sectionId, Long subjectId);
 
@@ -33,7 +46,8 @@ public interface AcademicExamScheduleSlotRepository extends JpaRepository<Academ
      * Detect overlapping exams for a class & section on the same date and overlapping time interval.
      */
     @Query("SELECT s FROM AcademicExamScheduleSlot s WHERE s.isDeleted = false " +
-            "AND s.classId = :classId AND s.sectionId = :sectionId " +
+            "AND s.classId = :classId " +
+            "AND (:sectionId IS NULL OR s.sectionId IS NULL OR s.sectionId = :sectionId) " +
             "AND s.examDate = :examDate " +
             "AND (:slotId IS NULL OR s.id <> :slotId) " +
             "AND ((s.startTime < :endTime AND s.endTime > :startTime))")

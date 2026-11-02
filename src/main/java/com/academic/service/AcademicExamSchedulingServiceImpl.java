@@ -486,9 +486,14 @@ public class AcademicExamSchedulingServiceImpl implements AcademicExamScheduling
         AcademicExam exam = academicExamRepository.findByIdAndIsDeletedFalse(examId)
                 .orElseThrow(() -> new RuntimeException("Exam not found with ID: " + examId));
 
-        List<AcademicExamScheduleSlot> slots = (classId != null && sectionId != null)
-                ? scheduleSlotRepository.findByExamIdAndClassIdAndSectionIdAndIsDeletedFalseOrderByExamDateAscStartTimeAsc(examId, classId, sectionId)
-                : scheduleSlotRepository.findByExamIdAndIsDeletedFalseOrderByExamDateAscStartTimeAsc(examId);
+        List<AcademicExamScheduleSlot> slots;
+        if (classId != null && sectionId != null) {
+            slots = scheduleSlotRepository.findByExamIdAndClassIdAndSectionIdAndIsDeletedFalseOrderByExamDateAscStartTimeAsc(examId, classId, sectionId);
+        } else if (classId != null) {
+            slots = scheduleSlotRepository.findByExamIdAndClassIdAndIsDeletedFalseOrderByExamDateAscStartTimeAsc(examId, classId);
+        } else {
+            slots = scheduleSlotRepository.findByExamIdAndIsDeletedFalseOrderByExamDateAscStartTimeAsc(examId);
+        }
 
         List<ExamScheduleSlotDto> dtos = slots.stream().map(this::mapToSlotDto).collect(Collectors.toList());
         ExamScheduleResponse response = ExamScheduleResponse.builder()
@@ -517,7 +522,7 @@ public class AcademicExamSchedulingServiceImpl implements AcademicExamScheduling
 
     private ExamScheduleSlotDto mapToSlotDto(AcademicExamScheduleSlot s) {
         String clsName = getMasterName(s.getClassId().intValue());
-        String secName = getMasterName(s.getSectionId().intValue());
+        String secName = s.getSectionId() != null ? getMasterName(s.getSectionId().intValue()) : null;
         String subName = getMasterName(s.getSubjectId().intValue());
 
         return ExamScheduleSlotDto.builder()
@@ -526,7 +531,7 @@ public class AcademicExamSchedulingServiceImpl implements AcademicExamScheduling
                 .classId(s.getClassId())
                 .className(clsName != null ? clsName : String.valueOf(s.getClassId()))
                 .sectionId(s.getSectionId())
-                .sectionName(secName != null ? secName : String.valueOf(s.getSectionId()))
+                .sectionName(secName)
                 .subjectId(s.getSubjectId())
                 .subjectName(subName != null ? subName : String.valueOf(s.getSubjectId()))
                 .startTime(s.getStartTime())
@@ -556,7 +561,7 @@ public class AcademicExamSchedulingServiceImpl implements AcademicExamScheduling
 
         // Validation rule from Screen 4: "Only scheduled subjects appear for marks entry"
         boolean isScheduled = scheduleSlotRepository
-                .existsByExamIdAndClassIdAndSectionIdAndSubjectIdAndIsDeletedFalse(examId, classId, sectionId, subjectId);
+                .isSubjectScheduled(examId, classId, sectionId, subjectId);
         if (!isScheduled) {
             return StandardResponse.error(
                     "Selected subject is not scheduled for this class and section under " + exam.getExamName(),

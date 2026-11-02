@@ -26,8 +26,7 @@ public class ExamScheduleSlotDto {
     private Long classId;
     private String className; // e.g. "3rd"
 
-    @NotNull(message = "Section ID is required")
-    private Long sectionId;
+    private Long sectionId; // optional; null means applies to all sections of this class
     private String sectionName; // e.g. "A"
 
     @NotNull(message = "Subject ID is required")
