@@ -395,9 +395,30 @@ public class AcademicExamSchedulingServiceImpl implements AcademicExamScheduling
                 .orElseThrow(() -> new RuntimeException("Exam not found with ID: " + request.getExamId()));
 
         Long currentUserId = getCurrentUserId();
+
+        // Build a set of classIds configured in this exam for fast lookup
+        List<Long> allowedClassIds = exam.getClassIds();
+        if (allowedClassIds == null || allowedClassIds.isEmpty()) {
+            return StandardResponse.error(
+                    "No classes are configured for this exam. Please update the exam setup first.",
+                    "NO_CLASSES_CONFIGURED", null);
+        }
+
         List<ExamScheduleSlotDto> resultDtos = new ArrayList<>();
 
         for (ExamScheduleSlotDto dto : request.getScheduleSlots()) {
+            // Validation 0: Class must be one of the classes configured in the exam setup
+            if (!allowedClassIds.contains(dto.getClassId())) {
+                String className = getMasterName(dto.getClassId().intValue());
+                String classLabel = className != null ? className : "ID " + dto.getClassId();
+                return StandardResponse.error(
+                        "Class '" + classLabel + "' is not part of this exam. Allowed classes: "
+                                + allowedClassIds.stream()
+                                        .map(id -> { String n = getMasterName(id.intValue()); return n != null ? n : String.valueOf(id); })
+                                        .collect(Collectors.joining(", ")),
+                        "CLASS_NOT_IN_EXAM", null);
+            }
+
             // Validation 1: Schedule must be within exam start and end dates
             if (dto.getExamDate().isBefore(exam.getStartDate()) || dto.getExamDate().isAfter(exam.getEndDate())) {
                 return StandardResponse.error(
