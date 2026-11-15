@@ -8,6 +8,7 @@ import java.util.List;
 @Builder
 public class TeacherDashboardResponse {
     private String teacherName;
+    private Long teacherId;
     private String profilePicUrl;
     private String date;
     private PunchStatusResponse punchStatus;

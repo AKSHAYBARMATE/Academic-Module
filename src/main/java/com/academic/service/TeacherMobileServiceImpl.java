@@ -114,6 +114,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
         // Resolve teacher name directly from the Staff table using the teacher ID,
         // so it is always available even when no punch log exists for today.
         String teacherFullName = "Unknown";
+
         if (teacherId != null) {
             Staff staffEntity = staffRepository.findByIsDeletedAndId(false, teacherId);
             if (staffEntity != null) {
@@ -123,6 +124,7 @@ public class TeacherMobileServiceImpl implements TeacherMobileService {
 
         return StandardResponse.success(TeacherDashboardResponse.builder()
                 .teacherName(teacherFullName)
+                        .teacherId(teacherId)
                 .date(today.format(DateTimeFormatter.ofPattern("EEEE, MMM dd")))
                 .punchStatus(punchStatus)
                 .summary(TeacherDashboardResponse.DailySummaryResponse.builder()
